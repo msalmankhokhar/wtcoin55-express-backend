@@ -4,7 +4,7 @@ require("dotenv").config();
 let _configs = {
 
     MONGO_URI: process.env.MONGO_URI,
-    PORT: process.env.PORT,
+    PORT: process.env.PORT || 5000,
     SERVER_URL: process.env.SERVER_URL,
     // WEB_BASE_URL: process.env.WEB_BASE_URL,
     // APP_NAME: process.env.APP_NAME,

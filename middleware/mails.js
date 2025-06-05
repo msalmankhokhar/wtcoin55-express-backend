@@ -189,9 +189,8 @@ class Mail {
     //     });
     // }
 
-    async sendResetPassOTP({ name, email, otp }) {
+    async sendResetPassOTP({ email, otp }) {
         let data = {
-            name: name,
             otp: otp
         };
 
@@ -203,7 +202,7 @@ class Mail {
             },
             subject: 'Password Reset',
             html: await this.renderTemplateString(`
-                <p>Dear {{name}},</p>
+                <p>Dear User,</p>
                 <p>Your OTP for your password reset is: <strong>{{otp}}</strong></p>
                 <p>This OTP will expire in 5 minutes.</p>
                 <p>If you didn't request this, please ignore this email.</p>
@@ -227,16 +226,14 @@ class Mail {
 
     /**
      * Send login warning email
-     * @param {string} name 
      * @param {string} email 
      * @param {string} ipAddress 
      * @param {string} loginTime
      * @param {string} location
      * @returns {Promise<string>}
      */
-    async loginWarning({ name, email, ipAddress, loginTime, location }) {
+    async loginWarning({ email, ipAddress, loginTime, location }) {
         let data = {
-            name: name,
             email: email,
             ipAddress: ipAddress,
             loginTime: loginTime,

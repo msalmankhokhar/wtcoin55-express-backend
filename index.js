@@ -48,11 +48,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Sample route
+const authRoutes = require('./routes/auth');
 
 app.get("/", (req, res) => {
   res.send("Hello, Express.js!");
 });
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api/auth', authRoutes);
 
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })

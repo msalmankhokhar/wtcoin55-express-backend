@@ -13,6 +13,7 @@ const UsersSchema = new mongoose.Schema({
         },
         unique: true
     },
+    // totalBalance: { type: Number, default: 0 },
     emailVerified: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     lastLogin: {type: Date, required: false},
