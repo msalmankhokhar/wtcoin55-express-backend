@@ -1,0 +1,220 @@
+const crypto = require('crypto');
+const axios = require('axios');
+
+
+/**
+ * Ccpayment API Client Class
+ * Handles deposit and withdrawal operations with Cccpayment exchange
+ */
+class CcPayment {
+    /**
+     * Initialize Cccpayment API client
+     * @param {string} appSecret - Ccpayment API secret key
+     * @param {string} appId - Ccpayment API identifier
+     * @param {string} baseURL - Ccpayment API base URL (default: https://ccpayment.com/ccpayment/v2)
+     */
+    constructor(appSecret, appID, baseURL) {
+        this.appSecret = appSecret;
+        this.appId = appId;
+        this.baseURL = baseURL;
+    }
+
+    /**
+     * Generate a signature for the request
+     * @param {Object} params - Request parameters
+     * @returns {string} - Generated signature
+     */
+    generateSignature(params) {
+        const sortedKeys = Object.keys(params).sort();
+        const sortedParams = sortedKeys.map(key => `${key}=${params[key]}`).join('&');
+        return crypto.createHmac('sha256', this.appSecret).update(sortedParams).digest('hex');
+    }
+
+    /**
+    * Makes a request to CCPayment API with the given path and args
+    * @param {string} path - API endpoint path
+    * @param {object|string} args - Request body arguments
+    * @param {number} retryCount - Number of retry attempts for timeout errors
+    * @returns {Promise<string>} - Resolves with API response
+    */
+    makeRequest(path, args = "", retryCount = 3) {
+        return new Promise((resolve, reject) => {
+            const timestamp = Math.floor(Date.now() / 1000);
+            let signText = appId + timestamp;
+            if (args) {
+                signText += args;
+            }
+
+            const sign = crypto
+                .createHmac("sha256", appSecret)
+                .update(signText)
+                .digest("hex");
+
+            const options = {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Appid": appId,
+                    "Sign": sign,
+                    "Timestamp": timestamp.toString(),
+                },
+                timeout: 15000,
+            };
+
+            const req = https.request(path, options, (res) => {
+                let respData = "";
+
+                res.on("data", (chunk) => {
+                    respData += chunk;
+                });
+
+                res.on("end", () => {
+                    resolve(respData);
+                });
+            });
+
+            req.on("error", (err) => {
+                if (isTimeoutError(err) && retryCount > 0) {
+                    setTimeout(() => {
+                        resolve(makeRequest(path, args, retryCount - 1));
+                    }, 200);
+                } else {
+                    reject(err);
+                }
+            });
+
+            req.write(args);
+            req.end();
+        });
+    }
+
+    /**
+     * Function to check if a withdrawal address is valid for a given chain
+     * @param {string} chain - Blockchain network (e.g. "POLYGON")
+     * @param {string} address - Wallet address to validate
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    checkWithdrawalAddressValidity(chain, address) {
+        const args = JSON.stringify({
+            chain: chain,
+            address: address
+        });
+        return makeRequest("https://ccpayment.com/ccpayment/v2/checkWithdrawalAddressValidity", args);
+    }
+
+    /**
+     * Function to get or create an app deposit address from CCPayment API
+     * @param {string} chain - Blockchain network (e.g. "POLYGON")
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getOrCreateAppDepositAddress(chain, referenceId) {
+        const args = JSON.stringify({
+            referenceId: referenceId,
+            chain: chain
+        });
+        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getOrCreateAppDepositAddress", args);
+        return res;
+    }
+
+    /**
+     * Function to get app deposit record from CCPayment API
+     * @param {string} recordId - ID of the deposit record to retrieve
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getAppDepositRecord(recordId) {
+        const args = JSON.stringify({
+            recordId: recordId,
+        });
+        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecord", args);
+        return res;
+    }
+
+    /**
+     * Function to get app deposit record list from CCPayment API
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getAppDepositRecordList() {
+        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecordList");
+        return res;
+    }
+
+
+    /**
+     * Function to apply for app withdrawal to network
+     * @param {object} withdrawalDetails - Withdrawal details including coinId, address, amount, etc
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async applyAppWithdrawToNetwork(withdrawalDetails) {
+        const args = JSON.stringify({
+            coinId: withdrawalDetails.coinId,
+            address: withdrawalDetails.address,
+            orderId: withdrawalDetails.orderId,
+            chain: withdrawalDetails.chain,
+            amount: withdrawalDetails.amount,
+            merchantPayNetworkFee: withdrawalDetails.merchantPayNetworkFee,
+            memo: withdrawalDetails.memo
+        });
+        return await makeRequest("https://ccpayment.com/ccpayment/v2/applyAppWithdrawToNetwork", args);
+    }
+
+    /**
+     * Function to get withdrawal record details
+     * @param {string} orderId - Order ID of the withdrawal
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getWithdrawRecord(orderId) {
+        const args = JSON.stringify({ orderId });
+        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppWithdrawRecord", args)
+            .then((response) => {
+                return response;
+            })
+            .catch((error) => {
+                console.error("Error querying withdrawal record:", error);
+                throw error;
+            });
+        return res;
+    }
+
+    /**
+     * Function to fetch coin list from CCPayment API
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getCoinList() {
+        return await makeRequest("https://ccpayment.com/ccpayment/v2/getCoinList");
+    }
+
+    /**
+     * Function to get chain list from CCPayment API
+     * @param {string[]} chains - Array of chain names (e.g. ["ETH", "POLYGON"])
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getChainList(chains) {
+        const args = JSON.stringify({
+            chains: chains
+        });
+        return makeRequest("https://ccpayment.com/ccpayment/v2/getChainList", args);
+    }
+
+    /**
+     * Function to get app coin asset list from CCPayment API
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getAppCoinAssetList() {
+        return makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAssetList");
+    }
+
+    /**
+     * Function to get app coin asset details from CCPayment API
+     * @param {number} coinId - ID of the coin to get details for
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async getAppCoinAsset(coinId) {
+        const args = JSON.stringify({
+            coinId: coinId
+        });
+        return makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAsset", args);
+    }
+};
+
+
+module.exports = CcPayment;

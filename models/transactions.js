@@ -6,11 +6,6 @@ let transactionSchema = new mongoose.Schema({
             ref: 'User',
             required: true
      },
-     reference: {
-          type: String,
-          required: true,
-          unique: true // Ensure references are unique
-     },
      type: {
           type: String,
           enum: ['deposit', 'withdrawal', 'internal_transfer', 'wallet_transfer'],
@@ -22,6 +17,13 @@ let transactionSchema = new mongoose.Schema({
         default: 'pending',
         required: true
      },
+
+     // Ccpayment
+     coinId: { type: Number, required: true },
+     address: { type: String, required: true },
+     chain: { type: String, required: true },
+     memo: { type: String, default: '' },
+     orderId: { type: String, required: true, unique: true },
      
      // Financial Information
      amount: {
@@ -31,7 +33,7 @@ let transactionSchema = new mongoose.Schema({
      },
      currency: {
           type: String,
-          required: true,
+          required: false,
           uppercase: true
      },
      fee: {
@@ -39,19 +41,14 @@ let transactionSchema = new mongoose.Schema({
           default: 0,
           min: 0
      },
-     netAmount: {
-          type: Number,
-          required: true,
-          min: 0
-     },
-     
+
      // Transaction Details
-     address: {
-          type: String,
-          required: function() {
-               return this.type === 'deposit' || this.type === 'withdrawal';
-          }
-     },
+     // address: {
+     //      type: String,
+     //      required: function() {
+     //           return this.type === 'deposit' || this.type === 'withdrawal';
+     //      }
+     // },
      addressMemo: {
           type: String,
           default: ''
