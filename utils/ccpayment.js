@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const axios = require('axios');
+const https = require('https');
 
 
 /**
@@ -37,16 +37,16 @@ class CcPayment {
     * @param {number} retryCount - Number of retry attempts for timeout errors
     * @returns {Promise<string>} - Resolves with API response
     */
-    makeRequest(path, args = "", retryCount = 3) {
+    _makeRequest(path, args = "", retryCount = 3) {
         return new Promise((resolve, reject) => {
             const timestamp = Math.floor(Date.now() / 1000);
-            let signText = appId + timestamp;
+            let signText = this.appId + timestamp;
             if (args) {
                 signText += args;
             }
 
             const sign = crypto
-                .createHmac("sha256", appSecret)
+                .createHmac("sha256", this.appSecret)
                 .update(signText)
                 .digest("hex");
 
@@ -54,7 +54,7 @@ class CcPayment {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Appid": appId,
+                    "Appid": this.appId,
                     "Sign": sign,
                     "Timestamp": timestamp.toString(),
                 },
@@ -76,7 +76,7 @@ class CcPayment {
             req.on("error", (err) => {
                 if (isTimeoutError(err) && retryCount > 0) {
                     setTimeout(() => {
-                        resolve(makeRequest(path, args, retryCount - 1));
+                        resolve(this._makeRequest(path, args, retryCount - 1));
                     }, 200);
                 } else {
                     reject(err);
@@ -99,7 +99,7 @@ class CcPayment {
             chain: chain,
             address: address
         });
-        return makeRequest("https://ccpayment.com/ccpayment/v2/checkWithdrawalAddressValidity", args);
+        return this._makeRequest("https://ccpayment.com/ccpayment/v2/checkWithdrawalAddressValidity", args);
     }
 
     /**
@@ -112,7 +112,7 @@ class CcPayment {
             referenceId: referenceId,
             chain: chain
         });
-        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getOrCreateAppDepositAddress", args);
+        const res = await this._makeRequest("https://ccpayment.com/ccpayment/v2/getOrCreateAppDepositAddress", args);
         return res;
     }
 
@@ -125,7 +125,7 @@ class CcPayment {
         const args = JSON.stringify({
             recordId: recordId,
         });
-        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecord", args);
+        const res = await this._makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecord", args);
         return res;
     }
 
@@ -134,7 +134,7 @@ class CcPayment {
      * @returns {Promise<string>} - Resolves with API response
      */
     async getAppDepositRecordList() {
-        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecordList");
+        const res = await this._makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecordList");
         return res;
     }
 
@@ -154,7 +154,7 @@ class CcPayment {
             merchantPayNetworkFee: withdrawalDetails.merchantPayNetworkFee,
             memo: withdrawalDetails.memo
         });
-        return await makeRequest("https://ccpayment.com/ccpayment/v2/applyAppWithdrawToNetwork", args);
+        return await this._makeRequest("https://ccpayment.com/ccpayment/v2/applyAppWithdrawToNetwork", args);
     }
 
     /**
@@ -164,7 +164,7 @@ class CcPayment {
      */
     async getWithdrawRecord(orderId) {
         const args = JSON.stringify({ orderId });
-        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppWithdrawRecord", args)
+        const res = await this._makeRequest("https://ccpayment.com/ccpayment/v2/getAppWithdrawRecord", args)
             .then((response) => {
                 return response;
             })
@@ -180,7 +180,7 @@ class CcPayment {
      * @returns {Promise<string>} - Resolves with API response
      */
     async getCoinList() {
-        return await makeRequest("https://ccpayment.com/ccpayment/v2/getCoinList");
+        return await this._makeRequest("https://ccpayment.com/ccpayment/v2/getCoinList");
     }
 
     /**
@@ -192,7 +192,7 @@ class CcPayment {
         const args = JSON.stringify({
             chains: chains
         });
-        return makeRequest("https://ccpayment.com/ccpayment/v2/getChainList", args);
+        return this._makeRequest("https://ccpayment.com/ccpayment/v2/getChainList", args);
     }
 
     /**
@@ -200,7 +200,7 @@ class CcPayment {
      * @returns {Promise<string>} - Resolves with API response
      */
     async getAppCoinAssetList() {
-        return makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAssetList");
+        return this._makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAssetList");
     }
 
     /**
@@ -212,7 +212,7 @@ class CcPayment {
         const args = JSON.stringify({
             coinId: coinId
         });
-        return makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAsset", args);
+        return this._makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAsset", args);
     }
 };
 

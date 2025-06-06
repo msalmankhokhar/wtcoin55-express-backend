@@ -7,10 +7,19 @@ const { FuturesBalance } = require('../models/futures-balance');
 const { Transactions } = require('../models/transactions');
 const crypto = require('crypto');
 
+const appSecret = process.env.CCPAYMENT_APP_SECRET;
+const appId = process.env.CCPAYMENT_APP_ID;
+const baseUrl = process.env.CCPAYMENT_BASE_URL || "https://ccpayment.com/ccpayment/v2";
+
+console.log("CCPayment Config:", {
+    appSecret: appSecret ? '***' : 'Not Set',
+    appId: appId ? '***' : 'Not Set',
+    baseUrl: baseUrl ? baseUrl : 'Not Set'
+});
 const ccpayment = new Ccpayment(
-    process.env.CCPAYMENT_APP_SECRET,
-    process.env.CCPAYMENT_APP_ID,
-    process.env.CCPAYMENT_BASE_URL || 'https://ccpayment.com/ccpayment/v2'
+    appSecret,
+    appId,
+    baseUrl
 );
 
 // Route handler for getting coin list

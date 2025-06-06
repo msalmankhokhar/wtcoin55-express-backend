@@ -15,6 +15,8 @@ console.log(typeof getCoinListHandler); // should be 'function'
  * /api/ccpayment/coins:
  *   get:
  *     summary: Retrieve supported coin list from CCPayment
+ *     security:
+ *       - quantumAccessToken: []
  *     tags: [Ccpayment]
  *     responses:
  *       200:
@@ -31,6 +33,8 @@ router.get('/coins', tokenRequired, getCoinListHandler);
  *   post:
  *     summary: Get or create a deposit address for a specific coin
  *     tags: [Ccpayment]
+ *     security:
+ *       - quantumAccessToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -58,6 +62,8 @@ router.post('/deposit-address', tokenRequired, getOrCreateAppDepositAddressHandl
  *   post:
  *     summary: Retrieve supported chain list for specific coins
  *     tags: [Ccpayment]
+ *     security:
+ *       - quantumAccessToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -85,6 +91,8 @@ router.post('/chains', tokenRequired, getChainListHandler);
  *   get:
  *     summary: Get the list of coin assets in the app
  *     tags: [Ccpayment]
+ *     security:
+ *       - quantumAccessToken: []
  *     responses:
  *       200:
  *         description: Asset list retrieved
@@ -100,6 +108,8 @@ router.get('/assets', tokenRequired, getAppCoinAssetListHandler);
  *   post:
  *     summary: Get specific app coin asset details
  *     tags: [Ccpayment]
+ *     security:
+ *       - quantumAccessToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -125,6 +135,8 @@ router.post('/asset', tokenRequired, getAppCoinAssetHandler);
  *   get:
  *     summary: Get a list of deposit records
  *     tags: [Ccpayment]
+ *     security:
+ *       - quantumAccessToken: []
  *     responses:
  *       200:
  *         description: Deposit records retrieved
@@ -141,7 +153,7 @@ router.get('/deposit-records', tokenRequired, getAppDepositRecordListHandler);
  *     summary: Apply for a crypto withdrawal to network
  *     tags: [Ccpayment]
  *     security:
- *       - bearerAuth: []
+ *       - quantumAccessToken: []
  *     requestBody:
  *       required: true
  *       content:
@@ -182,7 +194,7 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  *     summary: Withdraw from main balance to either spot or futures wallet
  *     tags: [Ccpayment]
  *     security:
- *       - bearerAuth: []
+ *       - quantumAccessToken: []
  *     requestBody:
  *       required: true
  *       content:

@@ -1,5 +1,5 @@
 // importing the required modules
-const { User } = require("../models/users.js");
+const { Users } = require("../models/users.js");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 // import speakeasy from 'speakeasy';
@@ -9,7 +9,8 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 exports.tokenRequired = async (req, res, next) => {
-     if (!req.headers.fluxelaccesstoken) {
+     if (!req.headers.quantumaccesstoken) {
+          // console.log(req.headers);
           return res.status(401).json({
                status: false,
                message: "You've got some errors.",
@@ -18,12 +19,12 @@ exports.tokenRequired = async (req, res, next) => {
      }
 
      try {
-          const token = req.headers.elentisaccesstoken;
+          const token = req.headers.quantumaccesstoken;
           const decodedToken = jwt.verify(token, process.env.SECRET_KEY, {
                algorithms: "HS256"
           });
 
-          const user = await User.findOne({
+          const user = await Users.findOne({
                _id: decodedToken._id,
           });
           if (!user) {
@@ -39,7 +40,7 @@ exports.tokenRequired = async (req, res, next) => {
 
           next();
      } catch (error) {
-          logger.error('Token validation failed', { error: error.message });
+          console.error('Token validation failed', { error: error.message });
           return res.status(401).json({
                status: false,
                message: "You've got some errors.",
