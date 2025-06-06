@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 
 const UsersSchema = new mongoose.Schema({
-    emailOrPhone: { type: String, required: false, unique: true },
+    email: { type: String, required: false, unique: true },
     password: { type: String, required: true },
     phonenumber: { type: String, required: false, unique: true },
     referBy: { type: String, default: false },

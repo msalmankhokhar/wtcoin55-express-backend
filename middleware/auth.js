@@ -8,7 +8,7 @@ const dotenv = require("dotenv");
 // Load environment variables
 dotenv.config();
 
-const tokenRequired = async (req, res, next) => {
+exports.tokenRequired = async (req, res, next) => {
      if (!req.headers.fluxelaccesstoken) {
           return res.status(401).json({
                status: false,
@@ -47,6 +47,3 @@ const tokenRequired = async (req, res, next) => {
           });
      }
 };
-
-
-module.exports = { tokenRequired };

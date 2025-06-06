@@ -247,7 +247,7 @@ class Mail {
                 address: this.admin,
             },
             subject: 'Login Warning',
-            html: await this.renderTemplateString(this.loginWarning, data),
+            html: await this.renderTemplate(this.loginWarning, data),
         };
 
         return new Promise((resolve, reject) => {

@@ -1,5 +1,5 @@
 let express = require('express');
-const { getAppCoinListHandler, getOrCreateAppDepositAddressHandler, getChainListHandler, 
+const { getCoinListHandler, getOrCreateAppDepositAddressHandler, getChainListHandler, 
     getAppCoinAssetListHandler, getAppCoinAssetHandler, getAppDepositRecordListHandler, 
     applyAppWithdrawToNetworkHandler, withdrawToDerivativeWalletHandler } = require('../controllers/ccpayment');
 
@@ -7,19 +7,22 @@ const { tokenRequired } = require('../middleware/auth');
 
 let router = express.Router();
 
+console.log(typeof tokenRequired); // should be 'function'
+console.log(typeof getCoinListHandler); // should be 'function'
+
 /**
  * @swagger
  * /api/ccpayment/coins:
  *   get:
  *     summary: Retrieve supported coin list from CCPayment
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     responses:
  *       200:
  *         description: List of supported coins
  *       500:
  *         description: Server error
  */
-router.get('/coins', tokenRequired, getAppCoinListHandler);
+router.get('/coins', tokenRequired, getCoinListHandler);
 
 
 /**
@@ -27,7 +30,7 @@ router.get('/coins', tokenRequired, getAppCoinListHandler);
  * /api/ccpayment/deposit-address:
  *   post:
  *     summary: Get or create a deposit address for a specific coin
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     requestBody:
  *       required: true
  *       content:
@@ -54,7 +57,7 @@ router.post('/deposit-address', tokenRequired, getOrCreateAppDepositAddressHandl
  * /api/ccpayment/chains:
  *   post:
  *     summary: Retrieve supported chain list for specific coins
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     requestBody:
  *       required: true
  *       content:
@@ -81,7 +84,7 @@ router.post('/chains', tokenRequired, getChainListHandler);
  * /api/ccpayment/assets:
  *   get:
  *     summary: Get the list of coin assets in the app
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     responses:
  *       200:
  *         description: Asset list retrieved
@@ -96,7 +99,7 @@ router.get('/assets', tokenRequired, getAppCoinAssetListHandler);
  * /api/ccpayment/asset:
  *   post:
  *     summary: Get specific app coin asset details
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     requestBody:
  *       required: true
  *       content:
@@ -121,7 +124,7 @@ router.post('/asset', tokenRequired, getAppCoinAssetHandler);
  * /api/ccpayment/deposit-records:
  *   get:
  *     summary: Get a list of deposit records
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     responses:
  *       200:
  *         description: Deposit records retrieved
@@ -136,7 +139,7 @@ router.get('/deposit-records', tokenRequired, getAppDepositRecordListHandler);
  * /api/ccpayment/withdraw:
  *   post:
  *     summary: Apply for a crypto withdrawal to network
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -177,7 +180,7 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  * /api/ccpayment/withdraw/trading:
  *   post:
  *     summary: Withdraw from main balance to either spot or futures wallet
- *     tags: [Crypto]
+ *     tags: [Ccpayment]
  *     security:
  *       - bearerAuth: []
  *     requestBody:

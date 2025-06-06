@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode } = require('../utils/helpers');
 const { validationResult } = require('express-validator');
 const { Mail } = require('../middleware/mails');
+const requestIp = require('request-ip');
+const axios = require('axios');
 require('dotenv').config();
 
 const mail = new Mail();
@@ -26,6 +28,8 @@ const Signup = async (req, res) => {
             return res.status(400).json({ message: 'Email or phone number is required' });
         } 
         lowerCaseEmailOrPhone = email ? email.toLowerCase().trim() : phonenumber.toLowerCase().trim();
+        console.log('LowerCase Email or Phone: ', lowerCaseEmailOrPhone);
+
         const [verificationStatus, verificationResponse] = await validateVerificationCode(lowerCaseEmailOrPhone, verificationCode);
 
         if (!verificationStatus) {
@@ -203,24 +207,27 @@ const loginUser = async (req, res) => {
                 const geo = response.data;
         
                 const location = `${geo.city}, ${geo.regionName}, ${geo.country}`;
+                
+                console.log('IP Address:', ipAddress);
+                console.log('Geolocation:', location);
         
                 // Send warning email
-                mail.loginWarning({ 
-                    email: user.email,
-                    ipAddress,
-                    loginTime: new Date(),
-                    location
-                });
+                // mail.loginWarning({ 
+                //     email: user.email,
+                //     ipAddress,
+                //     loginTime: new Date(),
+                //     location
+                // });
             } catch (err) {
                 console.error('Failed to get geolocation:', err.message);
         
                 // Fallback email with "Unknown location"
-                mail.loginWarning({ 
-                    email: user.email,
-                    ipAddress,
-                    loginTime: new Date(),
-                    location: 'Unknown'
-                });
+                // mail.loginWarning({ 
+                //     email: user.email,
+                //     ipAddress,
+                //     loginTime: new Date(),
+                //     location: 'Unknown'
+                // });
             }
         }
 

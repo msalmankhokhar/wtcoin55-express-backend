@@ -13,7 +13,7 @@ class CcPayment {
      * @param {string} appId - Ccpayment API identifier
      * @param {string} baseURL - Ccpayment API base URL (default: https://ccpayment.com/ccpayment/v2)
      */
-    constructor(appSecret, appID, baseURL) {
+    constructor(appSecret, appId, baseURL) {
         this.appSecret = appSecret;
         this.appId = appId;
         this.baseURL = baseURL;
