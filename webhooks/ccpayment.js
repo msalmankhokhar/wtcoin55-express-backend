@@ -114,29 +114,40 @@ async function handleDepositWebhook(req, res) {
 async function handleWithdrawWebhook(req, res) {
     try {
 
-        // console.log("------------------")
-        // console.log(req.body)
-        // console.log("------------------")
+        console.log("------------------")
+        console.log(req.body)
+        console.log("------------------")
 
+        const appId = process.env.CCPAYMENT_APP_ID;
+        const appSecret = process.env.CCPAYMENT_APP_SECRET;
 
-        // {
-        //        type: 'ApiWithdrawal',
-        //        msg: {
-        //          recordId: '20250331161641258456955022073856w',
-        //          orderId: '67cb9f1bef18eee65e757818da09c047-f03e-430e-909c-4ac093e59600',
-        //          coinId: 1280,
-        //          coinSymbol: 'USDT',
-        //          status: 'Success'
-        //        }
-        //      }
+        const requestAppId = req.header('Appid');
+        const requestSign = req.header('Sign');
+        const requestTimestamp = req.header('Timestamp');
 
-        if(req?.body?.type === "ApiWithdrawal" && req?.body?.msg?.status === "Success"){
-            const result = await Transactions.findOneAndUpdate({
-                orderId: req.body.msg.orderId
-            },{status:"successful"})
+        // Validate AppId
+        if (requestAppId !== appId) {
+            return res.status(401).json({ error: "Invalid AppId" });
+        }
 
-            console.log("---- result",result)
-            
+        // Validate timestamp (within 5 minutes)
+        const timestamp = parseInt(requestTimestamp, 10);
+        if (isNaN(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) {
+            return res.status(401).json({ error: "Invalid or expired timestamp" });
+        }
+
+        // Generate signature and verify
+        let signText = `${requestAppId}${timestamp}`;
+        if (Object.keys(req.body).length > 0) {
+            signText += JSON.stringify(req.body);
+        }
+
+        const hmac = crypto.createHmac('sha256', appSecret);
+        hmac.update(signText);
+        const expectedSign = hmac.digest('hex');
+
+        if (requestSign !== expectedSign) {
+            return res.status(401).json({ error: "Invalid signature" });
         }
 
         // Respond to the webhook

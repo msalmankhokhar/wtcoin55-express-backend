@@ -223,8 +223,14 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  */
 router.post('/withdraw/trading', tokenRequired, withdrawToDerivativeWalletHandler);
 
+router.get('/webhook/deposit', function(req, res) {
+    res.status(200).json({ msg: "Webhook endpoint for deposit is active" });
+});
+router.get('/webhook/withdrawal', function(req, res) {
+    res.status(200).json({ msg: "Webhook endpoint for withdrawal is active" });
+});
 
-router.post('/webhook/deposit', tokenRequired, depositWebhookHandler);
-router.post('/webhook/withdrawal', tokenRequired, withdrawWebhookHandler);
+router.post('/webhook/deposit', depositWebhookHandler);
+router.post('/webhook/withdrawal', withdrawWebhookHandler);
 
 module.exports = router;
