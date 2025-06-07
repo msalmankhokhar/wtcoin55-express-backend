@@ -61,7 +61,7 @@ async function handleDepositWebhook(req, res) {
         // console.log(req.body);
         console.log("------------------")
 
-        if (req.body.type !== "ActivateWebhookURL") {
+        if (req.body.type === "ActivateWebhookURL") {
             return res.status(200).json({ msg: "successully connected" });
         }
 
