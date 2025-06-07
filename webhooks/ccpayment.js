@@ -33,10 +33,10 @@ async function handleDepositWebhook(req, res) {
         }
 
         // Generate signature and verify
-        let signText = `${requestAppId}${timestamp}`;
-        if (Object.keys(req.rawBody).length > 0) {
-            signText += JSON.stringify(req.rawBody);
-        }
+        // let signText = `${requestAppId}${timestamp}`;
+        // if (Object.keys(req.rawBody).length > 0) {
+        //     signText += JSON.stringify(req.rawBody);
+        // }
 
         const hmac = crypto.createHmac('sha256', appSecret);
         hmac.update(signText);
@@ -144,10 +144,10 @@ async function handleWithdrawWebhook(req, res) {
         }
 
         // Generate signature and verify
-        let signText = `${requestAppId}${timestamp}`;
-        if (Object.keys(req.rawBody).length > 0) {
-            signText += JSON.stringify(req.rawBody);
-        }
+        // let signText = `${requestAppId}${timestamp}`;
+        // if (Object.keys(req.rawBody).length > 0) {
+        //     signText += JSON.stringify(req.rawBody);
+        // }
 
         const hmac = crypto.createHmac('sha256', appSecret);
         hmac.update(signText);
