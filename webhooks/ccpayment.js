@@ -13,13 +13,13 @@ async function handleDepositWebhook(req, res) {
     try {
         console.log("CCPayment Deposit Webhook received");
         console.log("------------------");
-        console.log(req.headers);
+        // console.log(req.headers);
         const appId = process.env.CCPAYMENT_APP_ID;
         const appSecret = process.env.CCPAYMENT_APP_SECRET;
 
-        const requestAppId = req.header('Appid');
-        const requestSign = req.header('Sign');
-        const requestTimestamp = req.header('Timestamp');
+        const requestAppId = req.header('appid');
+        const requestSign = req.header('sign');
+        const requestTimestamp = req.header('timestamp');
 
         // Validate AppId
         if (requestAppId !== appId) {
