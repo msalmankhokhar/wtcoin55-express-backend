@@ -5,6 +5,7 @@ const { MainBalance } = require('../models/balance');
 const { SpotBalance } = require('../models/spot-balance');
 const { FuturesBalance } = require('../models/futures-balance');
 const { Transactions } = require('../models/transactions');
+const { handleDepositWebhook, handleWithdrawWebhook } = require('../webhooks/ccpayment');
 const crypto = require('crypto');
 
 const appSecret = process.env.CCPAYMENT_APP_SECRET;
@@ -28,22 +29,6 @@ async function getCoinListHandler(req, res) {
         const coinList = await ccpayment.getCoinList();
         // console.log(coinList);
         res.json({ success: true, data: JSON.parse(coinList) });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-};
-
-
-// Route handler for getting app deposit address
-async function getOrCreateAppDepositAddressHandler(req, res) {
-    try {
-        const { coinId } = req.body;
-        const referecneId = req.user._id;
-        if (!coinId || !referecneId) {
-            return res.status(400).json({ success: false, error: 'coinId and cwalletUser are required' });
-        }
-        const address = await ccpayment.getOrCreateAppDepositAddress(coinId, referecneId);
-        res.json({ success: true, data: JSON.parse(address) });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -108,6 +93,7 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
             const { address, memo } = data;
             try {
                 // Save the new address to the database
+                console.log(data);
                 const newAddress = new Address({
                     user: user._id,
                     chain: chain,
@@ -195,17 +181,6 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
             });
 
             await withdrawalHistory.save();
-
-            // const notifications = [
-            //     { user: user, content: `${amount} ${chain} withdrawal to ${address} was successful`, type: 'CRYPTO_WITHDRAWAL' },
-            // ];
-
-            // const notification_object = await addNotifications(notifications);
-            // if (notification_object) {
-            //     console.log("Notifications added successfully:", notification_object);
-            // } else {
-            //     console.error("Failed to add notifications.");
-            // }
 
             return res.status(200).json({
                 status: true,
@@ -342,14 +317,24 @@ async function withdrawToDerivativeWalletHandler(req, res){
     }
 };
 
+// Handle webhooks
+async function depositWebhookHandler(req, res){
+    return await handleDepositWebhook(req, res);
+}
+
+async function withdrawWebhookHandler(req, res) {
+    return await handleWithdrawWebhook(req, res);
+}
+
 module.exports = {
     getCoinListHandler,
-    getOrCreateAppDepositAddressHandler,
     getChainListHandler,
     getAppCoinAssetListHandler,
     getAppCoinAssetHandler,
     getOrCreateAppDepositAddressHandler,
     getAppDepositRecordListHandler,
     applyAppWithdrawToNetworkHandler,
-    withdrawToDerivativeWalletHandler
+    withdrawToDerivativeWalletHandler, 
+    depositWebhookHandler, 
+    withdrawWebhookHandler
 };

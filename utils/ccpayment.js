@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const https = require('https');
+const { Transactions } = require('../models/transactions');
+const { MainBalance } = require('../models/balance');
 
 
 /**
@@ -107,10 +109,11 @@ class CcPayment {
      * @param {string} chain - Blockchain network (e.g. "POLYGON")
      * @returns {Promise<string>} - Resolves with API response
      */
-    async getOrCreateAppDepositAddress(chain, referenceId) {
+    async getOrCreateAppDepositAddress(coinId, referenceId) {
+        console.log(coinId)
         const args = JSON.stringify({
             referenceId: referenceId,
-            chain: chain
+            chain: coinId,
         });
         const res = await this._makeRequest("https://ccpayment.com/ccpayment/v2/getOrCreateAppDepositAddress", args);
         return res;
@@ -213,6 +216,75 @@ class CcPayment {
             coinId: coinId
         });
         return this._makeRequest("https://ccpayment.com/ccpayment/v2/getAppCoinAsset", args);
+    }
+
+    /**
+     * Function to get app deposit record from CCPayment API
+     * @param {string} recordId - ID of the deposit record to retrieve
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async  getAppDepositRecord(recordId) {
+        const args = JSON.stringify({
+            recordId: recordId,
+        });
+        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecord", args);
+        return res;
+    }
+
+    /**
+     * Extract the first 24 characters from a given string.
+     * @param {String} str - The input string containing MongoDB ID and UUID.
+     * @returns {String} - The first 24 characters (MongoDB ID).
+     */
+    extractMongoId(str) {
+        if (typeof str !== 'string' || str.length < 24) {
+            throw new Error("Invalid input string");
+        }
+        return str.substring(0, 24);
+    }
+
+    /**
+     * Update the balance for a user and coin.
+     * @param {ObjectId} userId - The user's ID.
+     * @param {Number} coinId - The coin's ID.
+     * @param {String} coinName - The coin's name.
+     * @param {Number} amount - The amount to add or subtract from the balance.
+     * @param {String} logoUrl - The URL of the coin's logo.
+     * @param {String} recordId - The record ID of the transaction.
+     * @returns {Promise<Object>} - The updated balance document.
+     */
+    async updateBalance(userId, coinId, coinName, amount, recordId, logoUrl) {
+        try {
+            // Check if the transaction history already exists
+            const existingHistory = await Transactions.findOne({ user: userId, recordId });
+
+            if (existingHistory) {
+                // console.log("Transaction already processed for this record.");
+                return false; // Return false if the transaction has already been processed
+            }
+
+            // Update the balance
+            const balance = await MainBalance.findOneAndUpdate(
+                { user: userId, coinId: coinId },
+                { $inc: { balance: amount }, coinName: coinName, updatedAt: new Date(), logoUrl: logoUrl },
+                { new: true, upsert: true }
+            );
+
+            // Record the transaction in history
+            const balanceTxHistory = new Transactions({
+                user: userId,
+                coinId,
+                amount,
+                recordId
+            });
+
+            await balanceTxHistory.save();
+
+            return balance;
+        } catch (error) {
+            console.error("Error updating balance:", error);
+            throw error;
+        }
     }
 };
 

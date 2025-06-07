@@ -1,7 +1,8 @@
 let express = require('express');
 const { getCoinListHandler, getOrCreateAppDepositAddressHandler, getChainListHandler, 
     getAppCoinAssetListHandler, getAppCoinAssetHandler, getAppDepositRecordListHandler, 
-    applyAppWithdrawToNetworkHandler, withdrawToDerivativeWalletHandler } = require('../controllers/ccpayment');
+    applyAppWithdrawToNetworkHandler, withdrawToDerivativeWalletHandler,
+    depositWebhookHandler, withdrawWebhookHandler } = require('../controllers/ccpayment');
 
 const { tokenRequired } = require('../middleware/auth');
 
@@ -42,7 +43,7 @@ router.get('/coins', tokenRequired, getCoinListHandler);
  *           schema:
  *             type: object
  *             properties:
- *               coinId:
+ *               chain:
  *                 type: string
  *                 example: BTC
  *     responses:
@@ -222,5 +223,8 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  */
 router.post('/withdraw/trading', tokenRequired, withdrawToDerivativeWalletHandler);
 
+
+router.post('/webhook/deposit', tokenRequired, depositWebhookHandler);
+router.post('/webhook/withdrawal', tokenRequired, withdrawWebhookHandler);
 
 module.exports = router;
