@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/Myles181/quantum-echange#readme",
   "dependencies": {
+    "axios": "^1.9.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
