@@ -34,8 +34,8 @@ async function handleDepositWebhook(req, res) {
 
         // Generate signature and verify
         let signText = `${requestAppId}${timestamp}`;
-        if (Object.keys(req.body).length > 0) {
-            signText += JSON.stringify(req.body);
+        if (Object.keys(req.rawBody).length > 0) {
+            signText += JSON.stringify(req.rawBody);
         }
 
         const hmac = crypto.createHmac('sha256', appSecret);
@@ -47,14 +47,18 @@ async function handleDepositWebhook(req, res) {
         }
 
         // Optionally validate 'type' if CCPayment sends it
-        // const { type } = req.body;
+        // const { type } = req.rawBody;
         // if (type !== "Deposit") {
         //     return res.status(400).json({ error: `Unexpected webhook type: ${type}` });
         // }
 
         console.log("------------------")
-        console.log(req.body)
+        console.log(req.rawBody);
         console.log("------------------")
+
+        if (req.rawBody.type !== "ActivateWebhookURL") {
+            return res.status(200).json({ msg: "successully connected" });
+        }
 
         const userId = ccpayment.extractMongoId(req.rawBody.msg.referenceId);
         const recordId = req.rawBody.msg.recordId;
@@ -118,7 +122,7 @@ async function handleWithdrawWebhook(req, res) {
     try {
 
         console.log("------------------")
-        console.log(req.body)
+        console.log(req.rawBody)
         console.log("------------------")
 
         const appId = process.env.CCPAYMENT_APP_ID;
@@ -141,8 +145,8 @@ async function handleWithdrawWebhook(req, res) {
 
         // Generate signature and verify
         let signText = `${requestAppId}${timestamp}`;
-        if (Object.keys(req.body).length > 0) {
-            signText += JSON.stringify(req.body);
+        if (Object.keys(req.rawBody).length > 0) {
+            signText += JSON.stringify(req.rawBody);
         }
 
         const hmac = crypto.createHmac('sha256', appSecret);
@@ -151,6 +155,10 @@ async function handleWithdrawWebhook(req, res) {
 
         if (requestSign !== expectedSign) {
             return res.status(401).json({ error: "Invalid signature" });
+        }
+
+        if (req.rawBody.type !== "ActivateWebhookURL") {
+            return res.status(200).json({ msg: "successully connected" });
         }
 
         // Respond to the webhook
