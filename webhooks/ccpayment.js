@@ -145,8 +145,8 @@ async function handleWithdrawWebhook(req, res) {
 
         // Generate signature and verify
         let signText = `${requestAppId}${timestamp}`;
-        if (Object.keys(req.rawBody).length > 0) {
-            signText += JSON.stringify(req.rawBody);
+        if (Object.keys(req.body).length > 0) {
+            signText += JSON.stringify(req.body);
         }
 
         const hmac = crypto.createHmac('sha256', appSecret);
@@ -157,7 +157,7 @@ async function handleWithdrawWebhook(req, res) {
             return res.status(401).json({ error: "Invalid signature" });
         }
 
-        if (req.rawBody.type === "ActivateWebhookURL") {
+        if (req.body.type === "ActivateWebhookURL") {
             return res.status(200).json({ msg: "successully connected" });
         }
 
