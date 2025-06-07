@@ -99,7 +99,7 @@ async function handleDepositWebhook(req, res) {
 
 
         // Respond to the webhook
-        res.json({ msg: "success" });
+        return res.staus(200).json({ msg: "success" });
     } catch (error) {
         console.log("error::", error);
         return res.status(500).json({
