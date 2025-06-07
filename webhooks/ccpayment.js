@@ -33,7 +33,7 @@ async function handleDepositWebhook(req, res) {
         }
 
         // Generate signature and verify
-        // let signText = `${requestAppId}${timestamp}`;
+        let signText = `${requestAppId}${timestamp}`;
         // if (Object.keys(req.rawBody).length > 0) {
         //     signText += JSON.stringify(req.rawBody);
         // }
@@ -144,7 +144,7 @@ async function handleWithdrawWebhook(req, res) {
         }
 
         // Generate signature and verify
-        // let signText = `${requestAppId}${timestamp}`;
+        let signText = `${requestAppId}${timestamp}`;
         // if (Object.keys(req.rawBody).length > 0) {
         //     signText += JSON.stringify(req.rawBody);
         // }
