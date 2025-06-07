@@ -13,8 +13,8 @@ async function handleDepositWebhook(req, res) {
     try {
         console.log("CCPayment Deposit Webhook received");
         console.log("------------------")
-        console.log(req.rawBody)
-        console.log(req.body)
+        console.log(req.body);
+        console.log(req.header);
         console.log("------------------")
         // console.log(req.headers);
         const appId = process.env.CCPAYMENT_APP_ID;
@@ -46,6 +46,8 @@ async function handleDepositWebhook(req, res) {
         const expectedSign = hmac.digest('hex');
 
         if (requestSign !== expectedSign) {
+            console.log("Invalid signature:", requestSign, expectedSign);
+            console.log("Request Body:", req.rawBody);
             return res.status(401).json({ error: "Invalid signature" });
         }
 
