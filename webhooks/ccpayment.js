@@ -16,40 +16,40 @@ async function handleDepositWebhook(req, res) {
         // console.log(req.body);
         console.log(req.header);
         console.log("------------------")
-        // console.log(req.headers);
-        // const appId = process.env.CCPAYMENT_APP_ID;
-        // const appSecret = process.env.CCPAYMENT_APP_SECRET;
+        console.log(req.headers);
+        const appId = process.env.CCPAYMENT_APP_ID;
+        const appSecret = process.env.CCPAYMENT_APP_SECRET;
 
-        // const requestAppId = req.header('Appid');
-        // const requestSign = req.header('Sign');
-        // const requestTimestamp = req.header('Timestamp');
+        const requestAppId = req.header('Appid');
+        const requestSign = req.header('Sign');
+        const requestTimestamp = req.header('Timestamp');
 
-        // // Validate AppId
-        // if (requestAppId !== appId) {
-        //     return res.status(401).json({ error: "Invalid AppId" });
-        // }
+        // Validate AppId
+        if (requestAppId !== appId) {
+            return res.status(401).json({ error: "Invalid AppId" });
+        }
 
-        // // Validate timestamp (within 5 minutes)
-        // const timestamp = parseInt(requestTimestamp, 10);
-        // if (isNaN(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) {
-        //     return res.status(401).json({ error: "Invalid or expired timestamp" });
-        // }
+        // Validate timestamp (within 5 minutes)
+        const timestamp = parseInt(requestTimestamp, 10);
+        if (isNaN(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) {
+            return res.status(401).json({ error: "Invalid or expired timestamp" });
+        }
 
-        // // Generate signature and verify
-        // let signText = `${requestAppId}${timestamp}`;
-        // // if (Object.keys(req.rawBody).length > 0) {
-        // //     signText += JSON.stringify(req.rawBody);
-        // // }
+        // Generate signature and verify
+        let signText = `${requestAppId}${timestamp}`;
+        if (Object.keys(req.rawBody).length > 0) {
+            signText += JSON.stringify(req.rawBody);
+        }
 
-        // const hmac = crypto.createHmac('sha256', appSecret);
-        // hmac.update(signText);
-        // const expectedSign = hmac.digest('hex');
+        const hmac = crypto.createHmac('sha256', appSecret);
+        hmac.update(signText);
+        const expectedSign = hmac.digest('hex');
 
-        // if (requestSign !== expectedSign) {
-        //     console.log("Invalid signature:", requestSign, expectedSign);
-        //     console.log("Request Body:", req.rawBody);
-        //     return res.status(401).json({ error: "Invalid signature" });
-        // }
+        if (requestSign !== expectedSign) {
+            console.log("Invalid signature:", requestSign, expectedSign);
+            console.log("Request Body:", req.body);
+            return res.status(401).json({ error: "Invalid signature" });
+        }
 
         // Optionally validate 'type' if CCPayment sends it
         // const { type } = req.rawBody;
@@ -58,16 +58,16 @@ async function handleDepositWebhook(req, res) {
         // }
 
         console.log("------------------")
-        // console.log(req.body);
+        console.log(req.body);
         console.log("------------------")
 
         if (req.body.type === "ActivateWebhookURL") {
             return res.status(200).json({ msg: "success" });
         }
 
-        const userId = ccpayment.extractMongoId(req.rawBody.msg.referenceId);
-        const recordId = req.rawBody.msg.recordId;
-        const status = req.rawBody.msg.status;
+        const userId = ccpayment.extractMongoId(req.body.msg.referenceId);
+        const recordId = req.body.msg.recordId;
+        const status = req.body.msg.status;
 
         if (status !== "Success") {
             return res.status(200).json({ msg: "success" });
@@ -125,11 +125,6 @@ async function handleDepositWebhook(req, res) {
 
 async function handleWithdrawWebhook(req, res) {
     try {
-
-        console.log("------------------")
-        console.log(req.rawBody)
-        console.log("------------------")
-
         const appId = process.env.CCPAYMENT_APP_ID;
         const appSecret = process.env.CCPAYMENT_APP_SECRET;
 
@@ -150,9 +145,9 @@ async function handleWithdrawWebhook(req, res) {
 
         // Generate signature and verify
         let signText = `${requestAppId}${timestamp}`;
-        // if (Object.keys(req.rawBody).length > 0) {
-        //     signText += JSON.stringify(req.rawBody);
-        // }
+        if (Object.keys(req.rawBody).length > 0) {
+            signText += JSON.stringify(req.rawBody);
+        }
 
         const hmac = crypto.createHmac('sha256', appSecret);
         hmac.update(signText);
@@ -162,7 +157,7 @@ async function handleWithdrawWebhook(req, res) {
             return res.status(401).json({ error: "Invalid signature" });
         }
 
-        if (req.rawBody.type !== "ActivateWebhookURL") {
+        if (req.rawBody.type === "ActivateWebhookURL") {
             return res.status(200).json({ msg: "successully connected" });
         }
 
