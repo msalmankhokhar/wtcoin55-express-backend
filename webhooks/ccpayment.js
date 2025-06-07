@@ -12,7 +12,10 @@ const ccpayment = new Cccpayment(
 async function handleDepositWebhook(req, res) {
     try {
         console.log("CCPayment Deposit Webhook received");
-        console.log("------------------");
+        console.log("------------------")
+        console.log(req.rawBody)
+        console.log(req.body)
+        console.log("------------------")
         // console.log(req.headers);
         const appId = process.env.CCPAYMENT_APP_ID;
         const appSecret = process.env.CCPAYMENT_APP_SECRET;
