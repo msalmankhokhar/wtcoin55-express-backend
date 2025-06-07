@@ -62,7 +62,7 @@ async function handleDepositWebhook(req, res) {
         console.log("------------------")
 
         if (req.body.type === "ActivateWebhookURL") {
-            return res.status(200).json({ msg: "successully connected" });
+            return res.status(200).json({ msg: "success" });
         }
 
         const userId = ccpayment.extractMongoId(req.rawBody.msg.referenceId);
