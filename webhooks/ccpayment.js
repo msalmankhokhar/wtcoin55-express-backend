@@ -1,6 +1,7 @@
-const express = require("express");
 const Cccpayment = require("../utils/ccpayment");
 const { Transactions } = require("../models/transactions");
+const crypto = require("crypto");
+require("dotenv").config();
 
 const ccpayment = new Cccpayment(
     process.env.CCPAYMENT_APP_SECRET,
@@ -10,6 +11,43 @@ const ccpayment = new Cccpayment(
 
 async function handleDepositWebhook(req, res) {
     try {
+        const appId = process.env.CCPAYMENT_APP_ID;
+        const appSecret = process.env.CCPAYMENT_APP_SECRET;
+
+        const requestAppId = req.header('Appid');
+        const requestSign = req.header('Sign');
+        const requestTimestamp = req.header('Timestamp');
+
+        // Validate AppId
+        if (requestAppId !== appId) {
+            return res.status(401).json({ error: "Invalid AppId" });
+        }
+
+        // Validate timestamp (within 5 minutes)
+        const timestamp = parseInt(requestTimestamp, 10);
+        if (isNaN(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300) {
+            return res.status(401).json({ error: "Invalid or expired timestamp" });
+        }
+
+        // Generate signature and verify
+        let signText = `${requestAppId}${timestamp}`;
+        if (Object.keys(req.body).length > 0) {
+            signText += JSON.stringify(req.body);
+        }
+
+        const hmac = crypto.createHmac('sha256', appSecret);
+        hmac.update(signText);
+        const expectedSign = hmac.digest('hex');
+
+        if (requestSign !== expectedSign) {
+            return res.status(401).json({ error: "Invalid signature" });
+        }
+
+        // Optionally validate 'type' if CCPayment sends it
+        // const { type } = req.body;
+        // if (type !== "Deposit") {
+        //     return res.status(400).json({ error: `Unexpected webhook type: ${type}` });
+        // }
 
         console.log("------------------")
         console.log(req.body)

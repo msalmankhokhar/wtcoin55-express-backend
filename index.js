@@ -39,7 +39,9 @@ const corsOptions = {
         process.env.WEB_BASE_URL,
         process.env.SERVER_URL,
         `http://localhost:${PORT}`,
-        `http://localhost:5173`
+        `http://localhost:5173`,
+        `https://quantum-exchange.onrender.com`,
+        `https://quantum-exchange.vercel.app`,
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
