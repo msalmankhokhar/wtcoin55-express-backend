@@ -157,10 +157,6 @@ async function handleWithdrawWebhook(req, res) {
             return res.status(401).json({ error: "Invalid signature" });
         }
 
-        if (req.body.type === "ActivateWebhookURL") {
-            return res.status(200).json({ msg: "succes" });
-        }
-
         // Respond to the webhook
         res.json({ msg: "success" });
     } catch (error) {
