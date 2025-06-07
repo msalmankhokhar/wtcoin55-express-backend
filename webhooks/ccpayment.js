@@ -158,7 +158,7 @@ async function handleWithdrawWebhook(req, res) {
         }
 
         if (req.body.type === "ActivateWebhookURL") {
-            return res.status(200).json({ msg: "successully connected" });
+            return res.status(200).json({ msg: "succes" });
         }
 
         // Respond to the webhook

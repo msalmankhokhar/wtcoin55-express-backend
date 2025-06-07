@@ -230,13 +230,7 @@ router.get('/webhook/withdrawal', function(req, res) {
     res.status(200).json({ msg: "Webhook endpoint for withdrawal is active" });
 });
 
-router.post('/webhook/deposit',
-    express.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf.toString(); // Save raw string for HMAC check
-    },
-    }), depositWebhookHandler
-);
+router.post('/webhook/deposit', depositWebhookHandler);
 router.post('/webhook/withdrawal', withdrawWebhookHandler);
 
 module.exports = router;
