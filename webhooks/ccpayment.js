@@ -17,9 +17,9 @@ async function handleDepositWebhook(req, res) {
         const appId = process.env.CCPAYMENT_APP_ID;
         const appSecret = process.env.CCPAYMENT_APP_SECRET;
 
-        const requestAppId = req.header('appid');
-        const requestSign = req.header('sign');
-        const requestTimestamp = req.header('timestamp');
+        const requestAppId = req.header('Appid');
+        const requestSign = req.header('Sign');
+        const requestTimestamp = req.header('Timestamp');
 
         // Validate AppId
         if (requestAppId !== appId) {
@@ -56,9 +56,9 @@ async function handleDepositWebhook(req, res) {
         console.log(req.body)
         console.log("------------------")
 
-        const userId = ccpayment.extractMongoId(req.body.msg.referenceId);
-        const recordId = req.body.msg.recordId;
-        const status = req.body.msg.status;
+        const userId = ccpayment.extractMongoId(req.rawBody.msg.referenceId);
+        const recordId = req.rawBody.msg.recordId;
+        const status = req.rawBody.msg.status;
 
         if (status !== "Success") {
             return res.status(200).json({ msg: "success" });
