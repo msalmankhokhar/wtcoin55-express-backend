@@ -4,33 +4,33 @@ let transactionSchema = new mongoose.Schema({
      userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',
-            required: true
+            required: false
      },
      type: {
           type: String,
           enum: ['deposit', 'withdrawal', 'internal_transfer', 'deposit_to_spots', 'deposit_to_futures'],
-          required: true
+          required: false
      },
      status: {
         type: String,
         enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'],
         default: 'pending',
-        required: true
+        required: false
      },
 
      // Ccpayment
-     coinId: { type: Number, required: true },
-     address: { type: String, required: true },
-     chain: { type: String, required: true },
+     coinId: { type: Number, required: false },
+     address: { type: String, required: false },
+     chain: { type: String, required: false },
      memo: { type: String, default: '' },
-     orderId: { type: String, required: true, unique: true }, // For deposits from ccpayment
-     recordId: { type: String, required: true, unique: true }, // For withdrawal from ccpayment
+     orderId: { type: String, required: false, unique: true }, // For deposits from ccpayment
+     recordId: { type: String, required: false, unique: true }, // For withdrawal from ccpayment
      logoUrl: { type: String, default: '' },
      
      // Financial Information
      amount: {
           type: Number,
-          required: true,
+          required: false,
           min: 0
      },
      currency: {
