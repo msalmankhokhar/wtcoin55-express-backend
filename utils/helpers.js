@@ -89,30 +89,33 @@ async function generateReferralCdoe(length = 6) {
 async function validateVerificationCode(emailOrPhonenumber, code) {
     let lowerCaseEmailOrPhone = emailOrPhonenumber.toLowerCase().trim();
     existingUser = await Users.findOne({ $or: [{email: lowerCaseEmailOrPhone}, {phonenumber: lowerCaseEmailOrPhone}] });
-    
-    if (existingUser) return false, "User already exists"
+
+    if (existingUser) return [false, "User already exists"];
 
     // Get the verification status
-    verificationStatus = OTP.find( {emailOrPhone: lowerCaseEmailOrPhone, otp: code} )[0];
+    // console.log(lowerCaseEmailOrPhone, code);
+    verificationStatus = await OTP.findOne({ emailOrPhone: lowerCaseEmailOrPhone, otp: code });
+    // console.log(verificationStatus);
 
     if (!verificationStatus || verificationStatus.status !== 'pending') {
         // return res.status(400).json({ message: 'Invalid verification code' });
-        return false, "Invalid verification code";
+        // console.log("Invalid verification code");
+        return [false, "Invalid verification code"];
     } 
     else if (verificationStatus.expiredAt < Date.now()) {
         // return ({ message: 'Verification code has expired' });
-        return false, "Verification code has expired";
+        return [false, "Verification code has expired"];
     }
     else if (verificationStatus && verificationStatus.status === 'pending') {
-        verificationStatus.status = 'approved';
+        // console.log("I got here");
+        verificationStatus.status = 'verified';
+        verificationStatus.expiredAt = new Date();
         await verificationStatus.save();
+        return [true, "Verification successful"];
     }
 
     // Update the verification status
-    verificationStatus.status = 'verified';
-    verificationStatus.expiredAt = new Date();
-    await verificationStatus.save();
-    return true, "Verification successful";
+    return [false, "Verification failed"];
 }
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode };

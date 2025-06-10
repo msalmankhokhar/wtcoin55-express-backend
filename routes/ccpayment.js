@@ -23,7 +23,7 @@ console.log(typeof getCoinListHandler); // should be 'function'
  *       200:
  *         description: List of supported coins
  *       500:
- *         description: Server error
+ *         description: Server errorj
  */
 router.get('/coins', tokenRequired, getCoinListHandler);
 

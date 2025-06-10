@@ -28,9 +28,26 @@ const Signup = async (req, res) => {
             return res.status(400).json({ message: 'Email or phone number is required' });
         } 
         lowerCaseEmailOrPhone = email ? email.toLowerCase().trim() : phonenumber.toLowerCase().trim();
-        console.log('LowerCase Email or Phone: ', lowerCaseEmailOrPhone);
+        // console.log('LowerCase Email or Phone: ', lowerCaseEmailOrPhone);
 
-        const [verificationStatus, verificationResponse] = await validateVerificationCode(lowerCaseEmailOrPhone, verificationCode);
+        // Check if user already exists
+        await Users.findOne({ $or: [{email: lowerCaseEmailOrPhone}, {phonenumber: lowerCaseEmailOrPhone}] })
+            .then(user => {
+                if (user) {
+                    return res.status(400).json({ message: 'User already exists with this email or phone number' });
+                }
+            })
+            .catch(err => {
+                console.error('Error checking user existence:', err);
+                return res.status(500).json({ message: 'Internal Server Error' });
+            });
+
+        const [verificationStatus, verificationResponse] = await validateVerificationCode(
+            emailOrPhonenumber=lowerCaseEmailOrPhone,
+            code=verificationCode
+        );
+        console.log('Verification Status:', verificationStatus);
+        console.log('Verification Response:', verificationResponse);
 
         if (!verificationStatus) {
             return res.status(400).json({ message: verificationResponse });
@@ -43,14 +60,17 @@ const Signup = async (req, res) => {
         const refCode = await generateReferralCdoe();
 
         // Create user
+        console.log(email, phonenumber, hashedPassword, referBy, refCode);
         const newUser = await Users.create({
             password: hashedPassword,
-            email: email ? lowerCaseEmailOrPhone : null,
-            phonenumber: phonenumber ? lowerCaseEmailOrPhone : null,
+            email: email ? email.toLowerCase().trim() : undefined,
+            phonenumber: phonenumber ? phonenumber.trim() : undefined,
             emailVerified: true,
             referBy,
             refCode
         });
+
+        console.log('New User Created:', newUser);
         const web_base_url = process.env.WEB_BASE_URL;
 
         await mail.sendWelcomeMessage({ email: lowerCaseEmailOrPhone, web_base_url });

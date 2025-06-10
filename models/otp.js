@@ -11,7 +11,7 @@ let otpSchema = new mongoose.Schema({
      },
      status: {
         type: String,
-        deault: 'pending',
+        default: 'pending',
      },
      createdAt: {
           type: Date,

@@ -1,4 +1,5 @@
 const Ccpayment = require('../utils/ccpayment');
+const Bitmart = require('../utils/bitmart');
 const { v4: uuidv4 } = require('uuid');
 const { Address } = require('../models/address');
 const { MainBalance } = require('../models/balance');
@@ -8,20 +9,44 @@ const { Transactions } = require('../models/transactions');
 const { handleDepositWebhook, handleWithdrawWebhook } = require('../webhooks/ccpayment');
 const crypto = require('crypto');
 
+
+// SET UP
 const appSecret = process.env.CCPAYMENT_APP_SECRET;
 const appId = process.env.CCPAYMENT_APP_ID;
-const baseUrl = process.env.CCPAYMENT_BASE_URL || "https://ccpayment.com/ccpayment/v2";
+const ccpaymentBaseUrl = process.env.CCPAYMENT_BASE_URL || "https://ccpayment.com/ccpayment/v2";
 
-console.log("CCPayment Config:", {
-    appSecret: appSecret ? '***' : 'Not Set',
-    appId: appId ? '***' : 'Not Set',
-    baseUrl: baseUrl ? baseUrl : 'Not Set'
-});
+// console.log("CCPayment Config:", {
+//     appSecret: appSecret ? '***' : 'Not Set',
+//     appId: appId ? '***' : 'Not Set',
+//     baseUrl: baseUrl ? baseUrl : 'Not Set'
+// });
 const ccpayment = new Ccpayment(
     appSecret,
     appId,
-    baseUrl
+    baseUrl=ccpaymentBaseUrl
 );
+
+const bitmartAccessKey = process.env.BITMART_ACCESS_KEY
+const bitmartSecretKey = process.env.BITMART_SECRET_KEY
+const bitmartMemo = process.env.BITMART_MEMO
+const bitmartBaseUrl = process.env.BITMART_BASE_URL || "https://api-cloud-v2.bitmart.com";
+
+console.log("Bitmart Config:", {
+    accessKey: bitmartAccessKey ? '***' : 'Not Set',
+    secretKey: bitmartSecretKey ? '***' : 'Not Set',
+    memo: bitmartMemo ? "***" : 'Not Set',
+    baseUrl: bitmartBaseUrl ? bitmartBaseUrl : 'Not Set'
+});
+
+const bitmart = new Bitmart(
+    accessKey=bitmartAccessKey,
+    secretKey=bitmartSecretKey,
+    memo=bitmartMemo,
+    baseUrl=bitmartBaseUrl
+);
+
+// Handlers
+//
 
 // Route handler for getting coin list
 async function getCoinListHandler(req, res) {
@@ -176,6 +201,7 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
                 chain,
                 memo,
                 orderId,
+                recordId: data.recordId,
                 status: 'Processing',
                 type: 'withdrawal'
             });
@@ -208,7 +234,8 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
 async function withdrawToDerivativeWalletHandler(req, res){
     try {
         const user = req.user; // Assuming user is attached to the request
-        const { amount, memo, destination } = req.body;
+        const { amount, destination, coinId, chain, memo="" } = req.body;
+        let type;
 
         if (destination !== 'spots' || destination !== 'futures') {
             return res.status(400).json({
@@ -216,13 +243,13 @@ async function withdrawToDerivativeWalletHandler(req, res){
                 message: "Invalid destination. Only 'spots' or 'futures' are allowed.",
             });
         }
-        const coinId = "COIN_ID_USDC";
-        const address = destination === 'spots' ? process.env.SPOTS_DEPOSIT_ADDRESS : process.env.BITMART_FUTURES_DEPOSIT_ADDRESS;
-        const chain = "USDC-ETH";
 
+        // Check out the type
+        type = destination === 'spots' ? 'deposit_to_spots' : 'deposit_to_futures';
 
         // Check user's balance
         const userBalance = await MainBalance.findOne({ user: user._id, coinId });
+
         const newBalance = userBalance - amount;
 
         if (!userBalance || userBalance.balance < amount || newBalance <= 0) {
@@ -232,13 +259,54 @@ async function withdrawToDerivativeWalletHandler(req, res){
             });
         }
 
+        const coinName = userBalance.coinName;
+
+        // Check if coin exists in bitmart
+        if (chain.toUpperCase() === 'TRX') {
+            // For TRX, we need to use the TRC20 chain
+            chain = 'TRC20';
+            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+        } else if (chain.toUpperCase() === 'BSC') {
+            chain = 'BSC_BNB';
+            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+        } else if (chain.toUpperCase() === coinName.toUpperCase()) {
+            currency = `${coinName.toUpperCase()}`;
+        } else if (chain.toUpperCase() === 'AVAX') {
+            chain = 'AVAX_C';
+            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+        } else if (chain.toUpperCase() === 'SOL' && coinName.toUpperCase() === 'USDC') {
+            chain = 'SPL';
+            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+
+        } else {
+            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+        }
+        
+        const toAddress = await bitmart.getDepositAddress(currency);
+
+        if (!toAddress.code || toAddress.code !== 10000) {
+            console.log("Coin not supported:", currency);
+            return res.status(400).json({ message: 'Coin is not supported' });
+        }
+        const address = toAddress.data.address;
+
+        // Check the coin in CCPayment
+        if (memo=== undefined || memo === null || memo === "") {
+            const fromAddress = await Address.findOne({ user: user._id, coinId });
+            if (!fromAddress) {
+                return res.status(400).json({ message: 'Coin not found in your account. Please Deposit' });
+            }
+            memo = fromAddress.memo || "";
+        }
+
         // Prepare withdrawal details
         const orderId = `${user._id.toString()}${uuidv4()}`;
         const withdrawalDetails = {
             coinId,
-            address,
+            address: toAddress.address,
             orderId,
             chain,
+            currency, // For Bitmart, we need to specify the currency
             amount: amount.toString(),
             merchantPayNetworkFee: true,
             memo
@@ -254,32 +322,19 @@ async function withdrawToDerivativeWalletHandler(req, res){
             userBalance.balance -= amount;
             await userBalance.save();
 
-            // Update the funded wallet
-            if (destination === 'spots') {
-                const spotBalance = await SpotBalance.findOne({ user: user._id, coinId });
-                if (spotBalance) {
-                    spotBalance.balance += amount;
-                    await spotBalance.save();
-                }
-            } else if (destination === 'futures') {
-                const futuresBalance = await FuturesBalance.findOne({ user: user._id, coinId });
-                if (futuresBalance) {
-                    futuresBalance.balance += amount;
-                    await futuresBalance.save();
-                }
-            }
-
             // Record the withdrawal in history
             const withdrawalHistory = new Transactions({
                 user: user._id,
                 coinId,
                 amount,
+                currency: coinName,
                 address,
                 chain,
                 memo,
                 orderId,
+                recordId: data.recordId,
                 status: 'Processing',
-                type: 'derivatives_withdrawal'
+                type
             });
 
             await withdrawalHistory.save();
@@ -312,7 +367,7 @@ async function withdrawToDerivativeWalletHandler(req, res){
         return res.status(500).json({
             status: false,
             message: "Internal server error",
-            error: error.message
+            error: "" + error.message
         });
     }
 };

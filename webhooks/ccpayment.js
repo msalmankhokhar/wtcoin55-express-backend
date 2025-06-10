@@ -1,5 +1,7 @@
 const Cccpayment = require("../utils/ccpayment");
 const { Transactions } = require("../models/transactions");
+const { SpotBalance } = require("../models/spot-balance");
+const { FuturesBalance } = require('../models/futures-balance');
 const crypto = require("crypto");
 require("dotenv").config();
 
@@ -155,6 +157,62 @@ async function handleWithdrawWebhook(req, res) {
 
         if (requestSign !== expectedSign) {
             return res.status(401).json({ error: "Invalid signature" });
+        }
+
+        const { msg } = req.body;
+        const recordId = msg.recordId;
+        const orderId = msg.orderId;
+
+        const transactions = await Transactions.findOneAndUpdate(
+            { recordId: recordId, orderId: orderId },
+            { status: msg.status },
+            { new: true }
+        );
+
+        if (!transactions) {
+            console.log("Transaction not found for recordId:", recordId, "and orderId:", orderId);
+            // return res.status(404).json({ error: "Transaction not found" });
+        }
+        if (transactions.type === "deposit_to_spots") {
+            // Update the funded wallet
+                const spotBalance = await SpotBalance.findOne({ user: transactions.userId, coinId: transactions.coinId });
+                if (spotBalance) {
+                    spotBalance.balance += transactions.amount;
+                    await spotBalance.save();
+                } else {
+                    // If spot balance does not exist, create a new one
+                    const newSpotBalance = new SpotBalance({
+                        user: transactions.userId,
+                        coinId: transactions.coinId,
+                        balance: transactions.amount,
+                        currency: transactions.currency,
+                        chain: transactions.chain,
+                        memo: transactions.memo || "",
+                        updatedAt: new Date.now()
+                    });
+                    await newSpotBalance.save();
+                    type = "deposit_to_spots";
+                }
+            // return res.status(200).json({ msg: "success" });
+        } else if (transactions.type === "deposit_to_futures") {
+            const futuresBalance = await FuturesBalance.findOne({ user: transactions.userId, coinId: transactions.coinId });
+                if (futuresBalance) {
+                    futuresBalance.balance += transactions.amount;
+                    await futuresBalance.save();
+                } else {
+                    // If spot balance does not exist, create a new one
+                    const newFuturesBalance = new FuturesBalance({
+                        user: transactions.userId,
+                        coinId: transactions.coinId,
+                        balance: transactions.amount,
+                        currency: transactions.currency,
+                        chain: transactions.chain,
+                        memo: transactions.memo || "",
+                        updatedAt: new Date.now()
+                    });
+                    await newFuturesBalance.save();
+                    type = "deposit_to_futures";
+                }
         }
 
         // Respond to the webhook

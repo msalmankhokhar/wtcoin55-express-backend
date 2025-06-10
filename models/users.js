@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 
 const UsersSchema = new mongoose.Schema({
-    email: { type: String, required: false, unique: true },
+    email: { type: String, required: false, unique: true, sparse: true },
     password: { type: String, required: true },
-    phonenumber: { type: String, required: false, unique: true },
+    phonenumber: { type: String, required: false, unique: true, sparse: true },
     referBy: { type: String, default: false },
     refCode: {
         type: String,
@@ -16,7 +16,7 @@ const UsersSchema = new mongoose.Schema({
     // totalBalance: { type: Number, default: 0 },
     emailVerified: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
-    lastLogin: {type: Date, required: false},
+    lastLogin: {type: Date, required: false}
 });
 
 const Users = mongoose.model('Users', UsersSchema);

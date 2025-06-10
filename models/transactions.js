@@ -8,7 +8,7 @@ let transactionSchema = new mongoose.Schema({
      },
      type: {
           type: String,
-          enum: ['deposit', 'withdrawal', 'internal_transfer', 'wallet_transfer'],
+          enum: ['deposit', 'withdrawal', 'internal_transfer', 'deposit_to_spots', 'deposit_to_futures'],
           required: true
      },
      status: {

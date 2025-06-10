@@ -44,7 +44,12 @@ class BitMart {
         const timestamp = Date.now().toString();
         const signature = this._generateSignature(timestamp, method, requestPath, body);
         
-        return {
+
+        return method==="GET" ? {
+            'X-BM-KEY': this.accessKey,
+            'X-BM-SIGN': signature,
+            'X-BM-TIMESTAMP': timestamp
+        } : {
             'X-BM-KEY': this.accessKey,
             'X-BM-SIGN': signature,
             'X-BM-TIMESTAMP': timestamp,
@@ -59,23 +64,33 @@ class BitMart {
      * @param {Object} data - Request payload (optional)
      * @returns {Promise<Object>} - API response data
      */
-    async _makeRequest(method, endpoint, data = null) {
-        const requestPath = endpoint;
+    async _makeRequest(method, endpoint, data = null, isPrivate = true) {
+        const requestPath = endpoint.split('?')[0]; // Remove query params for signature
         const body = data ? JSON.stringify(data) : '';
-        const headers = this._getHeaders(method, requestPath, body);
         
+        const headers = isPrivate ? this._getHeaders(method, requestPath, body) : {};
+
         try {
-            const response = await axios({
+            const config = {
                 method: method,
                 url: this.baseURL + endpoint,
                 headers: headers,
-                data: data
-            });
+                timeout: 30000 // 30 second timeout
+            };
+
+            // Only add data for non-GET requests
+            if (method !== 'GET' && data) {
+                config.data = data;
+            }
+
+            const response = await axios(config);
             return response.data;
         } catch (error) {
+            console.error("BitMart API Error:", error.response?.data || error.message);
             throw new Error(`BitMart API Error: ${error.response?.data?.message || error.message}`);
         }
     }
+
 
     // ==================== DEPOSIT METHODS ====================
 
@@ -85,7 +100,8 @@ class BitMart {
      * @returns {Promise<Object>} - Deposit address information
      */
     async getDepositAddress(currency) {
-        const endpoint = `/account/v1/deposit/address?currency=${currency}`;
+        console.log(encodeURIComponent(currency));
+        const endpoint = `/account/v1/deposit/address?currency=${encodeURIComponent(currency)}`;
         return await this._makeRequest('GET', endpoint);
     }
 
@@ -221,9 +237,18 @@ class BitMart {
      * @returns {Promise<Object>} - Available currencies and their configurations
      */
     async getCurrencies() {
-        const endpoint = '/account/v1/currencies';
-        return await this._makeRequest('GET', endpoint);
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: 'https://api-cloud.bitmart.com/spot/v1/symbols/details',
+            timeout: 5000  // 5 second timeout
+        });
+        return response.data;
+    } catch (error) {
+        console.log('Symbols endpoint failed:', error.message);
+        return null;
     }
+}
 
     /**
      * Check if a currency supports deposits
@@ -256,6 +281,45 @@ class BitMart {
             return false;
         }
     }
+
+    // This is a public endpoint, no auth required
+    async getAllTradingPairs() {
+        const endpoint = '/spot/v1/symbols';
+        try {
+            const response = await this._makeRequest('GET', endpoint, null, false); // false = not private
+            return response.data.symbols;
+        } catch (error) {
+            throw new Error(`Error fetching trading pairs: ${error.message}`);
+        }
+    }
+
+    // Get all Crypo currency available on BitMart
+    async getAllCurrencies() {
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: 'https://api-cloud.bitmart.com/account/v1/currencies',
+            timeout: 5000
+        });
+
+        const currencies = response.data.data?.currencies;
+        if (!currencies || !Array.isArray(currencies)) {
+            throw new Error("Invalid response format from currencies endpoint");
+        }
+
+        const filtered = currencies.filter(currency =>
+            currency.deposit_enabled && currency.withdraw_enabled
+        );
+
+        return filtered;
+
+    } catch (error) {
+        console.log('Symbols endpoint failed:', error.message);
+        return null;
+    }
+}
+
+
 }
 
 module.exports = BitMart;
