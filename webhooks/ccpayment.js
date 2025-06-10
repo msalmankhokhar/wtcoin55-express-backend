@@ -76,6 +76,8 @@ async function handleDepositWebhook(req, res) {
         }
 
 
+        console.log("User ID:", userId);
+        console.log("Record ID:", recordId);
         const result = await ccpayment.getAppDepositRecord(recordId)
 
 
