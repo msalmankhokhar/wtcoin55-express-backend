@@ -103,6 +103,7 @@ async function handleDepositWebhook(req, res) {
         //     "txId": "2d8b1dc99157b93cf8f835128851a0b9f78144f769db47fcc3c39e73cf2775de", 
         //     "txIndex": 200000, "status": "Success", "arrivedAt": 1742530119, "isFlaggedAsRisky": false } } }
 
+        console.log("Result:", result);
         const { code, msg, data } = JSON.parse(result)
 
         console.log(msg);
