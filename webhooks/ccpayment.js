@@ -39,8 +39,8 @@ async function handleDepositWebhook(req, res) {
 
         // Generate signature and verify
         let signText = `${requestAppId}${timestamp}`;
-        if (Object.keys(req.rawBody).length > 0) {
-            signText += JSON.stringify(req.rawBody);
+        if (Object.keys(req.body).length > 0) {
+            signText += JSON.stringify(req.body);
         }
 
         const hmac = crypto.createHmac('sha256', appSecret);
