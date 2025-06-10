@@ -106,7 +106,7 @@ async function handleDepositWebhook(req, res) {
         console.log("Result:", result);
         const { code, msg, data } = JSON.parse(result)
 
-        const userDeposit = data;
+        const userDeposit = data.record;
 
         const coinId = userDeposit.coinId;
         const coinName = userDeposit.coinSymbol;
