@@ -23,8 +23,8 @@ let transactionSchema = new mongoose.Schema({
      address: { type: String, required: false },
      chain: { type: String, required: false },
      memo: { type: String, default: '' },
-     orderId: { type: String, required: false, unique: true }, // For deposits from ccpayment
-     recordId: { type: String, required: false, unique: true }, // For withdrawal from ccpayment
+     orderId: { type: String, required: false }, // For deposits from ccpayment
+     recordId: { type: String, required: false }, // For withdrawal from ccpayment
      logoUrl: { type: String, default: '' },
      
      // Financial Information
