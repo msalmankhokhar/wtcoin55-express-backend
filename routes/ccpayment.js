@@ -190,7 +190,7 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
 
 /**
  * @swagger
- * /api/ccpayment/withdraw/trading:
+ * /api/ccpayment/withdraw/trading-wallet:
  *   post:
  *     summary: Withdraw from main balance to either spot or futures wallet
  *     tags: [Ccpayment]
@@ -205,6 +205,8 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  *             required:
  *               - amount
  *               - destination
+ *               - coinId
+ *               - chain
  *             properties:
  *               amount:
  *                 type: number
@@ -213,6 +215,10 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  *                 enum: [spots, futures]
  *               memo:
  *                 type: string
+ *              coinId:
+ *                type: string
+ *              chain:
+ *                type: string
  *     responses:
  *       200:
  *         description: Derivatives withdrawal successful
@@ -221,7 +227,7 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  *       500:
  *         description: Server error
  */
-router.post('/withdraw/trading', tokenRequired, withdrawToDerivativeWalletHandler);
+router.post('/withdraw/trading-wallet', tokenRequired, withdrawToDerivativeWalletHandler);
 
 router.get('/webhook/deposit', function(req, res) {
     res.status(200).json({ msg: "Webhook endpoint for deposit is active" });
