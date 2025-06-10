@@ -227,7 +227,7 @@ class CcPayment {
         const args = JSON.stringify({
             recordId: recordId,
         });
-        const res = await makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecord", args);
+        const res = await _makeRequest("https://ccpayment.com/ccpayment/v2/getAppDepositRecord", args);
         return res;
     }
 
