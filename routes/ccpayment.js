@@ -215,10 +215,10 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  *                 enum: [spots, futures]
  *               memo:
  *                 type: string
- *              coinId:
- *                type: string
- *              chain:
- *                type: string
+ *               coinId:
+ *                 type: string
+ *               chain:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Derivatives withdrawal successful
