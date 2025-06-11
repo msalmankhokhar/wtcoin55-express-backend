@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const axios = require('axios');
+const { Transactions } = require('../models/transactions');
 
 /**
  * BitMart API Client Class
@@ -299,30 +300,46 @@ class BitMart {
 
     // Get all Crypo currency available on BitMart
     async getAllCurrencies() {
-    try {
-        const response = await axios({
-            method: 'GET',
-            url: 'https://api-cloud.bitmart.com/account/v1/currencies',
-            timeout: 5000
-        });
+        try {
+            const response = await axios({
+                method: 'GET',
+                url: 'https://api-cloud.bitmart.com/account/v1/currencies',
+                timeout: 5000
+            });
 
-        const currencies = response.data.data?.currencies;
-        if (!currencies || !Array.isArray(currencies)) {
-            throw new Error("Invalid response format from currencies endpoint");
+            const currencies = response.data.data?.currencies;
+            if (!currencies || !Array.isArray(currencies)) {
+                throw new Error("Invalid response format from currencies endpoint");
+            }
+
+            const filtered = currencies.filter(currency =>
+                currency.deposit_enabled && currency.withdraw_enabled
+            );
+
+            return filtered;
+
+        } catch (error) {
+            console.log('Symbols endpoint failed:', error.message);
+            return null;
         }
-
-        const filtered = currencies.filter(currency =>
-            currency.deposit_enabled && currency.withdraw_enabled
-        );
-
-        return filtered;
-
-    } catch (error) {
-        console.log('Symbols endpoint failed:', error.message);
-        return null;
     }
-}
 
+    /**
+     * Transfer funds from Spot wallet to Futures wallet
+     * @param {string} currency - Currency symbol (e.g., "USDT")
+     * @param {string} amount - Amount to transfer
+     * @returns {Promise<Object>} - Transfer response
+     */
+    async SpotToFuturesTransfer(currency, amount) {
+        const endpoint = '/account/v1/transfer-contract';
+        const data = {
+            currency: currency,
+            amount: amount,
+            type: 'spot_to_futures'
+        };
+        
+        return await this._makeRequest('POST', endpoint, data);
+    }
 
 }
 

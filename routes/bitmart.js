@@ -68,6 +68,7 @@ router.get('/deposit-address', tokenRequired, getDepositAddress);
  *     description: If a coinId is provided, returns the balance for that specific coin. Otherwise, returns all spot balances for the user.
  *     security:
  *       - quantumAccessToken: []
+ *     tags: [Bitmart]
  *     parameters:
  *       - in: path
  *         name: coinId
@@ -92,7 +93,7 @@ router.get('/deposit-address', tokenRequired, getDepositAddress);
  *                 error:
  *                   type: string
  */
-router.get('/spot-balance', tokenRequired, getAllCurrency);
+router.get('/wallet/spot-balance', tokenRequired, getSpotWalletBalance);
 
 
 /**
@@ -103,6 +104,7 @@ router.get('/spot-balance', tokenRequired, getAllCurrency);
  *     description: If a coinId is provided, returns the balance for that specific coin. Otherwise, returns all futures balances for the user.
  *     security:
  *       - quantumAccessToken: []
+ *     tags: [Bitmart]
  *     parameters:
  *       - in: path
  *         name: coinId
@@ -127,7 +129,7 @@ router.get('/spot-balance', tokenRequired, getAllCurrency);
  *                 error:
  *                   type: string
  */
-router.get('/futures-balance', tokenRequired, getAllCurrency);
+router.get('/wallet/futures-balance', tokenRequired, getFuturesWalletBalance);
 
 
 module.exports = router;

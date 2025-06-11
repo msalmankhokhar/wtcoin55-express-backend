@@ -103,8 +103,8 @@ async function handleDepositWebhook(req, res) {
         //     "txId": "2d8b1dc99157b93cf8f835128851a0b9f78144f769db47fcc3c39e73cf2775de", 
         //     "txIndex": 200000, "status": "Success", "arrivedAt": 1742530119, "isFlaggedAsRisky": false } } }
 
-        console.log("Result:", result);
-        const { code, msg, data } = JSON.parse(result)
+        console.log("Result:", result); 
+        const { code, msg, data } = JSON.parse(result);
 
         const userDeposit = data.record;
 
@@ -166,10 +166,8 @@ async function handleWithdrawWebhook(req, res) {
         const recordId = msg.recordId;
         const orderId = msg.orderId;
 
-        const transactions = await Transactions.findOneAndUpdate(
-            { recordId: recordId, orderId: orderId },
-            { status: msg.status },
-            { new: true }
+        const transactions = await Transactions.findOne(
+            { recordId: recordId, orderId: orderId }
         );
 
         if (!transactions) {
@@ -177,46 +175,13 @@ async function handleWithdrawWebhook(req, res) {
             // return res.status(404).json({ error: "Transaction not found" });
             return res.status(200).json({ msg: "success" });
         }
-        if (transactions.type === "deposit_to_spots") {
-            // Update the funded wallet
-                const spotBalance = await SpotBalance.findOne({ user: transactions.userId, coinId: transactions.coinId });
-                if (spotBalance) {
-                    spotBalance.balance += transactions.amount;
-                    await spotBalance.save();
-                } else {
-                    // If spot balance does not exist, create a new one
-                    const newSpotBalance = new SpotBalance({
-                        user: transactions.userId,
-                        coinId: transactions.coinId,
-                        balance: transactions.amount,
-                        currency: transactions.currency,
-                        chain: transactions.chain,
-                        memo: transactions.memo || "",
-                        updatedAt: new Date(),
-                    });
-                    await newSpotBalance.save();
-                    type = "deposit_to_spots";
-                }
-            // return res.status(200).json({ msg: "success" });
-        } else if (transactions.type === "deposit_to_futures") {
-            const futuresBalance = await FuturesBalance.findOne({ user: transactions.userId, coinId: transactions.coinId });
-                if (futuresBalance) {
-                    futuresBalance.balance += transactions.amount;
-                    await futuresBalance.save();
-                } else {
-                    // If spot balance does not exist, create a new one
-                    const newFuturesBalance = new FuturesBalance({
-                        user: transactions.userId,
-                        coinId: transactions.coinId,
-                        balance: transactions.amount,
-                        currency: transactions.currency,
-                        chain: transactions.chain,
-                        memo: transactions.memo || "",
-                        updatedAt: new Date(),
-                    });
-                    await newFuturesBalance.save();
-                    type = "deposit_to_futures";
-                }
+        if (transactions.type === "deposit_to_spots" || transactions.type === "deposit_to_futures") {
+            console.log("Transaction is a deposit to spots or futures, skipping withdrawal processing.");
+            await Transactions.updateOne(
+                { recordId: recordId, orderId: orderId },
+                { $set: { webhookStatus: "completed", updatedAt: Date.now() } }
+            );
+            return res.status(200).json({ msg: "success" });
         }
 
         // Respond to the webhook

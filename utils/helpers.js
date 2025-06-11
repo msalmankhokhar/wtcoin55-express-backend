@@ -2,6 +2,16 @@ const crypto = require('crypto');
 const { Users } = require('../models/users');
 const { OTP } = require('../models/otp');
 const { Reset_OTP } = require('../models/reset-otp');
+const { SpotBalance } = require('../models/spot-balance');
+const { FuturesBalance } = require('../models/futures-balance');
+const { Transactions } = require('../models/transactions');
+const BitMart = require('../utils/bitmart');
+const bitmart = new BitMart(
+    process.env.BITMART_API_KEY,
+    process.env.BITMART_API_SECRET,
+    process.env.BITMART_API_MEMO,
+    process.env.BITMART_BASE_URL
+);
 
 /**
  * Generates a numeric OTP of a given length
@@ -118,4 +128,45 @@ async function validateVerificationCode(emailOrPhonenumber, code) {
     return [false, "Verification failed"];
 }
 
-module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode };
+/**
+ * Updates the trading wallet balance based on the provided transaction.
+ *
+ * @param {Object} transaction - The transaction object containing type, userId, coinId, amount, currency, chain, and memo.
+ * @return {Promise<void>} - Resolves when the trading wallet balance has been updated.
+ */
+async function updateTradingWallet(transaction) {
+    const { type, userId, coinId, amount, currency, chain, memo } = transaction;
+    const balanceModel = type === "deposit_to_spots" ? SpotBalance : FuturesBalance;
+
+    let balance = await balanceModel.findOne({ user: userId, coinId });
+    if (balance) {
+        balance.balance += amount;
+        await balance.save();
+    } else {
+        balance = new balanceModel({
+            user: userId,
+            coinId,
+            balance: amount,
+            currency,
+            chain,
+            memo: memo || "",
+            updatedAt: new Date(),
+        });
+        await balance.save();
+    }
+
+    if (type === "deposit_to_futures") {
+        await bitmart.SpotToFuturesTransfer(currency, amount);
+    }
+
+    // Update the transaction status
+    await Transactions.updateOne(
+        { _id: transaction._id },
+        { $set: { status: 'completed', webhookStatus: 'completed', updatedAt: Date.now() } }
+    );
+}
+
+
+module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
+    updateTradingWallet
+ };

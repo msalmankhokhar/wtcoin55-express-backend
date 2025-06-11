@@ -17,7 +17,11 @@ let transactionSchema = new mongoose.Schema({
         default: 'pending',
         required: false
      },
-
+     webhookStatus: {
+          type: String,
+          default: 'pending',
+          required: false
+     },
      // Ccpayment
      coinId: { type: Number, required: false },
      address: { type: String, required: false },
