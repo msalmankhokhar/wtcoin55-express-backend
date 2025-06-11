@@ -14,6 +14,10 @@ class BitMart {
      * @param {string} baseURL - BitMart API base URL (default: https://api-cloud-v2.bitmart.com)
      */
     constructor(accessKey, secretKey, memo, baseURL) {
+        console.log("Access Key:", accessKey);
+        console.log("Secret Key:", secretKey);
+        console.log("Memo:", memo);
+        console.log("Base URL:", baseURL);
         this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.memo = memo;

@@ -1,5 +1,5 @@
 const Ccpayment = require('../utils/ccpayment');
-const Bitmart = require('../utils/bitmart');
+const BitMart = require('../utils/bitmart');
 const { v4: uuidv4 } = require('uuid');
 const { Address } = require('../models/address');
 const { MainBalance } = require('../models/balance');
@@ -26,23 +26,15 @@ const ccpayment = new Ccpayment(
     baseUrl=ccpaymentBaseUrl
 );
 
-const bitmartAccessKey = process.env.BITMART_ACCESS_KEY
-const bitmartSecretKey = process.env.BITMART_SECRET_KEY
-const bitmartMemo = process.env.BITMART_MEMO
-const bitmartBaseUrl = process.env.BITMART_BASE_URL || "https://api-cloud-v2.bitmart.com";
+// Get the BitMart API variables
+const { BITMART_API_KEY, BITMART_API_SECRET, BITMART_API_MEMO, BITMART_BASE_URL } = process.env;
 
-console.log("Bitmart Config:", {
-    accessKey: bitmartAccessKey ? '***' : 'Not Set',
-    secretKey: bitmartSecretKey ? '***' : 'Not Set',
-    memo: bitmartMemo ? "***" : 'Not Set',
-    baseUrl: bitmartBaseUrl ? bitmartBaseUrl : 'Not Set'
-});
-
-const bitmart = new Bitmart(
-    accessKey=bitmartAccessKey,
-    secretKey=bitmartSecretKey,
-    memo=bitmartMemo,
-    baseUrl=bitmartBaseUrl
+// Create a new instance of BitMart API client
+const bitmart = new BitMart(
+    BITMART_API_KEY,
+    BITMART_API_SECRET,
+    BITMART_API_MEMO,
+    BITMART_BASE_URL
 );
 
 // Handlers
@@ -237,7 +229,7 @@ async function withdrawToDerivativeWalletHandler(req, res){
         const { amount, destination, coinId, chain, memo="" } = req.body;
         let type;
 
-        if (destination !== 'spots' || destination !== 'futures') {
+        if (destination !== 'spots' && destination !== 'futures') {
             return res.status(400).json({
                 status: false,
                 message: "Invalid destination. Only 'spots' or 'futures' are allowed.",
@@ -284,35 +276,29 @@ async function withdrawToDerivativeWalletHandler(req, res){
         
         const toAddress = await bitmart.getDepositAddress(currency);
 
-        if (!toAddress.code || toAddress.code !== 10000) {
+        // console.log("toAddress::", toAddress);
+
+        if (!toAddress.code || toAddress.code !== 1000) {
             console.log("Coin not supported:", currency);
             return res.status(400).json({ message: 'Coin is not supported' });
         }
+        // console.log(toAddress.data);
         const address = toAddress.data.address;
-
-        // Check the coin in CCPayment
-        if (memo=== undefined || memo === null || memo === "") {
-            const fromAddress = await Address.findOne({ user: user._id, coinId });
-            if (!fromAddress) {
-                return res.status(400).json({ message: 'Coin not found in your account. Please Deposit' });
-            }
-            memo = fromAddress.memo || "";
-        }
 
         // Prepare withdrawal details
         const orderId = `${user._id.toString()}${uuidv4()}`;
         const withdrawalDetails = {
             coinId,
-            address: toAddress.address,
+            address,
             orderId,
             chain,
-            currency, // For Bitmart, we need to specify the currency
             amount: amount.toString(),
             merchantPayNetworkFee: true,
             memo
         };
 
         // Call the applyAppWithdrawToNetwork function from utils
+        console.log("withdrawalDetails::", withdrawalDetails);
         const response = await ccpayment.applyAppWithdrawToNetwork(withdrawalDetails);
 
         // Parse the response
@@ -333,7 +319,7 @@ async function withdrawToDerivativeWalletHandler(req, res){
                 memo,
                 orderId,
                 recordId: data.recordId,
-                status: 'Processing',
+                status: 'processing',
                 type
             });
 

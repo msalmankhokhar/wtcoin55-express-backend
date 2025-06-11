@@ -175,6 +175,7 @@ async function handleWithdrawWebhook(req, res) {
         if (!transactions) {
             console.log("Transaction not found for recordId:", recordId, "and orderId:", orderId);
             // return res.status(404).json({ error: "Transaction not found" });
+            return res.status(200).json({ msg: "success" });
         }
         if (transactions.type === "deposit_to_spots") {
             // Update the funded wallet
@@ -191,7 +192,7 @@ async function handleWithdrawWebhook(req, res) {
                         currency: transactions.currency,
                         chain: transactions.chain,
                         memo: transactions.memo || "",
-                        updatedAt: new Date.now()
+                        updatedAt: new Date(),
                     });
                     await newSpotBalance.save();
                     type = "deposit_to_spots";
@@ -211,7 +212,7 @@ async function handleWithdrawWebhook(req, res) {
                         currency: transactions.currency,
                         chain: transactions.chain,
                         memo: transactions.memo || "",
-                        updatedAt: new Date.now()
+                        updatedAt: new Date(),
                     });
                     await newFuturesBalance.save();
                     type = "deposit_to_futures";
