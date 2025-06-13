@@ -1,7 +1,9 @@
-const express = require('express');
 const BitMart = require('../utils/bitmart');
+const CCpayment = require('../utils/ccpayment');
 const { SpotBalance } = require('../models/spot-balance');
 const { FuturesBalance } = require('../models/futures-balance');
+const { SpotOrderHistory } = require('../models/spot-order');
+const { Transactions } = require('../models/transactions');
 
 
 // Get the BitMart API variables
@@ -16,6 +18,14 @@ const bitmart = new BitMart(
 );
 
 console.log(bitmart);
+
+const { CCPAYMENT_APP_SECRET, CCPAYMENT_APP_ID, CCPAYMENT_BASE_URL } = process.env;
+
+const ccpayment = new CCpayment(
+    CCPAYMENT_APP_SECRET,
+    CCPAYMENT_APP_ID,
+    CCPAYMENT_BASE_URL
+)
 
 // Funtions to handle BitMart API requests
 // Wallet Transfer Controller
@@ -66,9 +76,9 @@ async function getSpotWalletBalance(req, res) {
         let balance
 
         if (coinId !== "") {
-            balance = await SpotBalance.findOne({ user: user._id, coinId })
+            balance = await SpotBalance.findOne({ user: user._id, coinId });
         } else {
-            balance = await SpotBalance.find({ user: user._id})
+            balance = await SpotBalance.find({ user: user._id});
         }
         res.status(200).json(balance);
     } catch (error) {
@@ -95,10 +105,194 @@ async function getFuturesWalletBalance(req, res) {
     }
 }
 
-module.exports = { 
+async function fundFuturesAccount(req, res) {
+    try {
+        const user = req.user;
+        const { currency, amount } = req.body;
+
+        // Validate and fund the user's futures account
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ error: 'Invalid funding amount' });
+        }
+
+        const result = await bitmart.SpotToFuturesTransfer(currency, amount);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error funding futures account:', error);
+        res.status(500).json({ error: 'Failed to fund futures account' });
+    }
+}
+
+
+async function submitSpotOrder(req, res) {
+    try {
+        const { symbol, side, type, price, quantity } = req.body;
+        const { order, error } = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
+
+        if (error) {
+            return res.status(500).json({ error: 'Failed to submit spot order' });
+        }
+
+        const orderCopyCode = uuidv4().slice(0, 6);
+
+        const orderHistory = new SpotOrderHistory({
+            user: req.user._id,
+            symbol: symbol.split('_')[0],
+            quantity,
+            price,
+            side,
+            copyCode: orderCopyCode,
+            orderId: order.order_id,
+            status: 'pending',
+            followers: []
+        });
+
+        await orderHistory.save();
+
+        res.status(200).json(order);
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to submit spot order' });
+    }
+}
+
+
+async function spotsWithdraw(req, res) {
+    try {
+        const user = req.user;
+        const { coinId, amount } = req.body;
+        let result;
+
+        // Validate and fund the user's spot account
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ error: 'Invalid spot amount' });
+        }
+        if (!coinId) {
+            return res.status(400).json({ error: 'Coin ID is required' });
+        }
+
+        // Check if the user has sufficient balance in their spot wallet
+        const spotBalance = await SpotBalance.findOne({ user: user._id, coinId: coinId });
+        if (!spotBalance|| spotBalance.balance < amount) {
+            return res.status(400).json({ error: 'Insufficient balance in spot wallet' });
+        }
+
+        // Get the user's wallet address
+        const referenceId = `${user._id.toString()}${'spot'}${uuidv4()}`;
+
+        const response = ccpayment.getOrCreateAppDepositAddress(coinId, referenceId);
+        const { code, msg, data } = JSON.parse(response);
+        if (code === 10000 && msg === "success") {
+            const { address, memo } = data;
+            
+            result = await bitmart.withdrawFromSpotWallet(spotBalance.currency, amount, destination="To Main Wallet", address, memo || "");
+        
+            if (!result || result.error) {
+                console.error('Error funding spot account:', result.error || 'Unknown error');
+                return res.status(500).json({ error: 'Failed to fund spot account' });
+            }
+    
+        } else {
+            return res.status(500).json({ message: "Failed to get wallet address" });
+        }
+
+        // Update the user's spot balance in the database
+        const updatedBalance = await SpotBalance.findOneAndUpdate(
+            { user: user._id, coinId: coinId },
+            { $inc: { balance: -amount } },
+            { new: true, upsert: true }
+        );
+
+        // Update Transaction History
+        await Transactions({
+            user: user._id,
+            coinId: coinId,
+            currency: updatedBalance.currency,
+            referenceId,
+            withdrawalId: result.data.withdrawId,
+            amount: amount,
+            type: 'withdraw_spot_to_main',
+            status: 'processing'
+        });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error withdrawing from spot wallet:', error);
+        res.status(500).json({ error: 'Failed to withdraw from spot wallet' });
+    }
+}
+
+async function futuresWithdraw(req, res) {
+    try {
+        const user = req.user;
+        const { coinId, amount } = req.body;
+        let result;
+
+        // Validate and fund the user's futures account
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ error: 'Invalid funding amount' });
+        }
+        if (!coinId) {
+            return res.status(400).json({ error: 'Coin ID is required' });
+        }
+
+        // Check if the user has sufficient balance in their future wallet
+        const futuresBalance = await FuturesBalance.findOne({ user: user._id, coinId: coinId });
+        if (!futuresBalance || futuresBalance.balance < amount) {
+            return res.status(400).json({ error: 'Insufficient balance in futures wallet' });
+        }
+
+        // Get the user's wallet address
+        const referenceId = `${user._id.toString()}${'futures'}${uuidv4()}`;
+
+        const response = ccpayment.getOrCreateAppDepositAddress(coinId, referenceId);
+        const { code, msg, data } = JSON.parse(response);
+        if (code === 10000 && msg === "success") {
+            const { address, memo } = data;
+            
+            result = await bitmart.withdrawFromFuturesWallet(futuresBalance.currency, amount, destination="To Main Wallet", address, memo || "");
+        
+            if (!result || result.error) {
+                console.error('Error funding futures account:', result.error || 'Unknown error');
+                return res.status(500).json({ error: 'Failed to fund futures account' });
+            }
+    
+        } else {
+            return res.status(500).json({ message: "Failed to get wallet address" });
+        }
+
+        // Update the user's futures balance in the database
+        const updatedBalance = await FuturesBalance.findOneAndUpdate(
+            { user: user._id, coinId: coinId },
+            { $inc: { balance: -amount } },
+            { new: true, upsert: true }
+        );
+
+        // Update Transaction History
+        await Transactions({
+            user: user._id,
+            coinId: coinId,
+            currency: updatedBalance.currency,
+            amount: amount,
+            withdrawalId: result.data.withdrawId,
+            type: 'withdraw_futures_to_main',
+            status: 'processing'
+        });
+
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error funding futures account:', error);
+        res.status(500).json({ error: 'Failed to fund futures account' });
+    }
+}
+
+module.exports = {
     getTradingPairs,
     getAllCurrency,
     getDepositAddress,
     getFuturesWalletBalance,
-    getSpotWalletBalance
+    getSpotWalletBalance,
+    fundFuturesAccount,
+    submitSpotOrder,
+    spotsWithdraw,
+    futuresWithdraw
 }

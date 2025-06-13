@@ -286,6 +286,24 @@ class CcPayment {
             throw error;
         }
     }
+
+    /**
+     * Function to swap coins using CCPayment API
+     * @param {string} orderId - Order ID for the swap
+     * @param {number} coinIdIn - ID of input coin
+     * @param {string} amountIn - Amount of input coin
+     * @param {number} coinIdOut - ID of output coin
+     * @returns {Promise<string>} - Resolves with API response
+     */
+    async swapCoins(orderId, coinIdIn, amountIn, coinIdOut) {
+        const args = JSON.stringify({
+            orderId: orderId,
+            coinIdIn: coinIdIn,
+            amountIn: amountIn,
+            coinIdOut: coinIdOut
+        });
+        return await this._makeRequest("https://ccpayment.com/ccpayment/v2/swap", args);
+    }
 };
 
 

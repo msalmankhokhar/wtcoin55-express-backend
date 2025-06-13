@@ -25,5 +25,6 @@ async function checkTradingDepositTransactions() {
 // Schedule the cron job to run every minute
 
 cron.schedule('* * * * *', async () => {
+    console.log('Running cron job to check trading deposit transactions...');
     await checkTradingDepositTransactions();
 });

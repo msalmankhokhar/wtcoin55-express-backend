@@ -8,7 +8,7 @@ let transactionSchema = new mongoose.Schema({
      },
      type: {
           type: String,
-          enum: ['deposit', 'withdrawal', 'internal_transfer', 'deposit_to_spots', 'deposit_to_futures'],
+          enum: ['deposit', 'withdrawal', 'internal_transfer', 'deposit_to_spots', 'deposit_to_futures', 'withdraw_futures_to_main', 'withdraw_spot_to_main'],
           required: false
      },
      status: {
@@ -30,6 +30,8 @@ let transactionSchema = new mongoose.Schema({
      orderId: { type: String, required: false }, // For deposits from ccpayment
      recordId: { type: String, required: false }, // For withdrawal from ccpayment
      logoUrl: { type: String, default: '' },
+     withdrawalId: { type: String, required: false },
+     referenceId: { type: String, required: false },
      
      // Financial Information
      amount: {

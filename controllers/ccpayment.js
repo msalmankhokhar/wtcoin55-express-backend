@@ -358,6 +358,115 @@ async function withdrawToDerivativeWalletHandler(req, res){
     }
 };
 
+// async function swapCoinsHnadler(req, res){
+//     try {
+//         let user = req.user;
+//         const { coinIdIn, amountIn, coinIdOut } = req.body;
+//         const orderId = `${user._id.toString()}${uuidv4()}`;
+
+//         const hasCoinIn = await Balance.findOne({ user: user._id, coinId: coinIdIn });
+
+//         if (!hasCoinIn) {
+//             return res.status(400).json({
+//                 status: false,
+//                 message: "Insufficient balance",
+//             });
+//         }
+
+//         if (hasCoinIn.balance < amountIn) {
+//             return res.status(400).json({
+//                 status: false,
+//                 message: "Insufficient balance to swap" + hasCoinIn.coinName,
+//             });
+//         }
+
+//         // Get coin information
+//         const coinListResponse = await getCoinList();
+//         const { code: coinListCode, msg: coinListMsg, data: coinListData } = JSON.parse(coinListResponse);
+
+//         if (coinListCode !== 10000 || coinListMsg !== "success") {
+//             return res.status(500).json({
+//                 status: false,
+//                 message: "Failed to retrieve coin information",
+//             });
+//         }
+
+//         const coinOutInfo = coinListData.coins.find(coin => coin.coinId === coinIdOut);
+//         const coinInInfo = coinListData.coins.find(coin => coin.coinId === coinIdIn);
+
+//         if (!coinOutInfo || !coinInInfo) {
+//             return res.status(400).json({
+//                 status: false,
+//                 message: "Invalid coin IDs",
+//             });
+//         }
+
+//         // Call the swapCoins function from utils
+//         const response = await swapCoins(orderId, coinIdIn, amountIn, coinIdOut);
+
+//         // {
+//         //      "code": 10000, 
+//         //      "msg": "success", 
+//         //      "data": 
+//         //      { 
+//         //         "recordId": "20250303182320248341967631716352", 
+//         //         "orderId": "67c5963306b694669adcfd44ba9ade02-90c4-4fc1-ab81-960c48aa44eb", 
+//         //         "coinIdIn": 1280, 
+//         //         "coinIdOut": 1282, 
+//         //         "amountOut": "0.9955520015992803", 
+//         //         "amountIn": "1", 
+//         //         "swapRate": "0.9955520015992803", 
+//         //         "fee": "0.0999550202408916", 
+//         //         "feeRate": "0.1004016064257028", 
+//         //         "netAmountOut": "0.8955969813583887" 
+//         //     } }
+
+//         // Parse the response
+//         const { code, msg, data } = JSON.parse(response);
+//         if (code === 10000 && msg === "success") {
+//             // Deduct the amount from coinIn balance
+//             await updateBalance(
+//                 user._id,
+//                 coinIdIn,
+//                 coinInInfo.symbol,
+//                 -amountIn,
+//                 data.recordId,
+//                 coinInInfo.logoUrl
+//             );
+
+//             console.log("coinOutInfo::", coinOutInfo);
+
+//             // Add the netAmountOut to coinOut balance
+//             await updateBlc_NTR(
+//                 user._id,
+//                 coinIdOut,
+//                 coinOutInfo.symbol,
+//                 parseFloat(data.netAmountOut),
+//                 coinOutInfo.logoUrl
+//             );
+
+//             return res.status(200).json({
+//                 status: true,
+//                 message: "Coins swapped successfully",
+//                 data: data
+//             });
+//         } else {
+//             return res.status(500).json({
+//                 status: false,
+//                 message: "Failed to swap coins",
+//                 error: msg
+//             });
+//         }
+//     } catch (error) {
+//         console.log("error::", error);
+//         return res.status(500).json({
+//             status: false,
+//             message: "Internal server error",
+//             error: error.message
+//         });
+//     }
+// }
+
 // Handle webhooks
 async function depositWebhookHandler(req, res){
     return await handleDepositWebhook(req, res);

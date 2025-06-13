@@ -33,9 +33,24 @@ class BitMart {
      * @param {string} body - Request body (empty string for GET requests)
      * @returns {string} - HMAC SHA256 signature
      */
-    _generateSignature(timestamp, method, requestPath, body = '') {
-        const message = timestamp + '#' + this.memo + '#' + method + '#' + requestPath + '#' + body;
-        return crypto.createHmac('sha256', this.secretKey).update(message).digest('hex');
+    _generateSignature(timestamp, method, requestPath, body = '', v2 = false) {
+        if (v2) {
+            const queryString = method === 'GET' ? (requestPath.split('?')[1] || '') : '';
+            const messageContent = method === 'GET'
+                ? queryString
+                : JSON.stringify(body, Object.keys(body).sort());
+
+            // const newBody = JSON.stringify(body, Object.keys(body).sort());
+            console.log(this.secretKey);
+            const message = timestamp + '#' + this.memo + '#' + queryString + body;
+            return crypto.createHmac('sha256', this.secretKey).update(message).digest('hex');
+        } else {
+            // v1 signature format: timestamp#memo#method#requestPath#body
+            // Make sure requestPath excludes query params for signature
+            const cleanPath = requestPath.split('?')[0];
+            const message = `${timestamp}#${this.memo}#${method}#${cleanPath}#${body}`;
+            return crypto.createHmac('sha256', this.secretKey).update(message).digest('hex');
+        }
     }
 
     /**
@@ -43,23 +58,24 @@ class BitMart {
      * @param {string} method - HTTP method (GET, POST, etc.)
      * @param {string} requestPath - API endpoint path
      * @param {string} body - Request body (empty string for GET requests)
+     * @param {boolean} v2 - Whether to use v2 signature format (default: false)
      * @returns {Object} - Headers object with authentication
      */
-    _getHeaders(method, requestPath, body = '') {
+    _getHeaders(method, requestPath, body = '', v2 = false) {
         const timestamp = Date.now().toString();
-        const signature = this._generateSignature(timestamp, method, requestPath, body);
-        
+        const signature = this._generateSignature(timestamp, method, requestPath, body, v2);
 
-        return method==="GET" ? {
+        const headers = {
             'X-BM-KEY': this.accessKey,
             'X-BM-SIGN': signature,
             'X-BM-TIMESTAMP': timestamp
-        } : {
-            'X-BM-KEY': this.accessKey,
-            'X-BM-SIGN': signature,
-            'X-BM-TIMESTAMP': timestamp,
-            'Content-Type': 'application/json'
         };
+
+        if (method !== "GET") {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        return headers;
     }
 
     /**
@@ -82,6 +98,7 @@ class BitMart {
                 headers: headers,
                 timeout: 30000 // 30 second timeout
             };
+            console.log("Using URL:", config.url);
 
             // Only add data for non-GET requests
             if (method !== 'GET' && data) {
@@ -89,6 +106,12 @@ class BitMart {
             }
 
             const response = await axios(config);
+
+            
+            if (response.data.code !== 1000) {
+                throw new Error(`BitMart API Error: ${response.data.message}`);
+            }
+
             return response.data;
         } catch (error) {
             console.error("BitMart API Error:", error.response?.data || error.message);
@@ -96,6 +119,44 @@ class BitMart {
         }
     }
 
+    /**
+     * Make authenticated request to BitMart API (v2)
+     * @param {string} method - HTTP method (GET, POST, etc.)
+     * @param {string} endpoint - API endpoint path
+     * @param {Object} [data=null] - Request payload (optional)
+     * @returns {Promise<Object>} - API response data
+     */
+    async _makeRequestV2(method, endpoint, data = null) {
+        const requestPath = endpoint.split('?')[0];
+        const body = data ? JSON.stringify(data) : '';
+
+        const headers = this._getHeaders(method, requestPath, body, true);
+
+        try {
+            const config = {
+                method,
+                url: `https://api-cloud-v2.bitmart.com${endpoint}`,
+                headers,
+                timeout: 30000
+            };
+
+            if (method !== 'GET' && data) {
+                config.data = data;
+            }
+
+            const response = await axios(config);
+
+            if (response.data.code !== 1000) {
+                throw new Error(`BitMart API Error: ${response.data.message}`);
+            }
+
+            return response.data;
+        } catch (error) {
+            console.log(error);
+            const errorMessage = error.response?.data?.message || error.message;
+            throw new Error(`BitMart API Error: ${errorMessage}`);
+        }
+    }
 
     // ==================== DEPOSIT METHODS ====================
 
@@ -335,52 +396,106 @@ class BitMart {
         const data = {
             currency: currency,
             amount: amount,
-            type: 'spot_to_futures'
+            type: 'spot_to_futures',
+            recvWindow: 7000
         };
         
+        return await this._makeRequestV2('POST', endpoint, data);
+    }
+
+    async FuturesToSpotTransfer(currency, amount) {
+        const endpoint = '/account/v1/transfer-contract';
+        const data = {
+            currency: currency,
+            amount: amount,
+            type: 'futures_to_spot',
+            recvWindow: 7000
+        };
+        
+        return await this._makeRequestV2('POST', endpoint, data);
+    }
+
+
+    // Submit Spot Orders
+    async submitSpotOrder(client_order_id, symbol, side, type, quantity = null, price = null, notional = null) {
+        const endpoint = '/spot/v2/submit_order';
+        const data = {
+            symbol: symbol,
+            side: side,   // 'buy' or 'sell'
+            type: type    // 'market' or 'limit'
+        };
+
+        // Optional client order ID
+        if (client_order_id) {
+            data.clientOrderId = client_order_id;
+        }
+
+        // Logic depending on order type
+        if (type === 'limit') {
+            // Limit order needs both price and quantity
+            if (!price || !quantity) {
+                throw new Error("Limit order requires both price and quantity.");
+            }
+            data.price = price;
+            data.quantity = quantity;
+        } else if (type === 'market') {
+            if (side === 'buy') {
+                // Market buy requires `notional` (amount in quote currency)
+                if (!notional) {
+                    throw new Error("Market buy order requires 'notional' (amount in quote currency).");
+                }
+                data.notional = notional;
+            } else if (side === 'sell') {
+                // Market sell requires `quantity` (in base currency)
+                if (!quantity) {
+                    throw new Error("Market sell order requires 'quantity'.");
+                }
+                data.quantity = quantity;
+            }
+        } else {
+            throw new Error("Invalid order type. Must be 'limit' or 'market'.");
+        }
+
+        return await this._makeRequestV2('POST', endpoint, data);
+    }
+
+    async withdrawFromSpotWallet(currency, amount, destination, address, memo = '') {
+        const endpoint = '/account/v1/withdraw/apply';
+        const data = {
+            currency: currency,
+            amount: amount,
+            destination: destination,
+            address: address,
+            address_memo: memo
+        };
+
         return await this._makeRequest('POST', endpoint, data);
     }
+
+
+    async withdrawFromFuturesWallet(currency, amount, destination, address, memo = '') {
+        // Note: BitMart does not support direct withdrawals from Futures wallet to external addresses.
+        // Transfer from Futures to Spot wallet first, then withdraw from Spot wallet.
+        // First transfer from Futures to Spot wallet
+        await this.FuturesToSpotTransfer(currency, amount);
+        console.log(`Transferred ${amount} ${currency} from Futures to Spot wallet.`);
+        // Now we can withdraw from Spot wallet
+        // Then withdraw from Spot wallet
+        const endpoint = '/account/v1/withdraw/apply';
+        const data = {
+            currency: currency,
+            amount: amount,
+            destination: destination,
+            address: address,
+            address_memo: memo
+        };
+
+        return await this._makeRequest('POST', endpoint, data);
+    }
+
 
 }
 
 module.exports = BitMart;
 
 // ==================== USAGE EXAMPLE ====================
-
-/*
-// Initialize BitMart client
-const bitmart = new BitMart(
-    'your_access_key',
-    'your_secret_key', 
-    'your_memo'
-);
-
-// Example: Get deposit address
-async function example() {
-    try {
-        // Get USDT deposit address
-        const depositAddress = await bitmart.getDepositAddress('USDT');
-        console.log('Deposit Address:', depositAddress);
-        
-        // Generate unique reference for user deposit
-        const reference = bitmart.generateDepositReference('user123', 'USDT');
-        console.log('Deposit Reference:', reference);
-        
-        // Get deposit history
-        const deposits = await bitmart.getDepositHistory('USDT', null, null, 10);
-        console.log('Recent Deposits:', deposits);
-        
-        // Submit withdrawal
-        const withdrawal = await bitmart.submitWithdrawal(
-            'USDT',
-            '100',
-            'To Digital Address',
-            '0x1234567890abcdef1234567890abcdef12345678'
-        );
-        console.log('Withdrawal Response:', withdrawal);
-        
-    } catch (error) {
-        console.error('Error:', error.message);
-    }
-}
-*/

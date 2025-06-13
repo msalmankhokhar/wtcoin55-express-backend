@@ -71,8 +71,15 @@ async function handleDepositWebhook(req, res) {
         const recordId = req.body.msg.recordId;
         const status = req.body.msg.status;
 
+        const dest = req.body.msg.referenceId.match(/spot/)?.[0] || null;
+
         if (status !== "Success") {
             return res.status(200).json({ msg: "success" });
+        }
+
+        if (dest && dest === 'spot' || dest === 'futures') {
+            // Find the transaction
+            await Transactions.updateOne({ referenceId: req.body.msg.referenceId }, { $set: { status: "completed" } });
         }
 
 
@@ -103,7 +110,7 @@ async function handleDepositWebhook(req, res) {
         //     "txId": "2d8b1dc99157b93cf8f835128851a0b9f78144f769db47fcc3c39e73cf2775de", 
         //     "txIndex": 200000, "status": "Success", "arrivedAt": 1742530119, "isFlaggedAsRisky": false } } }
 
-        console.log("Result:", result); 
+        console.log("Result:", result);
         const { code, msg, data } = JSON.parse(result);
 
         const userDeposit = data.record;

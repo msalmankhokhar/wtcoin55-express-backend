@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();
@@ -130,6 +130,37 @@ router.get('/wallet/spot-balance', tokenRequired, getSpotWalletBalance);
  *                   type: string
  */
 router.get('/wallet/futures-balance', tokenRequired, getFuturesWalletBalance);
+
+
+/**
+ * @swagger
+ * /api/bitmart/fund-futures-account:
+ *   post:
+ *     summary: Funds the user's futures account with a specified amount of a currency
+ *     security:
+ *       - quantumAccessToken: []
+ *     tags: [Bitmart]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - coin
+ *               - amount
+ *             properties:
+ *               coin:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Futures balance updated successfully
+ *       500:
+ *         description: Server error
+ */
+router.post('/fund-futures-account', tokenRequired, fundFuturesAccount);
 
 
 module.exports = router;
