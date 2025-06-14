@@ -20,7 +20,7 @@ const getBalance = async (req, res) => {
     try {
         const balance = await MainBalance.find({ user: req.user._id });
 
-        if (!balance) {
+        if (balance.length === 0) {
             const usdtBalance = await MainBalance({
                 user: req.user._id,
                 coinId: 1280,
@@ -29,11 +29,10 @@ const getBalance = async (req, res) => {
             });
             await usdtBalance.save();
 
-            return res.status(200).json([usdtBalance]);
+            return res.status(200).json({msg: "success", balance: [usdtBalance]});
         }
-        console.log(balance);
 
-        return res.status(200).json(balance);
+        return res.status(200).json({msg: "success", balance});
     } catch (error) {
         console.error('Error retrieving balance:', error);
         return res.status(500).json({ error: 'Internal server error' });
