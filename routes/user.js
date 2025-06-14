@@ -1,5 +1,5 @@
 let express = require('express');
-const { getProfile } = require('../controllers/user');
+const { getProfile, getBalance } = require('../controllers/user');
 const { tokenRequired } = require('../middleware/auth');
 
 let router = express.Router();
@@ -22,6 +22,38 @@ let router = express.Router();
  *         description: Server error
  */
 router.get('/profile', tokenRequired, getProfile);
+
+
+/**
+ * @swagger
+ * /api/user/assets:
+ *   get:
+ *     summary: Retrieve the user's main balance
+ *     tags: [User]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved balance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   user:
+ *                     type: string
+ *                   coinId:
+ *                     type: number
+ *                   coinName:
+ *                     type: string
+ *                   balance:
+ *                     type: number
+ *       500:
+ *         description: Server error
+ */
+router.get('/assets', tokenRequired, getBalance);
 
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const { Users } = require('../models/users');
+const { MainBalance } = require('../models/balance');
 
 const getProfile = async (req, res) => {
     console.log(req.user);
@@ -14,4 +15,29 @@ const getProfile = async (req, res) => {
     return res.status(200).json(userObj);
 };
 
-module.exports = { getProfile };
+
+const getBalance = async (req, res) => {
+    try {
+        const balance = await MainBalance.find({ user: req.user._id });
+
+        if (!balance) {
+            const usdtBalance = await MainBalance({
+                user: req.user._id,
+                coinId: 1280,
+                coinName: 'USDT',
+                balance: 0
+            });
+            await usdtBalance.save();
+
+            return res.status(200).json([usdtBalance]);
+        }
+        console.log(balance);
+
+        return res.status(200).json(balance);
+    } catch (error) {
+        console.error('Error retrieving balance:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+module.exports = { getProfile, getBalance };
