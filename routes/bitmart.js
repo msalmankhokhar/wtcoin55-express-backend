@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();
@@ -24,15 +24,29 @@ router.get('/trading-pairs', tokenRequired, getTradingPairs);
  * @swagger
  * /api/bitmart/currencies:
  *   get:
- *    summary: Retrieve all currencies from BitMart
- *    security:
- *      - quantumAccessToken: []
- *    tags: [Bitmart]
- *    responses:
- *      200:
- *        description: List of currencies
- *      500:
- *        description: Server error
+ *     summary: Retrieve all currencies from BitMart
+ *     security:
+ *       - quantumAccessToken: []
+ *     tags: [Bitmart]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Maximum number of currencies to retrieve
+ *         default: 20
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Page number for pagination
+ *     responses:
+ *       200:
+ *         description: List of currencies
+ *       500:
+ *         description: Server error
  */
 router.get('/currencies', tokenRequired, getAllCurrency);
 
@@ -162,5 +176,36 @@ router.get('/wallet/futures-balance', tokenRequired, getFuturesWalletBalance);
  */
 router.post('/fund-futures-account', tokenRequired, fundFuturesAccount);
 
+
+
+/**
+ * @swagger
+ * /api/bitmart/test-get-spot-order:
+ *   post:
+ *     summary: Test retrieval of a spot order
+ *     tags: [Bitmart]
+ *     security:
+ *       - quantumAccessToken: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               orderId:
+ *                 type: string
+ *                 description: ID of the spot order to retrieve
+ *     responses:
+ *       200:
+ *         description: Spot order data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       500:
+ *         description: Server error
+ */
+router.post('/test-get-spot-order', tokenRequired, testSpotOrder);
 
 module.exports = router;

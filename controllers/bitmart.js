@@ -4,6 +4,7 @@ const { SpotBalance } = require('../models/spot-balance');
 const { FuturesBalance } = require('../models/futures-balance');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { Transactions } = require('../models/transactions');
+const { getSpotOrder } = require('../utils/helpers');
 
 
 // Get the BitMart API variables
@@ -49,9 +50,23 @@ async function getTradingPairs(req, res) {
 
 
 async function getAllCurrency(req, res) {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
     try {
-        const currencies = await bitmart.getAllCurrencies();
-        return currencies;
+        const currencies = require('../filtered_bitmart.json');
+        const offset = (page - 1) * limit;
+        const filteredCurrencies = currencies
+            .slice(offset, offset + limit)
+            .map(currency => ({
+                currency: currency.currency,
+                name: currency.name,
+                network: currency.network
+            }));
+        const meta = {
+            prev: page > 1 ? `/api/bitmart/currencies?page=${page - 1}&limit=${limit}` : null,
+            next: page < Math.ceil(currencies.length / limit) ? `/api/bitmart/currencies?page=${page + 1}&limit=${limit}` : null
+        };
+        return res.status(200).json({ data: filteredCurrencies, meta });
     } catch (error) {
         console.error('Error fetching all currencies:', error);
         throw new Error('Failed to fetch all currencies');
@@ -285,6 +300,13 @@ async function futuresWithdraw(req, res) {
     }
 }
 
+async function testSpotOrder(req, res) {
+    const spotHist = await getSpotOrder(req.body.orderId);
+    console.log(spotHist);
+
+    return res.status(200).json(spotHist);
+}
+
 module.exports = {
     getTradingPairs,
     getAllCurrency,
@@ -294,5 +316,6 @@ module.exports = {
     fundFuturesAccount,
     submitSpotOrder,
     spotsWithdraw,
-    futuresWithdraw
+    futuresWithdraw,
+    testSpotOrder
 }

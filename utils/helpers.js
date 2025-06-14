@@ -167,16 +167,39 @@ async function updateTradingWallet(transaction) {
 }
 
 async function getSpotOrder(orderId) {
-    const response = await bitmart.getSpotOrder(orderId);
-
-    const { code, message, data } = response;
-    if (code !== 1000) {
-        console.log("Response:", response);
-        throw new Error(response.error || message || 'Unknown error');
+    // Fetch order details
+    const { code: orderCode, message: orderMessage, data: orderData } = await bitmart.getSpotOrder(orderId);
+    if (orderCode !== 1000) {
+        console.log("Order response error:", { code: orderCode, message: orderMessage, data: orderData });
+        throw new Error(orderMessage || 'Unknown error fetching order');
     }
-    return data;
+
+    // Fetch trades related to this order to determine maker/taker and fees
+    const { code: tradesCode, message: tradesMessage, data: tradesData } = await bitmart.getSpotTrades({ symbol: orderData.symbol });
+    if (tradesCode !== 1000) {
+        console.warn("Trades response error:", { code: tradesCode, message: tradesMessage, data: tradesData });
+    }
+
+    // Determine fee type from trades if available
+    let feeType = null;
+    if (Array.isArray(tradesData) && tradesData.length > 0) {
+        // Assuming all trades for this order have the same role (maker/taker)
+        feeType = tradesData[0].role; // "maker" or "taker"
+    } else {
+        // Fallback: infer fee type by comparing createTime and updateTime (milliseconds)
+        const timeDiff = orderData.updateTime - orderData.createTime;
+        // If filled immediately (< 1 second), assume taker; else maker
+        feeType = timeDiff < 1000 ? 'taker' : 'maker';
+    }
+
+    // Return enriched order data with feeType
+    return {
+        ...orderData,
+        feeType,
+    };
 }
 
+
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
-    updateTradingWallet
+    updateTradingWallet, getSpotOrder
  };

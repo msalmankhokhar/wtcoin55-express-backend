@@ -503,6 +503,26 @@ class BitMart {
         return await this._makeRequest('GET', endpoint, data);
     }
 
+    async getSpotTrades(symbol, orderMode = 'spot', startTime = null, endTime = null, limit = 10) {
+        const endpoint = `/spot/v4/query/trades`;
+
+        // Prepare request payload
+        const data = {
+            symbol,
+            orderMode,       // 'spot' or 'margin'
+            limit,
+            recvWindow: 5000
+        };
+
+        // Include startTime and endTime if provided
+        if (startTime) data.startTime = startTime;
+        if (endTime) data.endTime = endTime;
+
+        // Make POST request with JSON body
+        return await this._makeRequest('POST', endpoint, data);
+    }
+
+
 
 }
 

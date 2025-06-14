@@ -1,6 +1,7 @@
 const cron = require('node-cron');
-const { updateTradingWallet } = require('../utils/helpers');
+const { updateTradingWallet, getSpotOrder } = require('../utils/helpers');
 const { Transactions } = require('../models/transactions');
+const { SpotOrderHistory } = require('../models/spot-order');
 
 /**
  * Get Trading Deposit transactions
@@ -23,13 +24,18 @@ async function checkTradingDepositTransactions() {
     }
 }
 
-/**
- * Get Spot History and Status
- * @returns {Promise<Object>} -
- */
-async function getSpotHistoryAndStatus() {
-    
-}
+    /**
+     * Get Spot History and Status
+     * @returns {Promise<Object>} -
+     */
+    async function getSpotHistoryAndStatus() {
+        // Get all pending spot orders and update their status
+        await SpotOrderHistory.find({ status: 'pending' }).then(async (orders) => {
+            for (const order of orders) {
+                await getSpotOrder(order.orderId);
+            }
+        })
+    }
 
 
 // Schedule the cron job to run every minute
