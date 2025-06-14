@@ -42,7 +42,8 @@ const corsOptions = {
         `http://localhost:3000`,
         `https://quantum-exchange.onrender.com`,
         `https://quantum-exchange.vercel.app`,
-        'https://qtex.app'
+        'https://qtex.app',
+        'https://www.qtex.app',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,

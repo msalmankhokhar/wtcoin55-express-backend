@@ -22,6 +22,16 @@ async function checkTradingDepositTransactions() {
         console.log(`Updated trading wallet for transaction: ${transaction._id}, type: ${transaction.type}`);
     }
 }
+
+/**
+ * Get Spot History and Status
+ * @returns {Promise<Object>} -
+ */
+async function getSpotHistoryAndStatus() {
+    
+}
+
+
 // Schedule the cron job to run every minute
 
 cron.schedule('* * * * *', async () => {

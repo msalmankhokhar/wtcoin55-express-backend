@@ -166,6 +166,16 @@ async function updateTradingWallet(transaction) {
     );
 }
 
+async function getSpotOrder(orderId) {
+    const response = await bitmart.getSpotOrder(orderId);
+
+    const { code, message, data } = response;
+    if (code !== 1000) {
+        console.log("Response:", response);
+        throw new Error(response.error || message || 'Unknown error');
+    }
+    return data;
+}
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
     updateTradingWallet

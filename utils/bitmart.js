@@ -493,6 +493,16 @@ class BitMart {
         return await this._makeRequest('POST', endpoint, data);
     }
 
+    async getSpotOrder(order_id) {
+        const endpoint = `/spot/v4/query/order`;
+        const data = {
+            orderId: order_id,
+            queryState: 'open'
+        };
+
+        return await this._makeRequest('GET', endpoint, data);
+    }
+
 
 }
 
