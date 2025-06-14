@@ -15,6 +15,7 @@ const UsersSchema = new mongoose.Schema({
     },
     // totalBalance: { type: Number, default: 0 },
     emailVerified: { type: Boolean, default: false },
+    firstDeposit: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     lastLogin: {type: Date, required: false}
 });

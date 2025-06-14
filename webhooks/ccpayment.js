@@ -3,6 +3,7 @@ const { Transactions } = require("../models/transactions");
 const { SpotBalance } = require("../models/spot-balance");
 const { FuturesBalance } = require('../models/futures-balance');
 const crypto = require("crypto");
+const { Users } = require("../models/users");
 require("dotenv").config();
 
 const ccpayment = new Cccpayment(
@@ -59,9 +60,9 @@ async function handleDepositWebhook(req, res) {
         //     return res.status(400).json({ error: `Unexpected webhook type: ${type}` });
         // }
 
-        console.log("------------------")
+        console.log("------------------");
         console.log(req.body);
-        console.log("------------------")
+        console.log("------------------");
 
         if (req.body.type === "ActivateWebhookURL") {
             return res.status(200).json({ msg: "success" });
@@ -71,7 +72,8 @@ async function handleDepositWebhook(req, res) {
         const recordId = req.body.msg.recordId;
         const status = req.body.msg.status;
 
-        const dest = req.body.msg.referenceId.match(/spot/)?.[0] || null;
+        let dest = req.body.msg.referenceId.match(/spot/)?.[0] || null;
+        dest = !dest ? req.body.msg.referenceId.match(/futures/)?.[0] || null : dest;
 
         if (status !== "Success") {
             return res.status(200).json({ msg: "success" });
@@ -85,10 +87,10 @@ async function handleDepositWebhook(req, res) {
 
         console.log("User ID:", userId);
         console.log("Record ID:", recordId);
-        const result = await ccpayment.getAppDepositRecord(recordId)
+        const result = await ccpayment.getAppDepositRecord(recordId);
 
 
-        // sample response from the result-----------------
+        // sample response from the result -----------------
 
         // { 
         // "code": 10000, 
@@ -119,7 +121,34 @@ async function handleDepositWebhook(req, res) {
         const coinName = userDeposit.coinSymbol;
         const amount = userDeposit.amount;
 
-        await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
+        // await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
+
+        // Check if this is the user first deposit 
+        const user = await Users.findById({ _id: userId });
+        if (!user.firstDeposit) {
+            const bonusPercentage = 0.05;
+            const referrerBonusPercentage = 0.10;
+
+            // Calculate bonuses
+            const userBonus = userDeposit.amount * bonusPercentage;
+            const referrerBonus = userDeposit.amount * referrerBonusPercentage;
+
+            // Add bonus to user's deposit
+            await ccpayment.updateBalance(userId, coinId, coinName, userBonus, recordId);
+
+            // Add bonus to referrer, if exists
+            if (user.referBy) {
+                // Get the user who referred this user
+                const referredUser = await Users.findOne({ referCode: user.referBy });
+                await ccpayment.updateBalance(referredUser._id, coinId, coinName, referrerBonus, recordId);
+            }
+
+            // Mark as first deposit true
+            user.firstDeposit = true;
+            await user.save();
+        } else {
+            await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
+        }
 
 
         // Respond to the webhook
