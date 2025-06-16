@@ -223,7 +223,8 @@ async function handleWithdrawWebhook(req, res) {
 
             await SpotBalance.updateOne(
                 { user: transactions.user, coinId: transactions.coinId },
-                { $inc: { balance: transactions.amount } }
+                { $inc: { balance: transactions.amount } },
+                { upsert: true }
             );
             return res.status(200).json({ msg: "success" });
         }
