@@ -220,6 +220,11 @@ async function handleWithdrawWebhook(req, res) {
                 { recordId: recordId, orderId: orderId },
                 { $set: { webhookStatus: "completed", updatedAt: Date.now() } }
             );
+
+            await SpotBalance.updateOne(
+                { user: transactions.user, coinId: transactions.coinId },
+                { $inc: { balance: transactions.amount } }
+            );
             return res.status(200).json({ msg: "success" });
         }
 
