@@ -1,7 +1,7 @@
 let express = require('express');
 const { getCoinListHandler, getOrCreateAppDepositAddressHandler, getChainListHandler, 
     getAppCoinAssetListHandler, getAppCoinAssetHandler, getAppDepositRecordListHandler, 
-    applyAppWithdrawToNetworkHandler, withdrawToDerivativeWalletHandler,
+    applyAppWithdrawToNetworkHandler, withdrawToTradeWalletHandler,
     depositWebhookHandler, withdrawWebhookHandler } = require('../controllers/ccpayment');
 
 const { tokenRequired } = require('../middleware/auth');
@@ -227,7 +227,7 @@ router.post('/withdraw', tokenRequired, applyAppWithdrawToNetworkHandler);
  *       500:
  *         description: Server error
  */
-router.post('/withdraw/trading-wallet', tokenRequired, withdrawToDerivativeWalletHandler);
+router.post('/withdraw/trading-wallet', tokenRequired, withdrawToTradeWalletHandler);
 
 router.get('/webhook/deposit', function(req, res) {
     res.status(200).json({ msg: "Webhook endpoint for deposit is active" });

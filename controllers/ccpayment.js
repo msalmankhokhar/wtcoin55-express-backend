@@ -223,7 +223,7 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
 };
 
 
-async function withdrawToDerivativeWalletHandler(req, res){
+async function withdrawToTradeWalletHandler(req, res){
     try {
         const user = req.user; // Assuming user is attached to the request
         const { amount, destination, coinId, chain, memo="" } = req.body;
@@ -484,7 +484,7 @@ module.exports = {
     getOrCreateAppDepositAddressHandler,
     getAppDepositRecordListHandler,
     applyAppWithdrawToNetworkHandler,
-    withdrawToDerivativeWalletHandler, 
+    withdrawToTradeWalletHandler, 
     depositWebhookHandler, 
     withdrawWebhookHandler
 };

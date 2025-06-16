@@ -166,37 +166,132 @@ async function updateTradingWallet(transaction) {
     );
 }
 
+/**
+ * Get Spot Order Details and Try to Match Trades
+ * @param {string} orderId - BitMart order ID
+ * @returns {Promise<Object>} - Updated order data
+ */
 async function getSpotOrder(orderId) {
-    // Fetch order details
-    const { code: orderCode, message: orderMessage, data: orderData } = await bitmart.getSpotOrder(orderId);
-    if (orderCode !== 1000) {
-        console.log("Order response error:", { code: orderCode, message: orderMessage, data: orderData });
-        throw new Error(orderMessage || 'Unknown error fetching order');
-    }
+    try {
+        // 1. Get order details
+        const { code: orderCode, message: orderMessage, data: orderData } = await bitmart.getSpotOrder(orderId);
+        
+        if (orderCode !== 1000) {
+            console.log("Order response error:", { code: orderCode, message: orderMessage });
+            throw new Error(orderMessage || 'Unknown error fetching order');
+        }
 
-    // Fetch trades related to this order to determine maker/taker and fees
-    const { code: tradesCode, message: tradesMessage, data: tradesData } = await bitmart.getSpotTrades({ symbol: orderData.symbol });
-    if (tradesCode !== 1000) {
-        console.warn("Trades response error:", { code: tradesCode, message: tradesMessage, data: tradesData });
-    }
+        // 2. Check if order needs trade analysis
+        if (orderData.state !== 'filled' && orderData.state !== 'partially_filled') {
+            return {
+                orderId: orderData.orderId,
+                state: orderData.state,
+                filledSize: orderData.filledSize || '0',
+                priceAvg: orderData.priceAvg || '0',
+                needsUpdate: false
+            };
+        }
 
-    // Determine fee type from trades if available
-    let feeType = null;
-    if (Array.isArray(tradesData) && tradesData.length > 0) {
-        // Assuming all trades for this order have the same role (maker/taker)
-        feeType = tradesData[0].role; // "maker" or "taker"
-    } else {
-        // Fallback: infer fee type by comparing createTime and updateTime (milliseconds)
-        const timeDiff = orderData.updateTime - orderData.createTime;
-        // If filled immediately (< 1 second), assume taker; else maker
-        feeType = timeDiff < 1000 ? 'taker' : 'maker';
-    }
+        // 3. Get account trades around the order execution time to find matching trades
+        const orderCreateTime = orderData.createTime;
+        const orderUpdateTime = orderData.updateTime;
+        
+        // Search for trades in a window around order execution
+        const searchStartTime = orderCreateTime - 60000; // 1 minute before
+        const searchEndTime = orderUpdateTime + 60000;   // 1 minute after
+        
+        const { code: tradesCode, message: tradesMessage, data: tradesData } = await bitmart.getSpotTrades(
+            orderData.symbol,
+            'spot',
+            searchStartTime,
+            searchEndTime,
+            50 // Get more trades to find matches
+        );
 
-    // Return enriched order data with feeType
-    return {
-        ...orderData,
-        feeType,
-    };
+        let matchingTrades = [];
+        let totalFees = 0;
+        let feeType = 'taker'; // Default
+        let feeCurrency = 'USDT';
+
+        if (tradesCode === 1000 && Array.isArray(tradesData) && tradesData.length > 0) {
+            // Filter trades that likely belong to this order
+            matchingTrades = tradesData.filter(trade => {
+                const tradeTime = trade.createTime;
+                const tradeSide = trade.side;
+                const tradePrice = parseFloat(trade.price);
+                const orderPrice = parseFloat(orderData.priceAvg || orderData.price);
+                
+                // Match criteria:
+                // 1. Trade time between order create and update time
+                // 2. Same side (buy/sell)
+                // 3. Price within reasonable range of order execution price
+                const timeMatch = tradeTime >= orderCreateTime && tradeTime <= orderUpdateTime;
+                const sideMatch = tradeSide === orderData.side;
+                const priceMatch = Math.abs(tradePrice - orderPrice) < (orderPrice * 0.01); // Within 1%
+                
+                return timeMatch && sideMatch && priceMatch;
+            });
+
+            // Calculate fees from matching trades
+            for (const trade of matchingTrades) {
+                totalFees += parseFloat(trade.fee || 0);
+                if (trade.tradeRole === 'maker') {
+                    feeType = 'maker';
+                }
+                feeCurrency = trade.feeCoinName || feeCurrency;
+            }
+        }
+
+        // 4. Fallback fee estimation if no matching trades found
+        if (matchingTrades.length === 0 && orderData.state === 'filled') {
+            console.warn(`No matching trades found for order ${orderId}, using fallback estimation`);
+            
+            // Estimate fees based on order type and timing
+            const executionSpeed = orderUpdateTime - orderCreateTime;
+            
+            // If order executed very quickly (< 1 second), likely a taker
+            if (orderData.type === 'market' || executionSpeed < 1000) {
+                feeType = 'taker';
+            } else {
+                feeType = 'maker';
+            }
+            
+            // Estimate fee (you'll need to get actual fee rates)
+            const executedValue = parseFloat(orderData.filledNotional || 0);
+            const estimatedFeeRate = feeType === 'maker' ? 0.001 : 0.0025; // Example rates
+            totalFees = executedValue * estimatedFeeRate;
+        }
+
+        // 5. Return complete order data
+        return {
+            orderId: orderData.orderId,
+            symbol: orderData.symbol,
+            state: orderData.state,
+            side: orderData.side,
+            type: orderData.type,
+            originalPrice: orderData.price,
+            executionPrice: orderData.priceAvg,
+            originalSize: orderData.size,
+            filledSize: orderData.filledSize,
+            filledNotional: orderData.filledNotional,
+            feeType: feeType,
+            exchangeFees: totalFees,
+            feeCurrency: feeCurrency,
+            createTime: orderData.createTime,
+            updateTime: orderData.updateTime,
+            matchingTrades: matchingTrades,
+            isEstimated: matchingTrades.length === 0,
+            needsUpdate: true
+        };
+
+    } catch (error) {
+        console.error(`Error processing order ${orderId}:`, error);
+        return {
+            orderId: orderId,
+            error: error.message,
+            needsUpdate: false
+        };
+    }
 }
 
 

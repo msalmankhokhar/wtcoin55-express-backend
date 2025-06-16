@@ -9,8 +9,18 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 exports.tokenRequired = async (req, res, next) => {
-     if (!req.headers.quantumaccesstoken) {
-          // console.log(req.headers);
+     let token = req.headers.quantumaccesstoken;
+     
+     if (!token && req.headers.authorization) {
+          // Extract token from "Bearer <token>" format
+          const authHeader = req.headers.authorization;
+          if (authHeader.startsWith('Bearer ')) {
+               token = authHeader.substring(7); // Remove "Bearer " prefix
+          }
+     }
+
+     if (!token) {
+          console.log(req.headers);
           return res.status(401).json({
                status: false,
                message: "You've got some errors.",
@@ -19,7 +29,6 @@ exports.tokenRequired = async (req, res, next) => {
      }
 
      try {
-          const token = req.headers.quantumaccesstoken;
           const decodedToken = jwt.verify(token, process.env.SECRET_KEY, {
                algorithms: "HS256"
           });

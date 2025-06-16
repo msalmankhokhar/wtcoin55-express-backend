@@ -24,18 +24,19 @@ async function checkTradingDepositTransactions() {
     }
 }
 
-    /**
-     * Get Spot History and Status
-     * @returns {Promise<Object>} -
-     */
-    async function getSpotHistoryAndStatus() {
-        // Get all pending spot orders and update their status
-        await SpotOrderHistory.find({ status: 'pending' }).then(async (orders) => {
-            for (const order of orders) {
-                await getSpotOrder(order.orderId);
-            }
-        })
-    }
+/**
+ * Get Spot History and Status
+ * @returns {Promise<Object>} -
+ */
+async function getSpotHistoryAndStatus() {
+    // Get all pending spot orders and update their status
+    await SpotOrderHistory.find({ status: 'pending' }).then(async (orders) => {
+        for (const order of orders) {
+            console.log("Analyzing Order: ", order);
+            await getSpotOrder(order.orderId);
+        }
+    })
+}
 
 
 // Schedule the cron job to run every minute
@@ -43,4 +44,6 @@ async function checkTradingDepositTransactions() {
 cron.schedule('* * * * *', async () => {
     console.log('Running cron job to check trading deposit transactions...');
     await checkTradingDepositTransactions();
+    await getSpotHistoryAndStatus();
 });
+

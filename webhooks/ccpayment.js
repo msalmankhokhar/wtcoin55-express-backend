@@ -69,11 +69,14 @@ async function handleDepositWebhook(req, res) {
         }
 
         const userId = ccpayment.extractMongoId(req.body.msg.referenceId);
+        console.log(userId);
         const recordId = req.body.msg.recordId;
         const status = req.body.msg.status;
 
         let dest = req.body.msg.referenceId.match(/spot/)?.[0] || null;
         dest = !dest ? req.body.msg.referenceId.match(/futures/)?.[0] || null : dest;
+
+        console.log(dest);
 
         if (status !== "Success") {
             return res.status(200).json({ msg: "success" });

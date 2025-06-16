@@ -14,7 +14,7 @@ let options = {
                 quantumAccessToken: {
                     type: 'apiKey',
                     in: 'header',
-                    name: 'QuantumAccessToken',
+                    name: 'quantumaccesstoken',
                     description: 'Custom access token for authentication'
                 }
             }

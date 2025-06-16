@@ -416,47 +416,60 @@ class BitMart {
     }
 
 
-    // Submit Spot Orders
-    async submitSpotOrder(client_order_id, symbol, side, type, quantity = null, price = null, notional = null) {
+    // Enhanced submitSpotOrder with better order tracking
+    async submitSpotOrder(symbol, side, type, quantity = null, price = null, notional = null) {
         const endpoint = '/spot/v2/submit_order';
         const data = {
             symbol: symbol,
-            side: side,   // 'buy' or 'sell'
-            type: type    // 'market' or 'limit'
+            side: side,
+            type: type
         };
 
-        // Optional client order ID
-        if (client_order_id) {
-            data.clientOrderId = client_order_id;
-        }
-
-        // Logic depending on order type
         if (type === 'limit') {
-            // Limit order needs both price and quantity
             if (!price || !quantity) {
                 throw new Error("Limit order requires both price and quantity.");
             }
             data.price = price;
-            data.quantity = quantity;
+            data.size = quantity; // BitMart uses 'size' not 'quantity'
         } else if (type === 'market') {
             if (side === 'buy') {
-                // Market buy requires `notional` (amount in quote currency)
                 if (!notional) {
                     throw new Error("Market buy order requires 'notional' (amount in quote currency).");
                 }
                 data.notional = notional;
             } else if (side === 'sell') {
-                // Market sell requires `quantity` (in base currency)
                 if (!quantity) {
                     throw new Error("Market sell order requires 'quantity'.");
                 }
-                data.quantity = quantity;
+                data.size = quantity;
             }
         } else {
             throw new Error("Invalid order type. Must be 'limit' or 'market'.");
         }
 
         return await this._makeRequestV2('POST', endpoint, data);
+    }
+
+    // Get order trades to see execution details
+    async getOrderTrades(orderId) {
+        const endpoint = '/spot/v4/query/order-trades';
+        const data = {
+            orderId: orderId
+        };
+        
+        return await this._makeRequestV2('POST', endpoint, data);
+    }
+
+    // Get user's current fee rates
+    async getUserFeeRates() {
+        const endpoint = '/spot/v1/user_fee';
+        return await this._makeRequestV2('GET', endpoint, {});
+    }
+
+    // Get specific trading pair fee rates
+    async getTradingPairFeeRate(symbol) {
+        const endpoint = '/spot/v1/trade_fee';
+        return await this._makeRequestV2('GET', endpoint, { symbol });
     }
 
     async withdrawFromSpotWallet(currency, amount, destination, address, memo = '') {

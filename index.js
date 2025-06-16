@@ -55,6 +55,7 @@ app.use(cors(corsOptions));
 const authRoutes = require('./routes/auth');
 const ccpaymentRoutes = require('./routes/ccpayment');
 const bitmartRoutes = require('./routes/bitmart');
+// const kucoinRoutes = require('./routes/kucoin');
 const userRoutes = require('./routes/user');
 
 app.get("/", (req, res) => {
@@ -64,10 +65,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authRoutes);
 app.use('/api/ccpayment', ccpaymentRoutes);
 app.use('/api/bitmart', bitmartRoutes);
+// app.use('/api/kucoin', kucoinRoutes);
 app.use('/api/user', userRoutes);
 
 
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true, serverSelectionTimeoutMS: 10000 })
     .then(() => console.log('MongoDB connected'))
     .catch((err) => console.error('MongoDB connection error:', err));
 

@@ -148,15 +148,77 @@ async function submitSpotOrder(req, res) {
             return res.status(500).json({ error: 'Failed to submit spot order' });
         }
 
+        // Determine initial role based on order type
+        let preliminaryRole = 'pending'; // We'll update this when we get execution data
+        if (type === 'market') {
+            preliminaryRole = 'taker'; // Market orders are always takers
+        }
+
         const orderCopyCode = uuidv4().slice(0, 6);
 
         const orderHistory = new SpotOrderHistory({
             user: req.user._id,
-            symbol: symbol.split('_')[0],
-            quantity,
-            price,
+            symbol: symbol, // Base currency
+            quantity: quantity || 0,
+            price: price || 0,
             side,
+            type,
+            role: preliminaryRole,
+            owner: true,
             copyCode: orderCopyCode,
+            orderId: order.order_id,
+            status: 'pending',
+            followers: []
+        });
+
+        await orderHistory.save();
+
+        res.status(200).json(order);
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to submit spot order' });
+    }
+}
+
+async function FollowSpotOrder(req, res) {
+    try {
+        const { copyCode } = req.body;
+
+        // Find Order
+        const spotOrder = await SpotOrderHistory.findOne({ copyCode });
+
+        if (!spotOrder || spotOrder.status !== 'pending') {
+            return res.status(406).json({ message: 'Invalid Order' });
+        }
+        const { symbol, side, type, price, quantity } = spotOrder;
+
+        // Check if account is funded
+        const balance = await SpotBalance.findOne({ user: req.user._id, currency: symbol});
+        if (!balance) {
+            return res.status(400).json({ message: 'Insufficient Balance' });
+        }
+
+        const { order, error } = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
+
+        if (error) {
+            return res.status(500).json({ error: 'Failed to submit spot order' });
+        }
+
+        // Determine initial role based on order type
+        let preliminaryRole = 'pending'; // We'll update this when we get execution data
+        if (type === 'market') {
+            preliminaryRole = 'taker'; // Market orders are always takers
+        }
+
+        const orderHistory = new SpotOrderHistory({
+            user: req.user._id,
+            symbol: symbol.split('_')[0], // Base currency
+            quantity: quantity || 0,
+            price: price || 0,
+            side,
+            type,
+            role: preliminaryRole,
+            owner: false,
+            copyCode,
             orderId: order.order_id,
             status: 'pending',
             followers: []
