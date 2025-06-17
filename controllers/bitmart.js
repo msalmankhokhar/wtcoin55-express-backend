@@ -178,24 +178,24 @@ async function fundFuturesAccount(req, res) {
 async function submitSpotOrder(req, res) {
     try {
         const { symbol, side, type, price, quantity } = req.body;
-        const { order, error } = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
-        console.log(order);
+        const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
+        console.log(data);
 
-        if (error) {
+        if (data.error) {
             return res.status(500).json({ error: 'Failed to submit spot order' });
         }
 
         // Determine initial role based on order type
-        let preliminaryRole = 'pending'; // We'll update this when we get execution data
+        let preliminaryRole = 'pending';
         if (type === 'market') {
-            preliminaryRole = 'taker'; // Market orders are always takers
+            preliminaryRole = 'taker';
         }
 
         const orderCopyCode = uuidv4().slice(0, 6);
 
         const orderHistory = new SpotOrderHistory({
             user: req.user._id,
-            symbol: symbol, // Base currency
+            symbol: symbol,
             quantity: quantity || 0,
             price: price || 0,
             side,
@@ -203,7 +203,7 @@ async function submitSpotOrder(req, res) {
             role: preliminaryRole,
             owner: true,
             copyCode: orderCopyCode,
-            orderId: order.order_id,
+            orderId: data.order_id,
             status: 'pending',
             followers: []
         });
