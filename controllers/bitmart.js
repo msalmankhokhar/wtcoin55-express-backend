@@ -181,7 +181,7 @@ async function submitSpotOrder(req, res) {
         const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
         console.log(data);
 
-        if (data.error) {
+        if (data.code !== 1000 || data.error) {
             return res.status(500).json({ error: 'Failed to submit spot order' });
         }
 
