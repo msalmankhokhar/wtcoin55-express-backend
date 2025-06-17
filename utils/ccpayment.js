@@ -275,7 +275,8 @@ class CcPayment {
                 user: userId,
                 coinId,
                 amount,
-                recordId
+                recordId,
+                status: 'completed'
             });
 
             await balanceTxHistory.save();

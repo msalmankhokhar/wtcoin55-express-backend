@@ -135,16 +135,17 @@ async function validateVerificationCode(emailOrPhonenumber, code) {
  * @return {Promise<void>} - Resolves when the trading wallet balance has been updated.
  */
 async function updateTradingWallet(transaction) {
-    const { type, userId, coinId, amount, currency, chain, memo } = transaction;
+    const { type, user, coinId, amount, currency, chain, memo } = transaction;
     const balanceModel = type === "deposit_to_spots" ? SpotBalance : FuturesBalance;
+    if (!user) return "User not found";
 
-    let balance = await balanceModel.findOne({ user: userId, coinId });
+    let balance = await balanceModel.findOne({ user, coinId });
     if (balance) {
         balance.balance += amount;
         await balance.save();
     } else {
         balance = new balanceModel({
-            user: userId,
+            user,
             coinId,
             balance: amount,
             currency,
