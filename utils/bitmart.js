@@ -512,15 +512,41 @@ class BitMart {
         return await this._makeRequest('POST', endpoint, data);
     }
 
-    async getSpotOrder(order_id) {
-        const endpoint = `/spot/v4/query/order`;
-        const data = {
-            orderId: order_id,
-            queryState: 'history'
-        };
+    // async getSpotOrder(order_id) {
+    //     // const endpoint = `/spot/v4/query/order`;
+    //     const endpoint = `/spot/v1/order_detail`;
+    //     const data = {
+    //         orderId: order_id,
+    //         queryState: 'history'
+    //     };
 
-        return await this._makeRequest('GET', endpoint, data);
+    //     return await this._makeRequest('GET', endpoint, data);
+    // }
+    async getSpotOrder(orderId) {
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: 'https://api-cloud.bitmart.com/spot/v1/order_detail',
+            params: {
+                order_id: orderId  // ← Use order_id parameter, not orderId
+            },
+            headers: this._getHeaders('GET', '/spot/v1/order_detail', { order_id: orderId }),
+            timeout: 10000
+        });
+        
+        return response.data;
+    } catch (error) {
+        console.error('BitMart getSpotOrder error:', {
+            orderId,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            url: error.config?.url,
+            params: error.config?.params,
+            message: error.message
+        });
+        throw new Error(`BitMart API Error: ${error.response?.data?.message || error.message}`);
     }
+}
 
     async getSpotTrades(symbol, orderMode = 'spot', startTime = null, endTime = null, limit = 10) {
         const endpoint = `/spot/v4/query/trades`;
