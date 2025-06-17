@@ -203,14 +203,14 @@ async function submitSpotOrder(req, res) {
             role: preliminaryRole,
             owner: true,
             copyCode: orderCopyCode,
-            orderId: data.order_id,
+            orderId: data.data.order_id,
             status: 'pending',
             followers: []
         });
 
         await orderHistory.save();
 
-        res.status(200).json(order);
+        res.status(200).json(data);
     } catch (error) {
         console.log(error);
         return res.status(500).json({ error: 'Failed to submit spot order' });
