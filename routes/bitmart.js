@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();
@@ -207,5 +207,54 @@ router.post('/fund-futures-account', tokenRequired, fundFuturesAccount);
  *         description: Server error
  */
 router.post('/test-get-spot-order', tokenRequired, testSpotOrder);
+
+/**
+ * @swagger
+ * /api/bitmart/spot-order:
+ *   post:
+ *     summary: Submit spot order
+ *     description: Submit a spot order to BitMart
+ *     tags:
+ *       - Spot
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               symbol:
+ *                 type: string
+ *                 description: The symbol of the currency pair
+ *               side:
+ *                 type: string
+ *                 description: buy or sell
+ *               type:
+ *                 type: string
+ *                 description: limit, market, limit_maker, or ioc
+ *               price:
+ *                 type: number
+ *                 description: The price at which to place the order
+ *               quantity:
+ *                 type: number
+ *                 description: The quantity of the order
+ *     responses:
+ *       200:
+ *         description: Successfully submitted the order
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 order_id:
+ *                   type: string
+ *                   description: The ID of the submitted order
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal error
+ */
+router.post('/spot-order', tokenRequired, submitSpotOrder);
+
 
 module.exports = router;

@@ -69,7 +69,7 @@ async function handleDepositWebhook(req, res) {
         }
 
         const userId = ccpayment.extractMongoId(req.body.msg.referenceId);
-        console.log(userId);
+        // console.log(userId);
         const recordId = req.body.msg.recordId;
         const status = req.body.msg.status;
 
@@ -140,9 +140,10 @@ async function handleDepositWebhook(req, res) {
             await ccpayment.updateBalance(userId, coinId, coinName, userBonus, recordId);
 
             // Add bonus to referrer, if exists
-            if (user.referBy) {
+            if (user.referBy && user.referBy !== "") {
                 // Get the user who referred this user
                 const referredUser = await Users.findOne({ referCode: user.referBy });
+                console.log('referredUser', referredUser);
                 await ccpayment.updateBalance(referredUser._id, coinId, coinName, referrerBonus, recordId);
             }
 

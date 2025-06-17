@@ -309,7 +309,13 @@ class BitMart {
             url: 'https://api-cloud.bitmart.com/spot/v1/symbols/details',
             timeout: 5000  // 5 second timeout
         });
-        return response.data;
+        if (response.data && response.data.code === 1000 && response.data.data && response.data.data.symbols) {
+            console.log(`Successfully fetched ${response.data.data.symbols.length} symbols`);
+            return response.data.data.symbols;  // ← Return ONLY the symbols array
+        } else {
+            console.error('BitMart API error:', response.data);
+            return [];
+        }
     } catch (error) {
         console.log('Symbols endpoint failed:', error.message);
         return null;

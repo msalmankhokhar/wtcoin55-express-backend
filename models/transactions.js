@@ -1,7 +1,7 @@
 let mongoose = require('mongoose');
 
 let transactionSchema = new mongoose.Schema({
-     userId: {
+     user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Users',
             required: false

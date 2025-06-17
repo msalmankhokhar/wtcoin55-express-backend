@@ -52,24 +52,57 @@ async function getTradingPairs(req, res) {
 async function getAllCurrency(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
+
     try {
-        const currencies = require('../filtered_bitmart.json');
+        // getCurrencies() is async, so await it
+        const currencies = await bitmart.getCurrencies();
+        
+        // Validate that currencies is an array
+        if (!Array.isArray(currencies)) {
+            console.error('Currencies is not an array:', typeof currencies, currencies);
+            return res.status(500).json({ 
+                error: 'Invalid data format from BitMart API',
+                type: typeof currencies 
+            });
+        }
+
         const offset = (page - 1) * limit;
         const filteredCurrencies = currencies
             .slice(offset, offset + limit)
-            .map(currency => ({
-                currency: currency.currency,
-                name: currency.name,
-                network: currency.network
+            .map(symbol => ({
+                symbol: symbol.symbol,
+                baseCurrency: symbol.base_currency,
+                quoteCurrency: symbol.quote_currency,
+                baseMinSize: symbol.base_min_size,
+                baseMaxSize: symbol.base_max_size,
+                priceMinPrecision: symbol.price_min_precision,
+                priceMaxPrecision: symbol.price_max_precision,
+                expiration: symbol.expiration,
+                minBuyAmount: symbol.min_buy_amount,
+                minSellAmount: symbol.min_sell_amount
             }));
+
         const meta = {
+            totalItems: currencies.length,
+            currentPage: page,
+            totalPages: Math.ceil(currencies.length / limit),
             prev: page > 1 ? `/api/bitmart/currencies?page=${page - 1}&limit=${limit}` : null,
             next: page < Math.ceil(currencies.length / limit) ? `/api/bitmart/currencies?page=${page + 1}&limit=${limit}` : null
         };
-        return res.status(200).json({ data: filteredCurrencies, meta });
+
+        return res.status(200).json({ 
+            success: true,
+            data: filteredCurrencies, 
+            meta 
+        });
+
     } catch (error) {
         console.error('Error fetching all currencies:', error);
-        throw new Error('Failed to fetch all currencies');
+        return res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch currencies',
+            message: error.message 
+        });
     }
 }
 
@@ -87,6 +120,7 @@ async function getDepositAddress(req, res) {
 async function getSpotWalletBalance(req, res) {
     try {
         const user = req.user;
+        console.log(req.user);
         const coinId = req.params.coinId || "";
         let balance
 
@@ -139,6 +173,7 @@ async function fundFuturesAccount(req, res) {
 }
 
 
+
 async function submitSpotOrder(req, res) {
     try {
         const { symbol, side, type, price, quantity } = req.body;
@@ -175,6 +210,7 @@ async function submitSpotOrder(req, res) {
 
         res.status(200).json(order);
     } catch (error) {
+        console.log(error);
         return res.status(500).json({ error: 'Failed to submit spot order' });
     }
 }
