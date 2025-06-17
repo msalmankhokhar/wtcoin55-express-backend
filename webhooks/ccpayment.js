@@ -143,8 +143,9 @@ async function handleDepositWebhook(req, res) {
             if (user.referBy && user.referBy !== "") {
                 // Get the user who referred this user
                 const referredUser = await Users.findOne({ referCode: user.referBy });
-                console.log('referredUser', referredUser);
-                await ccpayment.updateBalance(referredUser._id, coinId, coinName, referrerBonus, recordId);
+                if (referredUser) {
+                    await ccpayment.updateBalance(referredUser._id, coinId, coinName, referrerBonus, recordId);
+                }
             }
 
             // Mark as first deposit true
