@@ -253,7 +253,7 @@ class CcPayment {
      * @param {String} recordId - The record ID of the transaction.
      * @returns {Promise<Object>} - The updated balance document.
      */
-    async updateBalance(userId, coinId, coinName, amount, recordId, logoUrl) {
+    async updateBalance(userId, coinId, coinName, amount, recordId, logoUrl="") {
         try {
             // Check if the transaction history already exists
             const existingHistory = await Transactions.findOne({ user: userId, recordId });

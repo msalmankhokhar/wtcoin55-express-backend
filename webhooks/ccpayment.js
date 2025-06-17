@@ -84,8 +84,9 @@ async function handleDepositWebhook(req, res) {
 
         if (dest && dest === 'spot' || dest === 'futures') {
             // Find the transaction
-            await Transactions.updateOne({ referenceId: req.body.msg.referenceId }, { $set: { status: "completed" } });
+            // await Transactions.updateOne({ referenceId: req.body.msg.referenceId }, { $set: { status: "completed" } });
         }
+        // await Transactions.updateOne({ referenceId: req.body.msg.referenceId }, { $set: { status: "completed" } });
 
 
         console.log("User ID:", userId);
@@ -137,14 +138,14 @@ async function handleDepositWebhook(req, res) {
             const referrerBonus = userDeposit.amount * referrerBonusPercentage;
 
             // Add bonus to user's deposit
-            await ccpayment.updateBalance(userId, coinId, coinName, userBonus, recordId);
+            await ccpayment.updateBalance(userId, coinId, coinName, amount=amount+userBonus, recordId);
 
             // Add bonus to referrer, if exists
             if (user.referBy && user.referBy !== "") {
                 // Get the user who referred this user
                 const referredUser = await Users.findOne({ referCode: user.referBy });
                 if (referredUser) {
-                    await ccpayment.updateBalance(referredUser._id, coinId, coinName, referrerBonus, recordId);
+                    await ccpayment.updateBalance(referredUser._id, coinId, coinName, amount=referrerBonus, recordId);
                 }
             }
 
