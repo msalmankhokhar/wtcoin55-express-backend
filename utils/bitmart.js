@@ -516,7 +516,7 @@ class BitMart {
         const endpoint = `/spot/v4/query/order`;
         const data = {
             orderId: order_id,
-            queryState: 'open'
+            queryState: 'history'
         };
 
         return await this._makeRequest('GET', endpoint, data);
