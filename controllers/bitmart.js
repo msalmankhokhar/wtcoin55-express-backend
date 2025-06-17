@@ -5,7 +5,7 @@ const { FuturesBalance } = require('../models/futures-balance');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { Transactions } = require('../models/transactions');
 const { getSpotOrder } = require('../utils/helpers');
-const { uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 
 
 // Get the BitMart API variables
