@@ -136,6 +136,7 @@ async function validateVerificationCode(emailOrPhonenumber, code) {
  */
 async function updateTradingWallet(transaction) {
     const { type, user, coinId, amount, currency, chain, memo } = transaction;
+    console.log(transaction);
     const balanceModel = type === "deposit_to_spots" ? SpotBalance : FuturesBalance;
     if (!user) return "User not found";
 
