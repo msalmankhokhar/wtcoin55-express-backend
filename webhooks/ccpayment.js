@@ -123,7 +123,7 @@ async function handleDepositWebhook(req, res) {
 
         const coinId = userDeposit.coinId;
         const coinName = userDeposit.coinSymbol;
-        const userAmount = parseInt(userDeposit.amount);
+        const userAmount = parseFloat(userDeposit.amount);
         console.log("Amount:", userAmount);
 
         // await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
