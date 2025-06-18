@@ -531,6 +531,79 @@ class BitMart {
         }
         return response;
     }
+
+    async debugGetSpotOrder(orderId) {
+    console.log('=== DEBUGGING ORDER QUERY ===');
+    console.log('Order ID:', orderId);
+    console.log('Order ID type:', typeof orderId);
+    console.log('Order ID length:', orderId.length);
+
+    // Try different query states
+    const queryStates = ['open', 'history'];
+    
+    for (const queryState of queryStates) {
+        try {
+            console.log(`\n--- Trying queryState: ${queryState} ---`);
+            
+            const requestBody = {
+                orderId: orderId.toString(), // Ensure it's a string
+                queryState: queryState,
+                recvWindow: 5000
+            };
+
+            console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+            const response = await axios({
+                method: 'POST',
+                url: 'https://api-cloud.bitmart.com/spot/v4/query/order',
+                data: requestBody,
+                headers: this._getSignedHeaders('POST', '/spot/v4/query/order', requestBody),
+                timeout: 10000
+            });
+
+            console.log(`✅ SUCCESS with queryState: ${queryState}`);
+            console.log('Response:', JSON.stringify(response.data, null, 2));
+            return response.data;
+
+        } catch (error) {
+            console.log(`❌ FAILED with queryState: ${queryState}`);
+            console.log('Error status:', error.response?.status);
+            console.log('Error message:', error.response?.data?.message || error.message);
+            console.log('Full error response:', JSON.stringify(error.response?.data, null, 2));
+        }
+    }
+
+    // If both fail, try the client order ID approach
+    console.log('\n--- Trying clientOrderId approach ---');
+    try {
+        const requestBody = {
+            clientOrderId: orderId.toString(),
+            queryState: 'history',
+            recvWindow: 5000
+        };
+
+        console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+        const response = await axios({
+            method: 'POST',
+            url: 'https://api-cloud.bitmart.com/spot/v4/query/client-order',
+            data: requestBody,
+            headers: this._getSignedHeaders('POST', '/spot/v4/query/client-order', requestBody),
+            timeout: 10000
+        });
+
+        console.log('✅ SUCCESS with clientOrderId');
+        console.log('Response:', JSON.stringify(response.data, null, 2));
+        return response.data;
+
+    } catch (error) {
+        console.log('❌ FAILED with clientOrderId');
+        console.log('Error:', error.response?.data || error.message);
+    }
+
+    throw new Error('Order not found with any method');
+}
+
    
     async getSpotTrades(symbol, orderMode = 'spot', startTime = null, endTime = null, limit = 10) {
         const endpoint = `/spot/v4/query/trades`;
