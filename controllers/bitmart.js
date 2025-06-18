@@ -403,7 +403,7 @@ async function futuresWithdraw(req, res) {
 
 
 async function testSpotOrder(req, res) {
-    const spotHist = await bitmart.debugGetSpotOrder(req.body.orderId);
+    const spotHist = await bitmart.getSpotOrder(req.body.orderId);
     console.log(spotHist);
 
     return res.status(200).json(spotHist);
