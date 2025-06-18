@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();
@@ -207,6 +207,37 @@ router.post('/fund-futures-account', tokenRequired, fundFuturesAccount);
  *         description: Server error
  */
 router.post('/test-get-spot-order', tokenRequired, testSpotOrder);
+
+
+/**
+ * @swagger
+ * /api/bitmart/test-get-trades:
+ *   post:
+ *     summary: Test retrieval of a spot order
+ *     tags: [Bitmart]
+ *     security:
+ *       - quantumAccessToken: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               symbol:
+ *                 type: string
+ *                 description: ID of the spot order to retrieve
+ *     responses:
+ *       200:
+ *         description: Spot order data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       500:
+ *         description: Server error
+ */
+router.post('/test-get-trades', tokenRequired, testTrades);
 
 /**
  * @swagger

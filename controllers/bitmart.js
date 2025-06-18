@@ -400,12 +400,23 @@ async function futuresWithdraw(req, res) {
     }
 }
 
+
+
 async function testSpotOrder(req, res) {
     const spotHist = await getSpotOrder(req.body.orderId);
     console.log(spotHist);
 
     return res.status(200).json(spotHist);
 }
+
+
+async function testTrades(req, res) {
+    const spotHist = await bitmart.getSpotTrades(req.body.symbol);
+    console.log(spotHist);
+
+    return res.status(200).json(spotHist);
+}
+
 
 module.exports = {
     getTradingPairs,
@@ -417,5 +428,6 @@ module.exports = {
     submitSpotOrder,
     spotsWithdraw,
     futuresWithdraw,
-    testSpotOrder
+    testSpotOrder,
+    testTrades
 }
