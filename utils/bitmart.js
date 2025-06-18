@@ -522,29 +522,42 @@ class BitMart {
 
     //     return await this._makeRequest('GET', endpoint, data);
     // }
-    async getSpotOrder(orderId) {
+   async getSpotOrder(orderId) {
     try {
+        const requestBody = {
+            orderId: orderId,
+            queryState: "history", // or "open" for pending orders
+            recvWindow: 5000
+        };
+
+        console.log('Fetching order details for:', orderId);
+        console.log('Request body:', requestBody);
+
         const response = await axios({
-            method: 'GET',
-            url: 'https://api-cloud.bitmart.com/spot/v1/order_detail',
-            params: {
-                order_id: orderId  // ← Use order_id parameter, not orderId
-            },
-            headers: this._getHeaders('GET', '/spot/v1/order_detail', { order_id: orderId }),
+            method: 'POST', // v4 endpoint uses POST instead of GET
+            url: 'https://api-cloud.bitmart.com/spot/v4/query/order',
+            data: requestBody,
+            headers: this._getSignedHeaders('POST', '/spot/v4/query/order', requestBody),
             timeout: 10000
         });
-        console.log("Response: ", response);
-        
+
+        console.log('Order response:', response.data);
         return response.data;
+
     } catch (error) {
         console.error('BitMart getSpotOrder error:', {
             orderId,
             status: error.response?.status,
             statusText: error.response?.statusText,
-            url: error.config?.url,
-            params: error.config?.params,
+            responseData: error.response?.data,
             message: error.message
         });
+        
+        // Handle specific error cases
+        if (error.response?.status === 404) {
+            throw new Error(`Order ${orderId} not found`);
+        }
+        
         throw new Error(`BitMart API Error: ${error.response?.data?.message || error.message}`);
     }
 }
