@@ -3,6 +3,7 @@ const CCpayment = require('../utils/ccpayment');
 const { SpotBalance } = require('../models/spot-balance');
 const { FuturesBalance } = require('../models/futures-balance');
 const { SpotOrderHistory } = require('../models/spot-order');
+const { FuturesOrderHistory } = require('../models/future-order');
 const { Transactions } = require('../models/transactions');
 const { getSpotOrder } = require('../utils/helpers');
 const { v4: uuidv4 } = require('uuid');
@@ -182,7 +183,7 @@ async function submitSpotOrder(req, res) {
 
         // symbol = BUYINGCOIN_BASECOIN
         // Get Base coin
-        if (symbol.split("_")[0 === 'USDT']) {
+        if (symbol.split("_")[0] === 'USDT') {
             balance = await SpotBalance.findOne({ coinId: 1280});
         }
         else {
@@ -194,7 +195,7 @@ async function submitSpotOrder(req, res) {
             return res.status(400).json({ message: 'Insufficient funds' });
         }
 
-        const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
+        const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity, notional);
         console.log(data);
 
         if (data.code !== 1000 || data.error) {
@@ -536,6 +537,241 @@ async function transferFromSpotsToFutures(req, res) {
     }
 }
 
+async function submitFuturesOrder(req, res) {
+    try {
+        const { symbol, side, type, quantity, price, leverage } = req.body;
+
+        if (symbol.split("_")[0] === 'USDT') {
+            balance = await FuturesBalance.findOne({ coinId: 1280});
+        }
+        else {
+            balance = await FuturesBalance.findOne({ coinName: symbol.split("_")[0] });
+        }
+        // const orderCost = quantity * price;
+
+        // if (!balance || balance.balance < orderCost) {
+        //     return res.status(400).json({ message: 'Insufficient funds' });
+        // }
+        if (!balance) {
+            return res.status(400).json({ message: 'Insufficient funds' });
+        }
+
+        const result = await bitmart.submitFuturesOrder(symbol, side, type, quantity, price, leverage);
+        if (result.code !== 1000 || data.error) {
+            return res.status(500).json({ error: 'Failed to submit futures order' });
+        }
+
+        const orderCopyCode = uuidv4().slice(0, 6);
+        let marketPrice = result.data.price;
+        marketPrice = marketPrice !== 'market price' ? parseFloat(marketPrice) : 0;
+
+        const orderHistory = new FuturesOrderHistory({
+            user: req.user._id,
+            symbol: symbol,
+            quantity: quantity || 0,
+            price: price || 0,
+            marketPrice,
+            side,
+            type,
+            role: preliminaryRole,
+            owner: true,
+            copyCode: orderCopyCode,
+            orderId: result.data.order_id,
+            status: 'pending',
+            followers: []
+        });
+
+        await orderHistory.save();
+
+        // console.log(result);
+        return res.status(200).json(result);
+    } catch (error) {
+        console.log("Error: ", error);
+        return res.status(500).json({ error: error.message });
+    }
+}
+
+
+async function submitFuturesPlanOrder(req, res) {
+    try {
+        const {
+            symbol,
+            side,
+            type,
+            leverage,
+            open_type = 'isolated',
+            size,
+            trigger_price,
+            executive_price,
+            price_way,
+            price_type,
+            mode,
+            preset_take_profit_price,
+            preset_stop_loss_price,
+            preset_take_profit_price_type,
+            preset_stop_loss_price_type,
+            plan_category,
+            client_order_id
+        } = req.body;
+
+        const userId = req.user._id;
+
+        console.log(`Futures plan order request from user ${userId}: ${type} ${side} ${size} ${symbol}`);
+
+        // Validate required fields
+        if (!symbol || !side || !type || !leverage || !size || !trigger_price || !price_way || !price_type) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: symbol, side, type, leverage, size, trigger_price, price_way, price_type'
+            });
+        }
+
+        // Check balance for the quote currency (usually USDT)
+        const quoteCurrency = symbol.split('_')[1] || 'USDT'; // ETHUSDT -> USDT
+        let balance;
+
+        if (quoteCurrency === 'USDT') {
+            balance = await FuturesBalance.findOne({ user: userId, coinId: 1280 });
+        } else {
+            balance = await FuturesBalance.findOne({ user: userId, coinName: quoteCurrency });
+        }
+
+        if (!balance) {
+            return res.status(400).json({
+                success: false,
+                error: `No ${quoteCurrency} balance found for futures trading`
+            });
+        }
+
+        // Calculate required margin (simplified calculation)
+        const triggerPrice = parseFloat(trigger_price);
+        const leverageNum = parseFloat(leverage);
+        const contractSize = parseInt(size);
+        const requiredMargin = (triggerPrice * contractSize) / leverageNum;
+
+        console.log(`Required margin: ${requiredMargin} ${quoteCurrency}, Available: ${balance.balance}`);
+
+        if (balance.balance < requiredMargin) {
+            return res.status(400).json({
+                success: false,
+                error: `Insufficient ${quoteCurrency} balance. Required: ${requiredMargin}, Available: ${balance.balance}`
+            });
+        }
+
+        // Prepare options for advanced features
+        const options = {};
+        if (mode) options.mode = mode;
+        if (client_order_id) options.client_order_id = client_order_id;
+        if (plan_category) options.plan_category = plan_category;
+        if (preset_take_profit_price) {
+            options.preset_take_profit_price = preset_take_profit_price;
+            options.preset_take_profit_price_type = preset_take_profit_price_type || 1;
+        }
+        if (preset_stop_loss_price) {
+            options.preset_stop_loss_price = preset_stop_loss_price;
+            options.preset_stop_loss_price_type = preset_stop_loss_price_type || 1;
+        }
+
+        // Submit order to BitMart
+        console.log('Submitting plan order to BitMart...');
+        const result = await bitmart.submitFuturesPlanOrder(
+            symbol,
+            side,
+            type,
+            leverage,
+            open_type,
+            size,
+            trigger_price,
+            executive_price,
+            price_way,
+            price_type,
+            options
+        );
+
+        if (result.code !== 1000) {
+            console.error('BitMart plan order failed:', result);
+            return res.status(400).json({
+                success: false,
+                error: result.message || 'Failed to submit futures plan order'
+            });
+        }
+
+        // Generate copy trading code
+        const { v4: uuidv4 } = require('uuid');
+        const orderCopyCode = uuidv4().slice(0, 6);
+
+        // Save order to database
+        const orderHistory = new FuturesOrderHistory({
+            user: userId,
+            symbol: symbol,
+            orderId: result.data?.order_id,
+            side: parseInt(side),
+            type: type,
+            leverage: leverage,
+            open_type: open_type,
+            size: contractSize,
+            trigger_price: trigger_price,
+            executive_price: executive_price,
+            price_way: parseInt(price_way),
+            price_type: parseInt(price_type),
+            mode: options.mode || 1,
+            plan_category: options.plan_category,
+            client_order_id: options.client_order_id,
+            preset_take_profit_price: options.preset_take_profit_price,
+            preset_stop_loss_price: options.preset_stop_loss_price,
+            preset_take_profit_price_type: options.preset_take_profit_price_type,
+            preset_stop_loss_price_type: options.preset_stop_loss_price_type,
+            total_cost: requiredMargin,
+            owner: true,
+            copyCode: orderCopyCode,
+            status: 'pending',
+            followers: []
+        });
+
+        await orderHistory.save();
+
+        console.log(`✅ Futures plan order saved with ID: ${orderHistory._id}`);
+
+        // Return success response
+        res.status(200).json({
+            success: true,
+            message: 'Futures plan order submitted successfully',
+            data: {
+                orderId: result.data?.order_id,
+                localOrderId: orderHistory._id,
+                copyCode: orderCopyCode,
+                symbol: symbol,
+                side: side,
+                type: type,
+                size: size,
+                trigger_price: trigger_price,
+                executive_price: executive_price,
+                requiredMargin: requiredMargin,
+                bitMartResponse: result.data
+            }
+        });
+
+    } catch (error) {
+        console.error('Error in submitFuturesPlanOrder:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to submit futures plan order',
+            details: error.message
+        });
+    }
+}
+
+
+async function GetContractDetails(req, res) {
+    try {
+        const response = await bitmart.getContractDetails(req.body.symbol);
+
+        return res.status(200).json({ data: response });
+    } catch (error) {
+        console.log("Error: ", error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+}
 
 module.exports = {
     getTradingPairs,
@@ -549,5 +785,8 @@ module.exports = {
     futuresWithdraw,
     transferFromSpotsToFutures,
     testSpotOrder,
-    testTrades
+    testTrades,
+    submitFuturesOrder,
+    submitFuturesPlanOrder,
+    GetContractDetails
 }

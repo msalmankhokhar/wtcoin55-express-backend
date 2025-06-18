@@ -551,6 +551,230 @@ class BitMart {
         return await this._makeRequestV2('POST', endpoint, data);
     }
 
+    async submitFuturesOrder(symbol, side, type, leverage, open_type="isolated", quantity, price) {
+        //"symbol":"ETHUSDT",
+        // "client_order_id":"BM1234",
+        // "side":4,
+        // "mode":1,
+        // "type":"limit",
+        // "leverage":"1",
+        // "open_type":"isolated",
+        // "size":10,
+        // "price":"2000"
+        const endpoint = '/contract/private/submit-order';
+
+        if (type === 'limit') {
+            if (!price || !quantity) {
+                throw new Error("Limit order requires both price and quantity.");
+            }
+            data.price = price;
+            data.size = quantity; // BitMart uses 'size' not 'quantity'
+        } else if (type === 'market') {
+            if (side === 'buy') {
+                if (!notional) {
+                    throw new Error("Market buy order requires 'notional' (amount in quote currency).");
+                }
+                data.notional = notional;
+            } else if (side === 'sell') {
+                if (!quantity) {
+                    throw new Error("Market sell order requires 'quantity'.");
+                }
+                data.size = quantity;
+            }
+        } else {
+            throw new Error("Invalid order type. Must be 'limit' or 'market'.");
+        }
+
+        const data = {
+            symbol: symbol,
+            side: side,
+            mode: 1,
+            type: type,
+            leverage: leverage,
+            open_type: open_type,
+            size: size,
+            price: price
+        };
+
+        return await this._makeRequestV2('POST', endpoint, data);
+    }
+
+    /**
+     * Submit Futures Plan Order (Handles all types: limit, market, take_profit, stop_loss)
+     * @param {string} symbol - Trading pair (e.g., "ETHUSDT", "BTCUSDT")
+     * @param {number} side - Order side (1-4, see documentation for hedge/oneway modes)
+     * @param {string} type - Order type: "limit", "market", "take_profit", "stop_loss"
+     * @param {string} leverage - Leverage amount (e.g., "1", "10", "50")
+     * @param {string} open_type - Position type: "cross" or "isolated"
+     * @param {number} size - Order size (Number of contracts)
+     * @param {string} trigger_price - Trigger price for the plan order
+     * @param {string} executive_price - Execution price (required for limit orders)
+     * @param {number} price_way - Price direction: 1=long, 2=short
+     * @param {number} price_type - Trigger price type: 1=last_price, 2=fair_price
+     * @param {Object} options - Optional parameters for advanced features
+     * @returns {Promise<Object>} - BitMart API response
+     */
+    async submitFuturesPlanOrder(symbol, side, type, leverage, open_type, size, trigger_price, executive_price, price_way, price_type, options = {}) {
+        try {
+            console.log(`Submitting futures plan order: ${type} ${side} ${size} ${symbol} at trigger: ${trigger_price}`);
+            
+            const endpoint = '/contract/private/submit-plan-order';
+            
+            // Validate required fields
+            if (!symbol || !side || !leverage || !open_type || !size || !trigger_price || !price_way || !price_type) {
+                throw new Error('Missing required fields: symbol, side, leverage, open_type, size, trigger_price, price_way, price_type');
+            }
+            
+            // Validate side values (1-4)
+            if (![1, 2, 3, 4].includes(parseInt(side))) {
+                throw new Error('Invalid side value. Must be 1, 2, 3, or 4');
+            }
+            
+            // Validate open_type
+            if (!['cross', 'isolated'].includes(open_type)) {
+                throw new Error('Invalid open_type. Must be "cross" or "isolated"');
+            }
+            
+            // Validate price_way (1=long, 2=short)
+            if (![1, 2].includes(parseInt(price_way))) {
+                throw new Error('Invalid price_way. Must be 1 (long) or 2 (short)');
+            }
+            
+            // Validate price_type (1=last_price, 2=fair_price)
+            if (![1, 2].includes(parseInt(price_type))) {
+                throw new Error('Invalid price_type. Must be 1 (last_price) or 2 (fair_price)');
+            }
+            
+            // Base data object
+            const data = {
+                symbol: symbol,
+                side: parseInt(side),
+                leverage: leverage.toString(),
+                open_type: open_type,
+                size: parseInt(size),
+                trigger_price: trigger_price.toString(),
+                price_way: parseInt(price_way),
+                price_type: parseInt(price_type)
+            };
+            
+            // Handle order type specific requirements
+            if (type === 'limit') {
+                if (!executive_price) {
+                    throw new Error('Limit plan orders require executive_price');
+                }
+                data.type = 'limit';
+                data.executive_price = executive_price.toString();
+                
+            } else if (type === 'market') {
+                data.type = 'market';
+                // Market orders don't need executive_price
+                
+            } else if (type === 'take_profit') {
+                if (!executive_price) {
+                    throw new Error('Take profit orders require executive_price');
+                }
+                data.type = 'take_profit';
+                data.executive_price = executive_price.toString();
+                
+            } else if (type === 'stop_loss') {
+                if (!executive_price) {
+                    throw new Error('Stop loss orders require executive_price');
+                }
+                data.type = 'stop_loss';
+                data.executive_price = executive_price.toString();
+                
+            } else {
+                throw new Error('Invalid order type. Must be: limit, market, take_profit, or stop_loss');
+            }
+            
+            // Add optional mode (default: 1=GTC)
+            data.mode = options.mode || 1;
+            
+            // Validate mode if provided
+            if (options.mode && ![1, 2, 3, 4].includes(parseInt(options.mode))) {
+                throw new Error('Invalid mode. Must be 1(GTC), 2(FOK), 3(IOC), or 4(Maker Only)');
+            }
+            
+            // Add optional client_order_id
+            if (options.client_order_id) {
+                data.client_order_id = options.client_order_id.toString();
+            }
+            
+            // Add optional plan_category for TP/SL
+            if (options.plan_category) {
+                if (![1, 2].includes(parseInt(options.plan_category))) {
+                    throw new Error('Invalid plan_category. Must be 1 (TP/SL) or 2 (Position TP/SL)');
+                }
+                data.plan_category = parseInt(options.plan_category);
+            }
+            
+            // Add optional preset Take Profit settings
+            if (options.preset_take_profit_price) {
+                data.preset_take_profit_price = options.preset_take_profit_price.toString();
+                
+                // Add TP price type if specified
+                if (options.preset_take_profit_price_type) {
+                    if (![1, 2].includes(parseInt(options.preset_take_profit_price_type))) {
+                        throw new Error('Invalid preset_take_profit_price_type. Must be 1 (last_price) or 2 (fair_price)');
+                    }
+                    data.preset_take_profit_price_type = parseInt(options.preset_take_profit_price_type);
+                } else {
+                    data.preset_take_profit_price_type = 1; // Default to last_price
+                }
+            }
+            
+            // Add optional preset Stop Loss settings
+            if (options.preset_stop_loss_price) {
+                data.preset_stop_loss_price = options.preset_stop_loss_price.toString();
+                
+                // Add SL price type if specified
+                if (options.preset_stop_loss_price_type) {
+                    if (![1, 2].includes(parseInt(options.preset_stop_loss_price_type))) {
+                        throw new Error('Invalid preset_stop_loss_price_type. Must be 1 (last_price) or 2 (fair_price)');
+                    }
+                    data.preset_stop_loss_price_type = parseInt(options.preset_stop_loss_price_type);
+                } else {
+                    data.preset_stop_loss_price_type = 1; // Default to last_price
+                }
+            }
+            
+            console.log('Plan order data:', JSON.stringify(data, null, 2));
+            
+            // Submit the order
+            const response = await this._makeRequestV2('POST', endpoint, data);
+            
+            if (response.code === 1000) {
+                console.log(`✅ Futures plan order submitted successfully!`);
+                console.log(`Order ID: ${response.data?.order_id || 'N/A'}`);
+                console.log(`Type: ${type}, Side: ${side}, Size: ${size}, Trigger: ${trigger_price}`);
+                
+                if (data.executive_price) {
+                    console.log(`Execution Price: ${data.executive_price}`);
+                }
+                if (data.preset_take_profit_price) {
+                    console.log(`Take Profit: ${data.preset_take_profit_price}`);
+                }
+                if (data.preset_stop_loss_price) {
+                    console.log(`Stop Loss: ${data.preset_stop_loss_price}`);
+                }
+            } else {
+                console.error(`❌ Plan order failed:`, response);
+            }
+            
+            return response;
+            
+        } catch (error) {
+            console.error('Error submitting futures plan order:', error);
+            throw error;
+        }
+    }
+
+    async getContractDetails(symbol) {
+        const endpoint = '/contract/public/details'
+        const param = `symbol=${symbol}`;
+
+        return this._makeRequestV2('GET', endpoint+param);
+    }
 }
 
 module.exports = BitMart;

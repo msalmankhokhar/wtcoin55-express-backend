@@ -123,7 +123,7 @@ async function handleDepositWebhook(req, res) {
 
         const coinId = userDeposit.coinId;
         const coinName = userDeposit.coinSymbol;
-        const amount = userDeposit.amount;
+        const userAmount = userDeposit.amount;
 
         // await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
 
@@ -138,7 +138,7 @@ async function handleDepositWebhook(req, res) {
             const referrerBonus = userDeposit.amount * referrerBonusPercentage;
 
             // Add bonus to user's deposit
-            await ccpayment.updateBalance(userId, coinId, coinName, amount=amount+userBonus, recordId);
+            await ccpayment.updateBalance(userId, coinId, coinName, amount=userAmount+userBonus, recordId);
 
             // Add bonus to referrer, if exists
             if (user.referBy && user.referBy !== "") {
@@ -153,7 +153,7 @@ async function handleDepositWebhook(req, res) {
             user.firstDeposit = true;
             await user.save();
         } else {
-            await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
+            await ccpayment.updateBalance(userId, coinId, coinName, userAmount, recordId);
         }
 
 

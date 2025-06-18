@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades, transferFromSpotsToFutures } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades, transferFromSpotsToFutures, submitFuturesPlanOrder } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();
@@ -457,6 +457,94 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
  *                   example: "Network timeout while connecting to BitMart API"
  */
 router.post('/transfer/spot-to-futures', tokenRequired, transferFromSpotsToFutures);
+
+
+/**
+ * @swagger
+ * /api/bitmart/futures/submit-plan-order:
+ *   post:
+ *     tags:
+ *       - Futures Trading
+ *     summary: Submit futures plan order
+ *     description: |
+ *       Submit a futures plan order with trigger conditions. Supports all order types including
+ *       limit, market, take_profit, and stop_loss with optional TP/SL settings.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - symbol
+ *               - side
+ *               - type
+ *               - leverage
+ *               - open_type
+ *               - size
+ *               - trigger_price
+ *               - price_way
+ *               - price_type
+ *             properties:
+ *               symbol:
+ *                 type: string
+ *                 example: "ETHUSDT"
+ *               side:
+ *                 type: number
+ *                 enum: [1, 2, 3, 4]
+ *                 example: 4
+ *               type:
+ *                 type: string
+ *                 enum: ["limit", "market", "take_profit", "stop_loss"]
+ *                 example: "limit"
+ *               leverage:
+ *                 type: string
+ *                 example: "10"
+ *               open_type:
+ *                 type: string
+ *                 enum: ["cross", "isolated"]
+ *                 example: "isolated"
+ *               size:
+ *                 type: number
+ *                 example: 10
+ *               trigger_price:
+ *                 type: string
+ *                 example: "2000"
+ *               executive_price:
+ *                 type: string
+ *                 example: "1450"
+ *               price_way:
+ *                 type: number
+ *                 enum: [1, 2]
+ *                 example: 2
+ *               price_type:
+ *                 type: number
+ *                 enum: [1, 2]
+ *                 example: 1
+ *               mode:
+ *                 type: number
+ *                 enum: [1, 2, 3, 4]
+ *                 example: 1
+ *               preset_take_profit_price:
+ *                 type: string
+ *                 example: "1400"
+ *               preset_stop_loss_price:
+ *                 type: string
+ *                 example: "1500"
+ *     responses:
+ *       200:
+ *         description: Plan order submitted successfully
+ *       400:
+ *         description: Invalid request or insufficient balance
+ *       500:
+ *         description: Server error
+ */
+router.post('/futures/submit-plan-order', tokenRequired, submitFuturesPlanOrder);
+
+
+// router.
 
 
 module.exports = router;
