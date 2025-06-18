@@ -231,7 +231,7 @@ async function withdrawToTradeWalletHandler(req, res){
     try {
         const user = req.user; // Assuming user is attached to the request
         const { amount, destination, coinId, chain, memo="" } = req.body;
-        let currency;
+        let currency, newChain;
         let type;
 
         if (destination !== 'spots' && destination !== 'futures') {
@@ -261,19 +261,19 @@ async function withdrawToTradeWalletHandler(req, res){
         // Check if coin exists in bitmart
         if (chain.toUpperCase() === 'TRX') {
             // For TRX, we need to use the TRC20 chain
-            chain = 'TRC20';
-            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+            newChain = 'TRC20';
+            currency = `${coinName.toUpperCase()}-${newChain.toUpperCase()}`;
         } else if (chain.toUpperCase() === 'BSC') {
-            chain = 'BSC_BNB';
-            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+            newChain = 'BSC_BNB';
+            currency = `${coinName.toUpperCase()}-${newChain.toUpperCase()}`;
         } else if (chain.toUpperCase() === coinName.toUpperCase()) {
             currency = `${coinName.toUpperCase()}`;
         } else if (chain.toUpperCase() === 'AVAX') {
-            chain = 'AVAX_C';
-            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+            newChain = 'AVAX_C';
+            currency = `${coinName.toUpperCase()}-${newChain.toUpperCase()}`;
         } else if (chain.toUpperCase() === 'SOL' && coinName.toUpperCase() === 'USDC') {
-            chain = 'SPL';
-            currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
+            newChain = 'SPL';
+            currency = `${coinName.toUpperCase()}-${newChain.toUpperCase()}`;
 
         } else {
             currency = `${coinName.toUpperCase()}-${chain.toUpperCase()}`;
