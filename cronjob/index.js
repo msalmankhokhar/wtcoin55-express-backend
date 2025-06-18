@@ -1,26 +1,24 @@
 const cron = require('node-cron');
-const { updateTradingWallet, getSpotOrder } = require('../utils/helpers');
+const { updateTradingWallet, getSpotOrder, updateSpotOrder } = require('../utils/helpers');
 const { Transactions } = require('../models/transactions');
 const { SpotOrderHistory } = require('../models/spot-order');
 
 /**
- * Get Trading Deposit transactions
- * @returns {Promise<Object>} -
+ * Process Trading Deposit Transactions
+ * @returns {Promise<void>}
  */
 async function checkTradingDepositTransactions() {
-    const query = {
+    const filterCriteria = {
         type: { $in: ['deposit_to_spots', 'deposit_to_futures'] },
         status: 'processing',
         webhookStatus: 'completed',
         createdAt: { $gt: new Date(Date.now() - 5 * 60 * 1000) }
     };
 
-    const transactions = await Transactions.find(query);
+    const depositTransactions = await Transactions.find(filterCriteria);
 
-    for (const transaction of transactions) {
-        console.log(`Processing transaction: ${transaction._id}, type: ${transaction.type}`);
+    for (const transaction of depositTransactions) {
         await updateTradingWallet(transaction);
-        console.log(`Updated trading wallet for transaction: ${transaction._id}, type: ${transaction.type}`);
     }
 }
 
@@ -30,10 +28,12 @@ async function checkTradingDepositTransactions() {
  */
 async function getSpotHistoryAndStatus() {
     // Get all pending spot orders and update their status
+    let orderDetails;
     await SpotOrderHistory.find({ status: 'pending' }).then(async (orders) => {
         for (const order of orders) {
             console.log("Analyzing Order: ", order);
-            await getSpotOrder(order.orderId);
+            orderDetails = await getSpotOrder(order.orderId);
+            console.log("Updated Order: ", await updateSpotOrder(orderDetails));
         }
     })
 }

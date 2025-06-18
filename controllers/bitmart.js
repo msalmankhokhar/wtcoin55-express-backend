@@ -177,7 +177,23 @@ async function fundFuturesAccount(req, res) {
 
 async function submitSpotOrder(req, res) {
     try {
-        const { symbol, side, type, price, quantity } = req.body;
+        const { symbol, side, type, price, quantity, notional="" } = req.body;
+        let balance;
+
+        // symbol = BUYINGCOIN_BASECOIN
+        // Get Base coin
+        if (symbol.split("_")[0 === 'USDT']) {
+            balance = await SpotBalance.findOne({ coinId: 1280});
+        }
+        else {
+            balance = await SpotBalance.findOne({ coinName: symbol.split("_")[0] });
+        }
+        const orderCost = quantity * price;
+
+        if (!balance || balance.balance < orderCost) {
+            return res.status(400).json({ message: 'Insufficient funds' });
+        }
+
         const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
         console.log(data);
 

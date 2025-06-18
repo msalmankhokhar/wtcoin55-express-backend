@@ -11,7 +11,7 @@ const SpotOrderHistorySchema = new mongoose.Schema({
     price: { type: Number, required: true },
     averageExecutionPrice: { type: Number, default: 0 },
     side: { type: String, enum: ['buy', 'sell'], required: true },
-    status: { type: String, enum: ['pending', 'completed', 'failed', 'cancelled'], default: 'pending' },
+    status: { type: String, default: 'pending' },
     copyCode: { type: String, required: true},
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
