@@ -433,6 +433,109 @@ async function testTrades(req, res) {
     return res.status(200).json(spotHist);
 }
 
+async function transferFromSpotsToFutures(req, res) {
+    try {
+        const { currency, amount } = req.body;
+        const userId = req.user._id;
+
+        console.log(`Transfer request: ${amount} ${currency} from Spot to Futures for user ${userId}`);
+
+        // Validate input
+        if (!currency || !amount || amount <= 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid currency or amount' 
+            });
+        }
+
+        // Calculate current spot balance from order history
+        const spotOrders = await SpotOrderHistory.find({
+            user: userId,
+            status: { $in: ['completed', 'partial'] }
+        });
+
+        let currentSpotBalance = 0;
+
+        // Calculate balance for the requested currency
+        for (const order of spotOrders) {
+            const [baseCurrency, quoteCurrency] = order.symbol.split('_');
+            
+            if (currency === baseCurrency) {
+                // This is the base currency (e.g., ZEUS in ZEUS_USDT)
+                if (order.side === 'buy') {
+                    currentSpotBalance += order.executedQuantity;
+                } else {
+                    currentSpotBalance -= order.executedQuantity;
+                }
+            } else if (currency === quoteCurrency) {
+                // This is the quote currency (e.g., USDT in ZEUS_USDT)
+                const executedValue = order.executedQuantity * order.averageExecutionPrice;
+                if (order.side === 'buy') {
+                    currentSpotBalance -= executedValue;
+                } else {
+                    currentSpotBalance += executedValue;
+                }
+                // Subtract fees (usually in quote currency)
+                currentSpotBalance -= order.totalFees;
+            }
+        }
+
+        console.log(`Current ${currency} spot balance: ${currentSpotBalance.toFixed(8)}`);
+
+        // Check if sufficient balance
+        if (currentSpotBalance < amount) {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Insufficient ${currency} balance in spot wallet. Available: ${currentSpotBalance.toFixed(8)}, Requested: ${amount}` 
+            });
+        }
+
+        // Execute transfer via BitMart API
+        console.log(`Executing transfer: ${amount} ${currency} to futures account...`);
+        
+        const transferResponse = await bitmart.SpotToFuturesTransfer(currency, amount);
+
+        if (transferResponse.code !== 1000) {
+            console.error('BitMart transfer failed:', transferResponse);
+            return res.status(400).json({ 
+                success: false, 
+                error: transferResponse.message || 'Transfer failed' 
+            });
+        }
+
+        // Record the transfer in database (optional - for tracking)
+        const transferRecord = {
+            userId: userId,
+            currency: currency,
+            amount: parseFloat(amount),
+            type: 'spot_to_futures',
+            timestamp: new Date(),
+            bitMartResponse: transferResponse,
+            status: 'completed'
+        };
+
+        console.log(`✅ Successfully transferred ${amount} ${currency} to futures account`);
+        console.log(`Transfer ID: ${transferResponse.data?.transfer_id || 'N/A'}`);
+
+        // Return success response
+        res.status(200).json({
+            success: true,
+            message: `Successfully transferred ${amount} ${currency} to futures account`,
+            transferId: transferResponse.data?.transfer_id,
+            newSpotBalance: (currentSpotBalance - amount).toFixed(8),
+            transferRecord: transferRecord
+        });
+
+    } catch (error) {
+        console.error('Error in transferFromSpotsToFutures:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to transfer funds to futures account',
+            details: error.message 
+        });
+    }
+}
+
 
 module.exports = {
     getTradingPairs,
@@ -444,6 +547,7 @@ module.exports = {
     submitSpotOrder,
     spotsWithdraw,
     futuresWithdraw,
+    transferFromSpotsToFutures,
     testSpotOrder,
     testTrades
 }
