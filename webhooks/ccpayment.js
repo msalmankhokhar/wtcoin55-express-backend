@@ -135,8 +135,8 @@ async function handleDepositWebhook(req, res) {
             const referrerBonusPercentage = 0.10;
 
             // Calculate bonuses
-            const userBonus = userDeposit.amount * bonusPercentage;
-            const referrerBonus = userDeposit.amount * referrerBonusPercentage;
+            const userBonus = userAmount * bonusPercentage;
+            const referrerBonus = userAmount * referrerBonusPercentage;
 
             // Add bonus to user's deposit
             await ccpayment.updateBalance(userId, coinId, coinName, amount=userAmount+userBonus, recordId);

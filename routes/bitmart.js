@@ -239,51 +239,394 @@ router.post('/test-get-spot-order', tokenRequired, testSpotOrder);
  */
 router.post('/test-get-trades', tokenRequired, testTrades);
 
+// /**
+//  * @swagger
+//  * /api/bitmart/spot-order:
+//  *   post:
+//  *     summary: Submit spot order
+//  *     description: Submit a spot order to BitMart
+//  *     tags:
+//  *       - Spot
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               symbol:
+//  *                 type: string
+//  *                 description: The symbol of the currency pair
+//  *               side:
+//  *                 type: string
+//  *                 description: buy or sell
+//  *               type:
+//  *                 type: string
+//  *                 description: limit, market, limit_maker, or ioc
+//  *               price:
+//  *                 type: number
+//  *                 description: The price at which to place the order
+//  *               quantity:
+//  *                 type: number
+//  *                 description: The quantity of the order
+//  *     responses:
+//  *       200:
+//  *         description: Successfully submitted the order
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 order_id:
+//  *                   type: string
+//  *                   description: The ID of the submitted order
+//  *       400:
+//  *         description: Bad request
+//  *       500:
+//  *         description: Internal error
+//  */
+
 /**
  * @swagger
  * /api/bitmart/spot-order:
  *   post:
- *     summary: Submit spot order
- *     description: Submit a spot order to BitMart
  *     tags:
- *       - Spot
+ *       - Spot Trading
+ *     summary: Submit spot trading order
+ *     description: |
+ *       Submit a spot trading order to BitMart exchange. Supports limit, market, limit_maker, and IOC orders.
+ *       The system automatically checks balance before submission and tracks the order for copy trading.
+ *       
+ *       **Order Types:**
+ *       - `limit`: Standard limit order with specified price
+ *       - `market`: Immediate execution at current market price
+ *       - `limit_maker`: Limit order that only adds liquidity (maker only)
+ *       - `ioc`: Immediate or Cancel order
+ *       
+ *       **Balance Logic:**
+ *       - For BUY orders: Checks quote currency balance (e.g., USDT for ZEUS_USDT)
+ *       - For SELL orders: Checks base currency balance (e.g., ZEUS for ZEUS_USDT)
+ *       - Special handling for USDT (coinId: 1280)
+ *     security:
+ *       - quantumAccessToken: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - symbol
+ *               - side
+ *               - type
  *             properties:
  *               symbol:
  *                 type: string
- *                 description: The symbol of the currency pair
+ *                 description: Trading pair symbol (format BASECOIN_QUOTECOIN)
+ *                 example: "ZEUS_USDT"
+ *                 pattern: "^[A-Z]+_[A-Z]+$"
  *               side:
  *                 type: string
- *                 description: buy or sell
+ *                 description: Order side
+ *                 enum: ["buy", "sell"]
+ *                 example: "buy"
  *               type:
  *                 type: string
- *                 description: limit, market, limit_maker, or ioc
+ *                 description: Order type
+ *                 enum: ["limit", "market", "limit_maker", "ioc"]
+ *                 example: "limit"
  *               price:
  *                 type: number
- *                 description: The price at which to place the order
+ *                 description: |
+ *                   Order price (required for limit orders, optional for market orders)
+ *                   Must be greater than 0 for limit orders
+ *                 minimum: 0.00000001
+ *                 example: 0.185
  *               quantity:
  *                 type: number
- *                 description: The quantity of the order
+ *                 description: |
+ *                   Order quantity in base currency (required for limit orders and market sell orders)
+ *                   Must be greater than 0
+ *                 minimum: 0.00000001
+ *                 example: 1000
+ *               notional:
+ *                 type: string
+ *                 description: |
+ *                   Order amount in quote currency (optional, mainly used for market buy orders)
+ *                   When specified for market buy, quantity can be omitted
+ *                 example: "185.00"
+ *           examples:
+ *             limit_buy_order:
+ *               summary: Limit Buy Order
+ *               description: Buy 1000 ZEUS at 0.185 USDT each
+ *               value:
+ *                 symbol: "ZEUS_USDT"
+ *                 side: "buy"
+ *                 type: "limit"
+ *                 price: 0.185
+ *                 quantity: 1000
+ *             limit_sell_order:
+ *               summary: Limit Sell Order
+ *               description: Sell 500 ZEUS at 0.19 USDT each
+ *               value:
+ *                 symbol: "ZEUS_USDT"
+ *                 side: "sell"
+ *                 type: "limit"
+ *                 price: 0.19
+ *                 quantity: 500
+ *             market_buy_order:
+ *               summary: Market Buy Order
+ *               description: Buy ZEUS worth 100 USDT at current market price
+ *               value:
+ *                 symbol: "ZEUS_USDT"
+ *                 side: "buy"
+ *                 type: "market"
+ *                 notional: "100.00"
+ *             market_sell_order:
+ *               summary: Market Sell Order
+ *               description: Sell 200 ZEUS at current market price
+ *               value:
+ *                 symbol: "ZEUS_USDT"
+ *                 side: "sell"
+ *                 type: "market"
+ *                 quantity: 200
+ *             limit_maker_order:
+ *               summary: Limit Maker Order
+ *               description: Place maker-only order (will be rejected if it would execute immediately)
+ *               value:
+ *                 symbol: "ZEUS_USDT"
+ *                 side: "buy"
+ *                 type: "limit_maker"
+ *                 price: 0.18
+ *                 quantity: 1500
+ *             ioc_order:
+ *               summary: IOC (Immediate or Cancel) Order
+ *               description: Execute immediately or cancel unfilled portion
+ *               value:
+ *                 symbol: "ZEUS_USDT"
+ *                 side: "buy"
+ *                 type: "ioc"
+ *                 price: 0.186
+ *                 quantity: 800
  *     responses:
  *       200:
- *         description: Successfully submitted the order
+ *         description: Order submitted successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 order_id:
+ *                 message:
  *                   type: string
- *                   description: The ID of the submitted order
+ *                   example: "success"
+ *                 code:
+ *                   type: number
+ *                   example: 1000
+ *                 trace:
+ *                   type: string
+ *                   example: "886fb6ae-456b-4654-b4e0-d681ac05cea1"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     order_id:
+ *                       type: string
+ *                       description: BitMart order ID for tracking
+ *                       example: "1234567890123456789"
+ *                     symbol:
+ *                       type: string
+ *                       example: "ZEUS_USDT"
+ *                     side:
+ *                       type: string
+ *                       example: "buy"
+ *                     type:
+ *                       type: string
+ *                       example: "limit"
+ *                     notional:
+ *                       type: string
+ *                       description: Total order value in quote currency
+ *                       example: "185.00000000"
+ *                     size:
+ *                       type: string
+ *                       description: Order quantity in base currency
+ *                       example: "1000.00000000"
+ *                     price:
+ *                       type: string
+ *                       description: Order price (or "market price" for market orders)
+ *                       example: "0.18500000"
+ *                     state:
+ *                       type: string
+ *                       description: Initial order state
+ *                       example: "new"
+ *             examples:
+ *               successful_limit_order:
+ *                 summary: Successful limit order response
+ *                 value:
+ *                   message: "success"
+ *                   code: 1000
+ *                   trace: "886fb6ae-456b-4654-b4e0-d681ac05cea1"
+ *                   data:
+ *                     order_id: "1234567890123456789"
+ *                     symbol: "ZEUS_USDT"
+ *                     side: "buy"
+ *                     type: "limit"
+ *                     notional: "185.00000000"
+ *                     size: "1000.00000000"
+ *                     price: "0.18500000"
+ *                     state: "new"
+ *               successful_market_order:
+ *                 summary: Successful market order response
+ *                 value:
+ *                   message: "success"
+ *                   code: 1000
+ *                   trace: "886fb6ae-456b-4654-b4e0-d681ac05cea1"
+ *                   data:
+ *                     order_id: "1234567890123456790"
+ *                     symbol: "ZEUS_USDT"
+ *                     side: "buy"
+ *                     type: "market"
+ *                     notional: "100.00000000"
+ *                     size: "538.17204301"
+ *                     price: "market price"
+ *                     state: "new"
  *       400:
- *         description: Bad request
+ *         description: Bad request - Invalid parameters or insufficient balance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   description: Error message describing the issue
+ *             examples:
+ *               insufficient_funds:
+ *                 summary: Insufficient balance
+ *                 value:
+ *                   message: "Insufficient funds"
+ *               invalid_symbol:
+ *                 summary: Invalid trading pair
+ *                 value:
+ *                   message: "Invalid symbol format"
+ *               missing_price:
+ *                 summary: Missing required price for limit order
+ *                 value:
+ *                   message: "Price is required for limit orders"
+ *               missing_quantity:
+ *                 summary: Missing required quantity
+ *                 value:
+ *                   message: "Quantity is required for this order type"
+ *       401:
+ *         description: Unauthorized - Invalid or missing authentication token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: "Access token required"
  *       500:
- *         description: Internal error
+ *         description: Internal server error or BitMart API error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *             examples:
+ *               api_error:
+ *                 summary: BitMart API error
+ *                 value:
+ *                   error: "Failed to submit spot order"
+ *               server_error:
+ *                 summary: Internal server error
+ *                 value:
+ *                   error: "Database connection failed"
+ *
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ *       description: JWT token obtained from login endpoint
+ *   
+ *   schemas:
+ *     SpotOrderRequest:
+ *       type: object
+ *       required:
+ *         - symbol
+ *         - side
+ *         - type
+ *       properties:
+ *         symbol:
+ *           type: string
+ *           pattern: "^[A-Z]+_[A-Z]+$"
+ *           description: Trading pair in format BASE_QUOTE
+ *         side:
+ *           type: string
+ *           enum: ["buy", "sell"]
+ *         type:
+ *           type: string
+ *           enum: ["limit", "market", "limit_maker", "ioc"]
+ *         price:
+ *           type: number
+ *           minimum: 0.00000001
+ *         quantity:
+ *           type: number
+ *           minimum: 0.00000001
+ *         notional:
+ *           type: string
+ *     
+ *     SpotOrderResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *         code:
+ *           type: number
+ *         trace:
+ *           type: string
+ *         data:
+ *           type: object
+ *           properties:
+ *             order_id:
+ *               type: string
+ *             symbol:
+ *               type: string
+ *             side:
+ *               type: string
+ *             type:
+ *               type: string
+ *             notional:
+ *               type: string
+ *             size:
+ *               type: string
+ *             price:
+ *               type: string
+ *             state:
+ *               type: string
+ *     
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: false
+ *         message:
+ *           type: string
+ *         error:
+ *           type: string
  */
 router.post('/spot-order', tokenRequired, submitSpotOrder);
 
