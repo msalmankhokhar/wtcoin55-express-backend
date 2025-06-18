@@ -30,6 +30,7 @@ async function getSpotHistoryAndStatus() {
     // Get all pending spot orders and update their status
     let orderDetails;
     await SpotOrderHistory.find({ status: 'pending' }).then(async (orders) => {
+        console.log(orders);
         for (const order of orders) {
             console.log("Analyzing Order: ", order);
             orderDetails = await getSpotOrder(order.orderId);

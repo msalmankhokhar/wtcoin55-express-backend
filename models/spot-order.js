@@ -35,7 +35,7 @@ const SpotOrderHistorySchema = new mongoose.Schema({
         role: { type: String, enum: ['maker', 'taker'] },
         timestamp: Date
     }],
-    
+
     // Copy Trading
     isActive: { type: Boolean, default: true },
     

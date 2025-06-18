@@ -383,7 +383,7 @@ async function updateSpotOrder(orderDetails) {
                 totalFees = filledValue * estimatedFeeRate;
             }
         }
-        
+
         // Update the order in database
         const updatedOrder = await SpotOrderHistory.findOneAndUpdate(
             { orderId: orderDetails.orderId },
@@ -413,13 +413,13 @@ async function updateSpotOrder(orderDetails) {
         }
 
         console.log(`✅ Updated order ${orderDetails.orderId}: ${previousStatus} → ${newStatus}`);
-        
+
         // Calculate and update user's profit/loss and balances if order completed/partial
         if ((newStatus === 'completed' || newStatus === 'partial') && 
             (previousStatus !== 'completed' && previousStatus !== 'partial')) {
-            
+
             console.log(`💰 Calculating profit/loss and balances for user ${userId}...`);
-            
+
             try {
                 // Calculate current balances for this symbol
                 const [baseCurrency, quoteCurrency] = orderDetails.symbol.split('_');
