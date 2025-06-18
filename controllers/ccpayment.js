@@ -259,9 +259,9 @@ async function withdrawToTradeWalletHandler(req, res){
         const coinName = userBalance.coinName;
 
         // Check if coin exists in bitmart
-        if (chain.toUpperCase() === 'TRX') {
+        if (chain.toUpperCase() === 'TRC20') {
             // For TRX, we need to use the TRC20 chain
-            newChain = 'TRC20';
+            newChain = 'TRX';
             currency = `${coinName.toUpperCase()}-${newChain.toUpperCase()}`;
         } else if (chain.toUpperCase() === 'BSC') {
             newChain = 'BSC_BNB';
