@@ -512,56 +512,27 @@ class BitMart {
         return await this._makeRequest('POST', endpoint, data);
     }
 
-    // async getSpotOrder(order_id) {
-    //     // const endpoint = `/spot/v4/query/order`;
-    //     const endpoint = `/spot/v1/order_detail`;
-    //     const data = {
-    //         orderId: order_id,
-    //         queryState: 'history'
-    //     };
-
-    //     return await this._makeRequest('GET', endpoint, data);
-    // }
-   async getSpotOrder(orderId) {
-    try {
-        const requestBody = {
-            orderId: orderId,
-            queryState: "history", // or "open" for pending orders
-            recvWindow: 5000
+    async getSpotOrder(order_id) {
+        // const endpoint = `/spot/v4/query/order`;
+        const endpoint = `/spot/v1/order_detail`;
+        const data = {
+            orderId: order_id,
+            queryState: 'history'
         };
+        console.log("Trying Query History");
 
-        console.log('Fetching order details for:', orderId);
-        console.log('Request body:', requestBody);
-
-        const response = await axios({
-            method: 'POST', // v4 endpoint uses POST instead of GET
-            url: 'https://api-cloud.bitmart.com/spot/v4/query/order',
-            data: requestBody,
-            headers: this._getSignedHeaders('POST', '/spot/v4/query/order', requestBody),
-            timeout: 10000
-        });
-
-        console.log('Order response:', response.data);
-        return response.data;
-
-    } catch (error) {
-        console.error('BitMart getSpotOrder error:', {
-            orderId,
-            status: error.response?.status,
-            statusText: error.response?.statusText,
-            responseData: error.response?.data,
-            message: error.message
-        });
-        
-        // Handle specific error cases
-        if (error.response?.status === 404) {
-            throw new Error(`Order ${orderId} not found`);
+        const response =  await this._makeRequest('GET', endpoint, data);
+        if (response.code !== 1000) {
+            console.log("Trying Query Open");
+            const newData = {
+                orderId: order_id,
+                queryState: 'open'
+            };
+            return await this._makeRequest('GET', endpoint, newData);
         }
-        
-        throw new Error(`BitMart API Error: ${error.response?.data?.message || error.message}`);
+        return response;
     }
-}
-
+   
     async getSpotTrades(symbol, orderMode = 'spot', startTime = null, endTime = null, limit = 10) {
         const endpoint = `/spot/v4/query/trades`;
 
