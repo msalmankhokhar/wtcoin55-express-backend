@@ -1,3 +1,5 @@
+
+
 const mongoose = require('mongoose');
 
 const MainBalanceSchema = new mongoose.Schema({
@@ -14,3 +16,5 @@ MainBalanceSchema.index({ user: 1, coinId: 1 }, { unique: true });
 
 const MainBalance = mongoose.model('MainBalance', MainBalanceSchema);
 module.exports =  { MainBalance };
+
+
