@@ -548,7 +548,7 @@ class BitMart {
         if (endTime) data.endTime = endTime;
 
         // Make POST request with JSON body
-        return await this._makeRequest('POST', endpoint, data);
+        return await this._makeRequestV2('POST', endpoint, data);
     }
 
 
