@@ -102,6 +102,10 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
             });
         }
 
+        if (!['TRC20', 'TRC', 'TRX', 'ETH', 'ERC20', 'TRON', 'ERC'].includes(chain.toUpperCase())) {
+            return res.status(400).json({ success: false, error: "Invalid chain" });
+        }
+
         // If no existing address, create new one
         const referenceId = `${user._id.toString()}${uuidv4()}`;
         const response = await ccpayment.getOrCreateAppDepositAddress(chain, referenceId);
@@ -227,6 +231,7 @@ async function withdrawToTradeWalletHandler(req, res){
     try {
         const user = req.user; // Assuming user is attached to the request
         const { amount, destination, coinId, chain, memo="" } = req.body;
+        let currency;
         let type;
 
         if (destination !== 'spots' && destination !== 'futures') {
