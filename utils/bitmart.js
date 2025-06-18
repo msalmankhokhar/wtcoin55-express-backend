@@ -520,14 +520,14 @@ class BitMart {
         };
         console.log("Trying Query History");
 
-        const response =  await this._makeRequest('GET', endpoint, data);
+        const response =  await this._makeRequestV2('GET', endpoint, data);
         if (response.code !== 1000) {
             console.log("Trying Query Open");
             const newData = {
                 orderId: order_id,
                 queryState: 'open'
             };
-            return await this._makeRequest('GET', endpoint, newData);
+            return await this._makeRequestV2('GET', endpoint, newData);
         }
         return response;
     }
