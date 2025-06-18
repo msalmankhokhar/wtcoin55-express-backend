@@ -533,6 +533,7 @@ class BitMart {
             headers: this._getHeaders('GET', '/spot/v1/order_detail', { order_id: orderId }),
             timeout: 10000
         });
+        console.log("Response: ", response);
         
         return response.data;
     } catch (error) {
