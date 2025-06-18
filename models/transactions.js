@@ -8,12 +8,12 @@ let transactionSchema = new mongoose.Schema({
      },
      type: {
           type: String,
-          enum: ['deposit', 'withdrawal', 'internal_transfer', 'deposit_to_spots', 'deposit_to_futures', 'withdraw_futures_to_main', 'withdraw_spot_to_main'],
+          // enum: ['deposit', 'withdrawal', 'internal_transfer', 'deposit_to_spots', 'deposit_to_futures', 'withdraw_futures_to_main', 'withdraw_spot_to_main'],
           required: false
      },
      status: {
         type: String,
-        enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'],
+     //    enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'],
         default: 'pending',
         required: false
      },
