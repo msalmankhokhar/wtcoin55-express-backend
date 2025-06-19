@@ -97,7 +97,7 @@ async function getCoinListHandler(req, res) {
         };
         
         console.log('Filtered USDT response:', JSON.stringify(response, null, 2));
-        res.json(response);
+        res.json(parsedData);
         
     } catch (error) {
         console.error('Error filtering coin list:', error);
