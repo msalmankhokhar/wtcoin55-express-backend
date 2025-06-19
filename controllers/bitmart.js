@@ -629,6 +629,7 @@ async function submitFuturesPlanOrder(req, res) {
 
         // Check balance for the quote currency (usually USDT)
         const quoteCurrency = symbol.split('_')[1] || 'USDT'; // ETHUSDT -> USDT
+        console.log(quoteCurrency);
         let balance;
 
         if (quoteCurrency === 'USDT') {
