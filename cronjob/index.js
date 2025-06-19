@@ -4,6 +4,7 @@ const { updateTradingWallet, getSpotOrder, updateSpotOrder,
  } = require('../utils/helpers');
 const { Transactions } = require('../models/transactions');
 const { SpotOrderHistory } = require('../models/spot-order');
+const { FuturesOrderHistory } = require('../models/future-order');
 
 /**
  * Process Trading Deposit Transactions
