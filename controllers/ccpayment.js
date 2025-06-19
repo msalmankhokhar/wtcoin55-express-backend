@@ -47,6 +47,7 @@ async function getCoinListHandler(req, res) {
         const parsedData = JSON.parse(coinList);
         
         // Filter for USDT only (coinId: 1280)
+        console.log(parsedData);
         const usdtCoin = parsedData.data.coins.find(coin => coin.coinId === 1280);
         
         if (!usdtCoin) {

@@ -512,6 +512,344 @@ async function updateSpotOrder(orderDetails) {
 }
 
 
+// ===============================
+// 🚀 FUTURES ORDER TRACKING CRONJOB SYSTEM
+// Structured like your spot system
+// ===============================
+
+/**
+ * Get Futures Order Details and Check Status
+ * @param {string} orderId - BitMart order ID
+ * @param {string} symbol - Trading symbol (e.g., "ETHUSDT")
+ * @returns {Promise<Object>} - Updated order data with updateNeeded flag
+ */
+async function getFuturesOrder(orderId, symbol) {
+    try {
+        console.log(`🔍 Checking futures order: ${orderId} (${symbol})`);
+        
+        // 1. Get order details from BitMart
+        const orderResponse = await bitmart.getContractOrder(symbol, orderId);
+        
+        if (orderResponse.code !== 1000) {
+            console.log("Order response error:", { code: orderResponse.code, message: orderResponse.message });
+            throw new Error(orderResponse.message || 'Unknown error fetching order');
+        }
+
+        const orderData = orderResponse.data;
+        console.log(`📊 Order ${orderId} state: ${orderData.state}`);
+
+        // 2. Map BitMart states to our status
+        const stateMapping = {
+            1: 'pending',           // Unfilled
+            2: 'partial',           // Partially filled  
+            3: 'cancelled',         // Cancelled
+            4: 'completed',         // Filled
+            5: 'triggered',         // Triggered (plan orders)
+            6: 'failed'             // Failed
+        };
+        
+        const newStatus = stateMapping[orderData.state] || 'unknown';
+        
+        // 3. Check if order needs updating
+        const needsUpdate = orderData.state !== 1; // Any state other than pending (1)
+        
+        // 4. Get execution details if order has been executed
+        let executionPrice = parseFloat(orderData.deal_avg_price || orderData.price || 0);
+        let executedSize = parseInt(orderData.deal_size || 0);
+        let executedValue = executionPrice * executedSize;
+        
+        // 5. Calculate fees (BitMart futures fees are typically in USDT)
+        let totalFees = 0;
+        let feeCurrency = 'USDT';
+        let feeType = 'taker'; // Default assumption
+        
+        if (newStatus === 'completed' || newStatus === 'partial') {
+            // Estimate fees based on executed value
+            // You can get actual fee rates from BitMart or use estimates
+            const makerFeeRate = 0.0002;  // 0.02%
+            const takerFeeRate = 0.0006;  // 0.06%
+            
+            // Determine if it was maker or taker based on order type and execution time
+            const executionSpeed = orderData.update_time - orderData.create_time;
+            
+            if (orderData.type === 'market' || executionSpeed < 1000) {
+                feeType = 'taker';
+                totalFees = executedValue * takerFeeRate;
+            } else {
+                feeType = 'maker';
+                totalFees = executedValue * makerFeeRate;
+            }
+            
+            console.log(`💰 Calculated fees: ${totalFees.toFixed(6)} ${feeCurrency} (${feeType})`);
+        }
+
+        // 6. Return complete order data
+        return {
+            orderId: orderData.order_id,
+            symbol: orderData.symbol,
+            state: orderData.state,
+            status: newStatus,
+            side: orderData.side,
+            type: orderData.type,
+            leverage: orderData.leverage,
+            openType: orderData.open_type,
+            originalPrice: parseFloat(orderData.price || 0),
+            executionPrice: executionPrice,
+            originalSize: parseInt(orderData.size || 0),
+            executedSize: executedSize,
+            executedValue: executedValue,
+            feeType: feeType,
+            exchangeFees: totalFees,
+            feeCurrency: feeCurrency,
+            createTime: orderData.create_time,
+            updateTime: orderData.update_time,
+            updateNeeded: needsUpdate,
+            
+            // Plan order specific fields (if available)
+            activationPrice: parseFloat(orderData.activation_price || 0),
+            activationPriceType: orderData.activation_price_type || 0,
+            presetTakeProfitPrice: orderData.preset_take_profit_price || null,
+            presetStopLossPrice: orderData.preset_stop_loss_price || null,
+            planCategory: orderData.plan_category || 0
+        };
+
+    } catch (error) {
+        console.error(`❌ Error processing futures order ${orderId}:`, error);
+        return {
+            orderId: orderId,
+            symbol: symbol,
+            error: error.message,
+            updateNeeded: false
+        };
+    }
+}
+
+/**
+ * Update Futures Order in Database and Handle Balance Updates
+ * @param {Object} orderDetails - Order details from getFuturesOrder
+ * @returns {Promise<Object|null>} - Updated order document
+ */
+async function updateFuturesOrder(orderDetails) {
+    if (!orderDetails.updateNeeded) {
+        console.log(`⏭️  Order ${orderDetails.orderId} doesn't need update`);
+        return null;
+    }
+
+    try {
+        console.log(`🔄 Updating futures order ${orderDetails.orderId} in database...`);
+        
+        // Get the current order from database
+        const currentOrder = await FuturesOrderHistory.findOne({ orderId: orderDetails.orderId });
+        if (!currentOrder) {
+            console.error(`❌ Order ${orderDetails.orderId} not found in database`);
+            return null;
+        }
+        
+        const previousStatus = currentOrder.status;
+        const userId = currentOrder.user;
+        
+        console.log(`📊 Status change: ${previousStatus} → ${orderDetails.status}`);
+
+        // Update the order in database
+        const updatedOrder = await FuturesOrderHistory.findOneAndUpdate(
+            { orderId: orderDetails.orderId },
+            {
+                $set: {
+                    status: orderDetails.status,
+                    executed_price: orderDetails.executionPrice,
+                    executed_quantity: orderDetails.executedSize,
+                    executed_value: orderDetails.executedValue,
+                    exchange_fees: orderDetails.exchangeFees,
+                    total_fees: orderDetails.exchangeFees, // Can add platform fees later
+                    fee_currency: orderDetails.feeCurrency,
+                    fee_type: orderDetails.feeType,
+                    executed_at: orderDetails.updateTime ? new Date(orderDetails.updateTime) : new Date(),
+                    updatedAt: new Date(),
+                    
+                    // Plan order specific updates
+                    activation_price: orderDetails.activationPrice,
+                    preset_take_profit_price: orderDetails.presetTakeProfitPrice,
+                    preset_stop_loss_price: orderDetails.presetStopLossPrice
+                }
+            },
+            { 
+                new: true,
+                runValidators: true
+            }
+        );
+
+        if (!updatedOrder) {
+            console.error(`❌ Failed to update order ${orderDetails.orderId} in database`);
+            return null;
+        }
+
+        console.log(`✅ Updated order ${orderDetails.orderId}: ${previousStatus} → ${orderDetails.status}`);
+
+        // Handle balance updates for completed/partial orders
+        if ((orderDetails.status === 'completed' || orderDetails.status === 'partial') && 
+            (previousStatus !== 'completed' && previousStatus !== 'partial')) {
+
+            console.log(`💰 Updating balances for user ${userId}...`);
+
+            try {
+                await updateFuturesBalance(userId, updatedOrder, orderDetails);
+            } catch (balanceError) {
+                console.error(`❌ Error updating futures balance for user ${userId}:`, balanceError);
+            }
+        }
+        
+        // Log execution details
+        if (orderDetails.status === 'completed') {
+            console.log(`🎉 Futures order ${orderDetails.orderId} completed!`);
+            console.log(`   Position: ${getSideText(orderDetails.side)} ${orderDetails.executedSize} contracts`);
+            console.log(`   Price: ${orderDetails.executionPrice} USDT`);
+            console.log(`   Value: ${orderDetails.executedValue.toFixed(2)} USDT`);
+            console.log(`   Leverage: ${orderDetails.leverage}x`);
+            console.log(`   Fees: ${orderDetails.exchangeFees.toFixed(6)} ${orderDetails.feeCurrency}`);
+        } else if (orderDetails.status === 'triggered') {
+            console.log(`⚡ Plan order ${orderDetails.orderId} triggered!`);
+        } else if (orderDetails.status === 'cancelled') {
+            console.log(`❌ Order ${orderDetails.orderId} was cancelled`);
+        } else if (orderDetails.status === 'partial') {
+            console.log(`⚡ Order ${orderDetails.orderId} partially filled: ${orderDetails.executedSize}/${orderDetails.originalSize}`);
+        }
+
+        return updatedOrder;
+
+    } catch (error) {
+        console.error(`❌ Error updating futures order ${orderDetails.orderId}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Update User's Futures Balance After Order Execution
+ * @param {string} userId - User ID
+ * @param {Object} order - Updated order document
+ * @param {Object} orderDetails - Order details from BitMart
+ */
+async function updateFuturesBalance(userId, order, orderDetails) {
+    try {
+        console.log(`🔄 Processing balance update for futures order...`);
+        
+        // Get user's USDT futures balance
+        let usdtBalance = await FuturesBalance.findOne({ 
+            user: userId, 
+            coinId: 1280 // USDT
+        });
+
+        if (!usdtBalance) {
+            console.error(`❌ USDT futures balance not found for user ${userId}`);
+            return;
+        }
+
+        const executedValue = orderDetails.executedValue;
+        const fees = orderDetails.exchangeFees;
+        const leverage = parseFloat(orderDetails.leverage);
+        const marginUsed = executedValue / leverage;
+
+        // Determine balance change based on order side
+        let balanceChange = 0;
+        let description = '';
+
+        switch (orderDetails.side) {
+            case 1: // Buy Open Long
+                balanceChange = -(marginUsed + fees);
+                description = `Opened long position: ${orderDetails.executedSize} contracts at ${orderDetails.executionPrice}`;
+                break;
+                
+            case 2: // Buy Close Short
+                balanceChange = -(fees); // Closing position, margin released separately
+                description = `Closed short position: ${orderDetails.executedSize} contracts at ${orderDetails.executionPrice}`;
+                break;
+                
+            case 3: // Sell Close Long
+                balanceChange = -(fees); // Closing position, margin released separately  
+                description = `Closed long position: ${orderDetails.executedSize} contracts at ${orderDetails.executionPrice}`;
+                break;
+                
+            case 4: // Sell Open Short
+                balanceChange = -(marginUsed + fees);
+                description = `Opened short position: ${orderDetails.executedSize} contracts at ${orderDetails.executionPrice}`;
+                break;
+                
+            default:
+                console.warn(`⚠️  Unknown order side: ${orderDetails.side}`);
+                balanceChange = -fees; // At minimum, deduct fees
+        }
+
+        // Update balance
+        const newBalance = usdtBalance.balance + balanceChange;
+        
+        if (newBalance < 0) {
+            console.warn(`⚠️  Negative balance detected for user ${userId}: ${newBalance}`);
+        }
+
+        await FuturesBalance.findByIdAndUpdate(usdtBalance._id, {
+            balance: Math.max(0, newBalance), // Prevent negative balance
+            updatedAt: new Date()
+        });
+
+        console.log(`💰 Balance updated for user ${userId}:`);
+        console.log(`   Previous: ${usdtBalance.balance.toFixed(6)} USDT`);
+        console.log(`   Change: ${balanceChange.toFixed(6)} USDT`);
+        console.log(`   New: ${newBalance.toFixed(6)} USDT`);
+        console.log(`   Description: ${description}`);
+
+        // TODO: Log transaction history
+        // You might want to create a FuturesTransactionHistory entry here
+
+    } catch (error) {
+        console.error(`❌ Error updating futures balance:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Helper function to get readable side text
+ * @param {number} side - Order side number
+ * @returns {string} - Readable side text
+ */
+function getSideText(side) {
+    const sideMap = {
+        1: 'Buy Open Long',
+        2: 'Buy Close Short', 
+        3: 'Sell Close Long',
+        4: 'Sell Open Short'
+    };
+    return sideMap[side] || `Side ${side}`;
+}
+
+
+// ===============================
+// 🧪 MANUAL TESTING
+// ===============================
+
+/**
+ * Test single order (for debugging)
+ * @param {string} orderId - Order ID to test
+ * @param {string} symbol - Trading symbol
+ */
+async function testSingleFuturesOrder(orderId, symbol) {
+    console.log(`🧪 Testing single futures order: ${orderId}`);
+    
+    try {
+        const orderDetails = await getFuturesOrder(orderId, symbol);
+        console.log('📊 Order Details:', orderDetails);
+        
+        if (orderDetails.updateNeeded) {
+            const updated = await updateFuturesOrder(orderDetails);
+            console.log('✅ Updated Order:', updated);
+        }
+    } catch (error) {
+        console.error('❌ Test failed:', error);
+    }
+}
+
+
+
+
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
-    updateTradingWallet, getSpotOrder, updateSpotOrder
+    updateTradingWallet, getSpotOrder, updateSpotOrder, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder
  };
+ 

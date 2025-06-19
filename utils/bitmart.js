@@ -775,6 +775,93 @@ class BitMart {
 
         return this._makeRequestV2('GET', endpoint+param);
     }
+
+    /**
+     * Get single order details
+     * @param {string} symbol - Trading symbol (e.g., "ETHUSDT")
+     * @param {string} orderId - BitMart order ID
+     */
+    async getContractOrder(symbol, orderId) {
+        const params = {
+            symbol: symbol,
+            order_id: orderId
+        };
+
+        return await this._makeRequestV2('GET', `/contract/private/order?symbol=${symbol}&order_id=${orderId}`, params);
+    }
+
+    /**
+     * Get order history (completed/cancelled orders)
+     * @param {string} symbol - Optional symbol filter
+     * @param {number} startTime - Optional start timestamp
+     * @param {number} endTime - Optional end timestamp  
+     * @param {number} limit - Max results (default 50)
+     */
+    async getContractOrderHistory(symbol = null, startTime = null, endTime = null, limit = 50) {
+        const params = { limit };
+        
+        if (symbol) params.symbol = symbol;
+        if (startTime) params.start_time = startTime;
+        if (endTime) params.end_time = endTime;
+
+        // Build query string
+        const queryParams = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+            if (params[key] !== null && params[key] !== undefined) {
+                queryParams.append(key, params[key]);
+            }
+        });
+
+        return await this._makeRequestV2('GET', `/contract/private/order-history?${queryParams.toString()}`, params);
+    }
+
+    /**
+     * Get current plan orders (active/pending plan orders)
+     * @param {string} symbol - Optional symbol filter
+     * @param {string} type - Optional type filter (market, limit, stop_loss, take_profit)
+     * @param {number} limit - Max results (default 50)
+     */
+    async getCurrentPlanOrders(symbol = null, type = null, limit = 50) {
+        const params = { limit };
+        
+        if (symbol) params.symbol = symbol;
+        if (type) params.type = type;
+
+        // Build query string
+        const queryParams = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+            if (params[key] !== null && params[key] !== undefined) {
+                queryParams.append(key, params[key]);
+            }
+        });
+
+        return await this._makeRequestV2('GET', `/contract/private/current-plan-order?${queryParams.toString()}`, params);
+    }
+
+    /**
+     * Get all open orders (regular orders, not plan orders)
+     * @param {string} symbol - Optional symbol filter
+     * @param {string} orderState - Optional state filter
+     * @param {string} type - Optional type filter
+     * @param {number} limit - Max results (default 50)
+     */
+    async getOpenOrders(symbol = null, orderState = null, type = null, limit = 50) {
+        const params = { limit };
+        
+        if (symbol) params.symbol = symbol;
+        if (orderState) params.order_state = orderState;
+        if (type) params.type = type;
+
+        // Build query string
+        const queryParams = new URLSearchParams();
+        Object.keys(params).forEach(key => {
+            if (params[key] !== null && params[key] !== undefined) {
+                queryParams.append(key, params[key]);
+            }
+        });
+
+        return await this._makeRequestV2('GET', `/contract/private/get-open-orders?${queryParams.toString()}`, params);
+    }
 }
 
 module.exports = BitMart;

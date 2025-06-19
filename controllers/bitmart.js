@@ -774,6 +774,9 @@ async function GetContractDetails(req, res) {
     }
 }
 
+
+
+
 module.exports = {
     getTradingPairs,
     getAllCurrency,

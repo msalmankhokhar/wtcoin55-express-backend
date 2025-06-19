@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades, transferFromSpotsToFutures, submitFuturesPlanOrder } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades, transferFromSpotsToFutures, submitFuturesPlanOrder, GetContractDetails } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();
@@ -887,7 +887,11 @@ router.post('/transfer/spot-to-futures', tokenRequired, transferFromSpotsToFutur
 router.post('/futures/submit-plan-order', tokenRequired, submitFuturesPlanOrder);
 
 
-// router.
+/**
+ * @swagger
+ * 
+ */
+router.get('/futures', tokenRequired, GetContractDetails);
 
 
 module.exports = router;
