@@ -887,11 +887,11 @@ router.post('/transfer/spot-to-futures', tokenRequired, transferFromSpotsToFutur
 router.post('/futures/submit-plan-order', tokenRequired, submitFuturesPlanOrder);
 
 
-/**
- * @swagger
- * 
- */
-router.get('/futures', tokenRequired, GetContractDetails);
+// /**
+//  * @swagger
+//  * 
+//  */
+// router.get('/futures', tokenRequired, GetContractDetails);
 
 
 module.exports = router;
