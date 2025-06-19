@@ -1,5 +1,6 @@
 const { Users } = require('../models/users');
 const { MainBalance } = require('../models/balance');
+const { Transactions } = require('../models/transactions');
 
 const getProfile = async (req, res) => {
     console.log(req.user);
@@ -39,4 +40,16 @@ const getBalance = async (req, res) => {
     }
 }
 
-module.exports = { getProfile, getBalance };
+
+const transactionHistory = async (req, res) => {
+    try {
+        const transactions = await Transactions.find({ user: req.user._id });
+
+        return res.status(200).json({msg: "success", transactions});
+    } catch (error) {
+        console.log("Error fetching transactions: ", error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
+module.exports = { getProfile, getBalance, transactionHistory };

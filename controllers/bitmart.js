@@ -234,6 +234,7 @@ async function submitSpotOrder(req, res) {
     }
 }
 
+
 async function FollowSpotOrder(req, res) {
     try {
         const { copyCode } = req.body;
