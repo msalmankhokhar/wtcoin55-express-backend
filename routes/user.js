@@ -66,11 +66,10 @@ router.get('/assets', tokenRequired, getBalance);
  *     responses:
  *       200:
  *         description: Successfully retrieved transactions
- * 
  *       500:
  *         description: Server Error
  */
-router.get('/transactions', tokenRequired, transactionHistory)
+router.get('/transactions', tokenRequired, transactionHistory);
 
 
 module.exports = router;
