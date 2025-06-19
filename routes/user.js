@@ -57,7 +57,7 @@ router.get('/assets', tokenRequired, getBalance);
 
 /**
  * @swagger
- * /api/user/trnasactions
+ * /api/user/trnasactions:
  *   get:
  *     summary: Retrieve the user's transactions
  *     tags: [User]
