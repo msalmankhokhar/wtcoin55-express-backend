@@ -5,6 +5,7 @@ const { Reset_OTP } = require('../models/reset-otp');
 const { SpotBalance } = require('../models/spot-balance');
 const { FuturesBalance } = require('../models/futures-balance');
 const { Transactions } = require('../models/transactions');
+const { FuturesOrderHistory } = require('../models/future-order');
 const BitMart = require('../utils/bitmart');
 const { SpotOrderHistory } = require('../models/spot-order');
 const bitmart = new BitMart(
@@ -852,4 +853,3 @@ async function testSingleFuturesOrder(orderId, symbol) {
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
     updateTradingWallet, getSpotOrder, updateSpotOrder, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder
  };
- 
