@@ -41,48 +41,75 @@ const bitmart = new BitMart(
 //
 
 // Route handler for getting coin list
+// Route handler for getting coin list
 async function getCoinListHandler(req, res) {
     try {
         const coinList = await ccpayment.getCoinList();
         const parsedData = JSON.parse(coinList);
         
-        // Filter for USDT only (coinId: 1280)
         console.log(parsedData);
-        const usdtCoin = parsedData.data.coins.find(coin => coin.coinId === 1280);
         
-        if (!usdtCoin) {
+        // Define coin IDs to filter for
+        const TARGET_COINS = {
+            USDT: 1280,
+            BTC: 1155,      // Assuming BTC has coinId 1 (you may need to verify this)
+            ETH: 1161      // Assuming ETH has coinId 60 (you may need to verify this)
+        };
+        
+        // Filter for target coins
+        const filteredCoins = [];
+        
+        // Process each target coin
+        for (const [coinSymbol, coinId] of Object.entries(TARGET_COINS)) {
+            const coin = parsedData.data.coins.find(c => c.coinId === coinId);
+            
+            if (!coin) {
+                console.warn(`${coinSymbol} (ID: ${coinId}) not found in coin list`);
+                continue;
+            }
+            
+            let filteredNetworks = {};
+            
+            if (coinSymbol === 'USDT') {
+                // For USDT, filter to TRC20 and ERC20 networks
+                if (coin.networks.TRX) {
+                    filteredNetworks.TRC20 = {
+                        ...coin.networks.TRX,
+                        chain: "TRC20",
+                        chainFullName: "Tron blockchain (TRC20)"
+                    };
+                }
+                
+                if (coin.networks.ETH) {
+                    filteredNetworks.ERC20 = {
+                        ...coin.networks.ETH,
+                        chain: "ERC20",
+                        chainFullName: "Ethereum (ERC20)"
+                    };
+                }
+            } else if (coinSymbol === 'BTC') {
+                // For BTC, include all available networks (typically just BTC mainnet)
+                filteredNetworks = { ...coin.networks };
+            } else if (coinSymbol === 'ETH') {
+                // For ETH, include all available networks (typically ETH mainnet, maybe L2s)
+                filteredNetworks = { ...coin.networks };
+            }
+            
+            // Only add coin if it has valid networks
+            if (Object.keys(filteredNetworks).length > 0) {
+                filteredCoins.push({
+                    ...coin,
+                    networks: filteredNetworks
+                });
+            }
+        }
+        
+        if (filteredCoins.length === 0) {
             return res.status(404).json({ 
                 success: false, 
-                error: 'USDT not found in coin list' 
+                error: 'No target coins (USDT, BTC, ETH) found in coin list' 
             });
         }
-        
-        // Filter networks to only include TRC20 (TRX) and ERC20 (ETH)
-        const filteredNetworks = {};
-        
-        // Add TRC20 network (maps to TRX chain)
-        if (usdtCoin.networks.TRX) {
-            filteredNetworks.TRC20 = {
-                ...usdtCoin.networks.TRX,
-                chain: "TRC20",
-                chainFullName: "Tron blockchain (TRC20)"
-            };
-        }
-        
-        // Add ERC20 network (maps to ETH chain)
-        if (usdtCoin.networks.ETH) {
-            filteredNetworks.ERC20 = {
-                ...usdtCoin.networks.ETH,
-                chain: "ERC20",
-                chainFullName: "Ethereum (ERC20)"
-            };
-        }
-        
-        // Create filtered response
-        const filteredUSDT = {
-            ...usdtCoin,
-            networks: filteredNetworks
-        };
         
         // Return filtered data with original structure
         const response = {
@@ -91,13 +118,13 @@ async function getCoinListHandler(req, res) {
                 code: parsedData.data.code,
                 msg: parsedData.data.msg,
                 data: {
-                    coins: [filteredUSDT]
+                    coins: filteredCoins
                 }
             }
         };
         
-        console.log('Filtered USDT response:', JSON.stringify(response, null, 2));
-        res.json(parsedData);
+        console.log('Filtered coins response:', JSON.stringify(response, null, 2));
+        res.json(response);
         
     } catch (error) {
         console.error('Error filtering coin list:', error);
