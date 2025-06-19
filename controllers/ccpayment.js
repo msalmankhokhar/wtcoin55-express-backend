@@ -44,12 +44,69 @@ const bitmart = new BitMart(
 async function getCoinListHandler(req, res) {
     try {
         const coinList = await ccpayment.getCoinList();
-        // console.log(coinList);
-        res.json({ success: true, data: JSON.parse(coinList) });
+        const parsedData = JSON.parse(coinList);
+        
+        // Filter for USDT only (coinId: 1280)
+        const usdtCoin = parsedData.data.coins.find(coin => coin.coinId === 1280);
+        
+        if (!usdtCoin) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'USDT not found in coin list' 
+            });
+        }
+        
+        // Filter networks to only include TRC20 (TRX) and ERC20 (ETH)
+        const filteredNetworks = {};
+        
+        // Add TRC20 network (maps to TRX chain)
+        if (usdtCoin.networks.TRX) {
+            filteredNetworks.TRC20 = {
+                ...usdtCoin.networks.TRX,
+                chain: "TRC20",
+                chainFullName: "Tron blockchain (TRC20)"
+            };
+        }
+        
+        // Add ERC20 network (maps to ETH chain)
+        if (usdtCoin.networks.ETH) {
+            filteredNetworks.ERC20 = {
+                ...usdtCoin.networks.ETH,
+                chain: "ERC20",
+                chainFullName: "Ethereum (ERC20)"
+            };
+        }
+        
+        // Create filtered response
+        const filteredUSDT = {
+            ...usdtCoin,
+            networks: filteredNetworks
+        };
+        
+        // Return filtered data with original structure
+        const response = {
+            success: true,
+            data: {
+                code: parsedData.data.code,
+                msg: parsedData.data.msg,
+                data: {
+                    coins: [filteredUSDT]
+                }
+            }
+        };
+        
+        console.log('Filtered USDT response:', JSON.stringify(response, null, 2));
+        res.json(response);
+        
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Error filtering coin list:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
     }
-};
+}
+
 
 async function getChainListHandler(req, res) {
     try {
@@ -167,12 +224,14 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
         }
 
         // Prepare withdrawal details
+        let newChain = chain === 'TRX' ? 'TRC20' : chain;
+
         const orderId = `${user._id.toString()}${uuidv4()}`;
         const withdrawalDetails = {
             coinId,
             address,
             orderId,
-            chain,
+            chain: newChain,
             amount: amount.toString(),
             merchantPayNetworkFee: true,
             memo
