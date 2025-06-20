@@ -114,6 +114,7 @@ class BitMart {
 
             return response.data;
         } catch (error) {
+            console.log(error);
             console.error("BitMart API Error:", error.response?.data || error.message);
             throw new Error(`BitMart API Error: ${error.response?.data?.message || error.message}`);
         }
