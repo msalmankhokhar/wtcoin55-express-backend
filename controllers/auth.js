@@ -46,8 +46,8 @@ const Signup = async (req, res) => {
             emailOrPhonenumber=lowerCaseEmailOrPhone,
             code=verificationCode
         );
-        console.log('Verification Status:', verificationStatus);
-        console.log('Verification Response:', verificationResponse);
+        // console.log('Verification Status:', verificationStatus);
+        // console.log('Verification Response:', verificationResponse);
 
         if (!verificationStatus) {
             return res.status(400).json({ message: verificationResponse });
