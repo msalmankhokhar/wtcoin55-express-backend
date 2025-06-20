@@ -109,6 +109,7 @@ class BitMart {
 
             
             if (response.data.code !== 1000) {
+                console.log("Response:", response);
                 throw new Error(`BitMart API Error: ${response.data.message}`);
             }
 
@@ -420,7 +421,7 @@ class BitMart {
             }
 
         } catch (error) {
-            console.error(`❌ Transfer Exception:`, error.message);
+            console.error(`❌ Transfer Exception:`, error);
             return {
                 code: 4001,
                 message: error.message,
