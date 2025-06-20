@@ -218,6 +218,8 @@ async function getSpotOrder(orderId) {
         let feeType = 'taker'; // Default
         let feeCurrency = 'USDT';
 
+        console.log("Trades Data: ", tradesData);
+
         if (tradesCode === 1000 && Array.isArray(tradesData) && tradesData.length > 0) {
             // Filter trades that likely belong to this order
             matchingTrades = tradesData.filter(trade => {
