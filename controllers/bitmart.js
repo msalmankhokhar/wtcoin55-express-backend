@@ -184,8 +184,10 @@ async function submitSpotOrder(req, res) {
         // symbol = BUYINGCOIN_BASECOIN
         // Get Base coin
         // 
-        console.log(symbol.split("_")[0])
-        balance = await SpotBalance.findOne({ user: req.user._id, coinName: symbol.split("_")[0] });
+        const coinName = symbol.split("_");
+        console.log("Coin Name: ", coinName);
+
+        balance = await SpotBalance.findOne({ user: req.user._id, coinName: symbol.split("_")[1] });
 
         const orderCost = quantity * price;
         console.log("Balance:", balance);
