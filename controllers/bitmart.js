@@ -451,10 +451,20 @@ async function transferFromSpotsToFutures(req, res) {
         }
 
         // ✅ CHECK ACTUAL SPOT BALANCE FROM SpotBalance COLLECTION
-        const spotBalance = await SpotBalance.findOne({
-            user: userId,
-            coinName: currency.toUpperCase()
-        });
+        let spotBalance;
+
+        if (currency === 'USDT') {
+            spotBalance = await SpotBalance.findOne({
+                user: userId,
+                coinId: 1280
+            });
+        } else {
+            spotBalance = await SpotBalance.findOne({
+                user: userId,
+                coinName: currency.toUpperCase()
+            });
+        }
+
 
         if (!spotBalance) {
             return res.status(400).json({ 
