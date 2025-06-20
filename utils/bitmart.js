@@ -398,15 +398,35 @@ class BitMart {
      * @returns {Promise<Object>} - Transfer response
      */
     async SpotToFuturesTransfer(currency, amount) {
-        const endpoint = '/account/v1/transfer-contract';
-        const data = {
-            currency: currency,
-            amount: amount,
-            type: 'spot_to_futures',
-            recvWindow: 7000
-        };
-        
-        return await this._makeRequest('POST', endpoint, data);
+        try {
+            const endpoint = '/account/v1/transfer-contract';
+            const data = {
+                currency: currency,
+                amount: amount,
+                type: 'spot_to_futures',
+                recvWindow: 7000
+            };
+            
+            const response =  await this._makeRequest('POST', endpoint, data);
+
+            if (response.code === 1000) {
+                console.log(`✅ Transfer Successful!`);
+                console.log(`Transfer ID: ${response.data?.transfer_id || 'N/A'}`);
+                return response;
+            } else {
+                console.log(`❌ Transfer Failed - Code: ${response.code}, Message: ${response.message}`);
+                return response; // Return the response so we can see the actual error
+            }
+
+        } catch (error) {
+            console.error(`❌ Transfer Exception:`, error.message);
+            return {
+                code: 4001,
+                message: error.message,
+                data: null,
+                error: true
+            };
+        }
     }
 
     async FuturesToSpotTransfer(currency, amount) {
