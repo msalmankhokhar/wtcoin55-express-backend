@@ -474,8 +474,28 @@ class BitMart {
         } else {
             throw new Error("Invalid order type. Must be 'limit' or 'market'.");
         }
+        try {
+            const response =  await this._makeRequestV2('POST', endpoint, data);
+            if (response.code === 1000) {
+                return response;
+            }
+            console.log("repsonse: ", response);
+            return {
+                code: 4001,
+                message: error.message,
+                data: null,
+                error: true
+            }
+        } catch (error) {
+            console.log(`❌ Spot Order Exception:`, error);
+            return {
+                code: 4001,
+                message: error.message,
+                data: null,
+                error: true
+            }
+        }
 
-        return await this._makeRequestV2('POST', endpoint, data);
     }
 
     // Get order trades to see execution details
