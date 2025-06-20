@@ -406,7 +406,7 @@ class BitMart {
             recvWindow: 7000
         };
         
-        return await this._makeRequestV2('POST', endpoint, data);
+        return await this._makeRequest('POST', endpoint, data);
     }
 
     async FuturesToSpotTransfer(currency, amount) {
