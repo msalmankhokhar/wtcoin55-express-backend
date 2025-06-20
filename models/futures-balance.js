@@ -7,10 +7,6 @@ const FuturesBalanceSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 },
     currency: { type: String, required: true },
     chain: { type: String, required: true },
-    // depositEnabled: { type: Boolean, default: false },
-    // withdrawEnabled: { type: Boolean, default: false },
-    // depositAddress: { type: String },
-    // withdrawAddress: { type: String },
     memo: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
