@@ -12,7 +12,7 @@ const FuturesBalanceSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-FuturesBalanceSchema.index({ user: 1, coinId: 1 }, { unique: true });
+FuturesBalanceSchema.index({ user: 1, coinId: 1 });
 
 FuturesBalance =  mongoose.model('FuturesBalance', FuturesBalanceSchema);
 module.exports = { FuturesBalance };
