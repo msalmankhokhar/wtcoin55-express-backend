@@ -184,10 +184,10 @@ async function submitSpotOrder(req, res) {
         // symbol = BUYINGCOIN_BASECOIN
         // Get Base coin
         if (symbol.split("_")[0] === 'USDT') {
-            balance = await SpotBalance.findOne({ coinId: 1280});
+            balance = await SpotBalance.findOne({ user: req.user._id, coinId: 1280});
         }
         else {
-            balance = await SpotBalance.findOne({ coinName: symbol.split("_")[0] });
+            balance = await SpotBalance.findOne({ user: req.user._id, coinName: symbol.split("_")[0] });
         }
         const orderCost = quantity * price;
 
@@ -705,7 +705,7 @@ async function submitFuturesPlanOrder(req, res) {
 
         if (quoteCurrency === 'USDT') {
             console.log(userId);
-            balance = await FuturesBalance.find({});
+            balance = await FuturesBalance.find({ user: req.user._id, coinId: '1280' });
             console.log(balance);
         } else {
             balance = await FuturesBalance.findOne({ user: userId, coinName: quoteCurrency });
