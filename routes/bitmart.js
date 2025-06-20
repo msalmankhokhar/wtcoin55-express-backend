@@ -146,35 +146,35 @@ router.get('/wallet/spot-balance', tokenRequired, getSpotWalletBalance);
 router.get('/wallet/futures-balance', tokenRequired, getFuturesWalletBalance);
 
 
-/**
- * @swagger
- * /api/bitmart/fund-futures-account:
- *   post:
- *     summary: Funds the user's futures account with a specified amount of a currency
- *     security:
- *       - quantumAccessToken: []
- *     tags: [Bitmart]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - coin
- *               - amount
- *             properties:
- *               coin:
- *                 type: string
- *               amount:
- *                 type: number
- *     responses:
- *       200:
- *         description: Futures balance updated successfully
- *       500:
- *         description: Server error
- */
-router.post('/fund-futures-account', tokenRequired, fundFuturesAccount);
+// /**
+//  * @swagger
+//  * /api/bitmart/fund-futures-account:
+//  *   post:
+//  *     summary: Funds the user's futures account with a specified amount of a currency
+//  *     security:
+//  *       - quantumAccessToken: []
+//  *     tags: [Bitmart]
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - coin
+//  *               - amount
+//  *             properties:
+//  *               coin:
+//  *                 type: string
+//  *               amount:
+//  *                 type: number
+//  *     responses:
+//  *       200:
+//  *         description: Futures balance updated successfully
+//  *       500:
+//  *         description: Server error
+//  */
+// router.post('/fund-futures-account', tokenRequired, fundFuturesAccount);
 
 
 
@@ -631,175 +631,175 @@ router.post('/test-get-trades', tokenRequired, testTrades);
 router.post('/spot-order', tokenRequired, submitSpotOrder);
 
 
-/**
- * @swagger
- * /api/bitmart/transfer/spot-to-futures:
- *   post:
- *     tags:
- *       - Account Transfer
- *     summary: Transfer funds from Spot to Futures account
- *     description: |
- *       Transfers specified amount of currency from user's spot trading account to futures trading account.
- *       The system automatically calculates the current spot balance from order history before executing the transfer.
- *       No fees are charged for internal transfers between spot and futures accounts.
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - currency
- *               - amount
- *             properties:
- *               currency:
- *                 type: string
- *                 description: Currency code to transfer
- *                 example: "USDT"
- *                 enum: ["USDT", "BTC", "ETH", "ZEUS"]
- *               amount:
- *                 type: number
- *                 description: Amount to transfer (must be positive)
- *                 minimum: 0.00000001
- *                 example: 100.50
- *           examples:
- *             transfer_usdt:
- *               summary: Transfer USDT
- *               value:
- *                 currency: "USDT"
- *                 amount: 100.50
- *             transfer_btc:
- *               summary: Transfer BTC
- *               value:
- *                 currency: "BTC"
- *                 amount: 0.001
- *             transfer_zeus:
- *               summary: Transfer ZEUS tokens
- *               value:
- *                 currency: "ZEUS"
- *                 amount: 1000
- *     responses:
- *       200:
- *         description: Transfer completed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Successfully transferred 100.50 USDT to futures account"
- *                 transferId:
- *                   type: string
- *                   description: BitMart transfer ID for tracking
- *                   example: "transfer_12345678"
- *                 newSpotBalance:
- *                   type: string
- *                   description: Remaining spot balance after transfer
- *                   example: "399.50000000"
- *                 transferRecord:
- *                   type: object
- *                   properties:
- *                     userId:
- *                       type: string
- *                       example: "60d5ecb74b24b23f8c8b4567"
- *                     currency:
- *                       type: string
- *                       example: "USDT"
- *                     amount:
- *                       type: number
- *                       example: 100.50
- *                     type:
- *                       type: string
- *                       example: "spot_to_futures"
- *                     timestamp:
- *                       type: string
- *                       format: date-time
- *                       example: "2025-06-18T00:53:10.000Z"
- *                     status:
- *                       type: string
- *                       example: "completed"
- *             examples:
- *               successful_transfer:
- *                 summary: Successful transfer response
- *                 value:
- *                   success: true
- *                   message: "Successfully transferred 100.50 USDT to futures account"
- *                   transferId: "transfer_12345678"
- *                   newSpotBalance: "399.50000000"
- *                   transferRecord:
- *                     userId: "60d5ecb74b24b23f8c8b4567"
- *                     currency: "USDT"
- *                     amount: 100.50
- *                     type: "spot_to_futures"
- *                     timestamp: "2025-06-18T00:53:10.000Z"
- *                     status: "completed"
- *       400:
- *         description: Bad request - Invalid input or insufficient balance
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 error:
- *                   type: string
- *                   description: Error message describing what went wrong
- *             examples:
- *               invalid_input:
- *                 summary: Invalid currency or amount
- *                 value:
- *                   success: false
- *                   error: "Invalid currency or amount"
- *               insufficient_balance:
- *                 summary: Insufficient spot balance
- *                 value:
- *                   success: false
- *                   error: "Insufficient USDT balance in spot wallet. Available: 50.25000000, Requested: 100.50"
- *               transfer_failed:
- *                 summary: BitMart API transfer failure
- *                 value:
- *                   success: false
- *                   error: "Transfer failed"
- *       401:
- *         description: Unauthorized - Invalid or missing authentication token
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 error:
- *                   type: string
- *                   example: "Access token required"
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 error:
- *                   type: string
- *                   example: "Failed to transfer funds to futures account"
- *                 details:
- *                   type: string
- *                   description: Detailed error message for debugging
- *                   example: "Network timeout while connecting to BitMart API"
- */
-router.post('/transfer/spot-to-futures', tokenRequired, transferFromSpotsToFutures);
+// /**
+//  * @swagger
+//  * /api/bitmart/transfer/spot-to-futures:
+//  *   post:
+//  *     tags:
+//  *       - Account Transfer
+//  *     summary: Transfer funds from Spot to Futures account
+//  *     description: |
+//  *       Transfers specified amount of currency from user's spot trading account to futures trading account.
+//  *       The system automatically calculates the current spot balance from order history before executing the transfer.
+//  *       No fees are charged for internal transfers between spot and futures accounts.
+//  *     security:
+//  *       - bearerAuth: []
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         application/json:
+//  *           schema:
+//  *             type: object
+//  *             required:
+//  *               - currency
+//  *               - amount
+//  *             properties:
+//  *               currency:
+//  *                 type: string
+//  *                 description: Currency code to transfer
+//  *                 example: "USDT"
+//  *                 enum: ["USDT", "BTC", "ETH", "ZEUS"]
+//  *               amount:
+//  *                 type: number
+//  *                 description: Amount to transfer (must be positive)
+//  *                 minimum: 0.00000001
+//  *                 example: 100.50
+//  *           examples:
+//  *             transfer_usdt:
+//  *               summary: Transfer USDT
+//  *               value:
+//  *                 currency: "USDT"
+//  *                 amount: 100.50
+//  *             transfer_btc:
+//  *               summary: Transfer BTC
+//  *               value:
+//  *                 currency: "BTC"
+//  *                 amount: 0.001
+//  *             transfer_zeus:
+//  *               summary: Transfer ZEUS tokens
+//  *               value:
+//  *                 currency: "ZEUS"
+//  *                 amount: 1000
+//  *     responses:
+//  *       200:
+//  *         description: Transfer completed successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 success:
+//  *                   type: boolean
+//  *                   example: true
+//  *                 message:
+//  *                   type: string
+//  *                   example: "Successfully transferred 100.50 USDT to futures account"
+//  *                 transferId:
+//  *                   type: string
+//  *                   description: BitMart transfer ID for tracking
+//  *                   example: "transfer_12345678"
+//  *                 newSpotBalance:
+//  *                   type: string
+//  *                   description: Remaining spot balance after transfer
+//  *                   example: "399.50000000"
+//  *                 transferRecord:
+//  *                   type: object
+//  *                   properties:
+//  *                     userId:
+//  *                       type: string
+//  *                       example: "60d5ecb74b24b23f8c8b4567"
+//  *                     currency:
+//  *                       type: string
+//  *                       example: "USDT"
+//  *                     amount:
+//  *                       type: number
+//  *                       example: 100.50
+//  *                     type:
+//  *                       type: string
+//  *                       example: "spot_to_futures"
+//  *                     timestamp:
+//  *                       type: string
+//  *                       format: date-time
+//  *                       example: "2025-06-18T00:53:10.000Z"
+//  *                     status:
+//  *                       type: string
+//  *                       example: "completed"
+//  *             examples:
+//  *               successful_transfer:
+//  *                 summary: Successful transfer response
+//  *                 value:
+//  *                   success: true
+//  *                   message: "Successfully transferred 100.50 USDT to futures account"
+//  *                   transferId: "transfer_12345678"
+//  *                   newSpotBalance: "399.50000000"
+//  *                   transferRecord:
+//  *                     userId: "60d5ecb74b24b23f8c8b4567"
+//  *                     currency: "USDT"
+//  *                     amount: 100.50
+//  *                     type: "spot_to_futures"
+//  *                     timestamp: "2025-06-18T00:53:10.000Z"
+//  *                     status: "completed"
+//  *       400:
+//  *         description: Bad request - Invalid input or insufficient balance
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 success:
+//  *                   type: boolean
+//  *                   example: false
+//  *                 error:
+//  *                   type: string
+//  *                   description: Error message describing what went wrong
+//  *             examples:
+//  *               invalid_input:
+//  *                 summary: Invalid currency or amount
+//  *                 value:
+//  *                   success: false
+//  *                   error: "Invalid currency or amount"
+//  *               insufficient_balance:
+//  *                 summary: Insufficient spot balance
+//  *                 value:
+//  *                   success: false
+//  *                   error: "Insufficient USDT balance in spot wallet. Available: 50.25000000, Requested: 100.50"
+//  *               transfer_failed:
+//  *                 summary: BitMart API transfer failure
+//  *                 value:
+//  *                   success: false
+//  *                   error: "Transfer failed"
+//  *       401:
+//  *         description: Unauthorized - Invalid or missing authentication token
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 success:
+//  *                   type: boolean
+//  *                   example: false
+//  *                 error:
+//  *                   type: string
+//  *                   example: "Access token required"
+//  *       500:
+//  *         description: Internal server error
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 success:
+//  *                   type: boolean
+//  *                   example: false
+//  *                 error:
+//  *                   type: string
+//  *                   example: "Failed to transfer funds to futures account"
+//  *                 details:
+//  *                   type: string
+//  *                   description: Detailed error message for debugging
+//  *                   example: "Network timeout while connecting to BitMart API"
+//  */
+// router.post('/transfer/spot-to-futures', tokenRequired, transferFromSpotsToFutures);
 
 
 /**

@@ -161,7 +161,7 @@ async function updateTradingWallet(transaction) {
 
     if (type === "deposit_to_futures") {
         console.log("How far");
-        await bitmart.SpotToFuturesTransfer(currency, amount);
+        // await bitmart.SpotToFuturesTransfer(currency, amount);
     }
 
     // Update the transaction status

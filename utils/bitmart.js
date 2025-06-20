@@ -115,7 +115,7 @@ class BitMart {
 
             return response.data;
         } catch (error) {
-            console.log(error);
+            // console.log(error);
             console.error("BitMart API Error:", error.response?.data || error.message);
             throw new Error(`BitMart API Error: ${error}`);
         }
@@ -393,55 +393,55 @@ class BitMart {
         }
     }
 
-    /**
-     * Transfer funds from Spot wallet to Futures wallet
-     * @param {string} currency - Currency symbol (e.g., "USDT")
-     * @param {string} amount - Amount to transfer
-     * @returns {Promise<Object>} - Transfer response
-     */
-    async SpotToFuturesTransfer(currency, amount) {
-        try {
-            const endpoint = '/account/v1/transfer-contract';
-            const data = {
-                currency: currency,
-                amount: amount,
-                type: 'spot_to_futures',
-                recvWindow: 7000
-            };
+    // /**
+    //  * Transfer funds from Spot wallet to Futures wallet
+    //  * @param {string} currency - Currency symbol (e.g., "USDT")
+    //  * @param {string} amount - Amount to transfer
+    //  * @returns {Promise<Object>} - Transfer response
+    //  */
+    // async SpotToFuturesTransfer(currency, amount) {
+    //     try {
+    //         const endpoint = '/account/v1/transfer-contract';
+    //         const data = {
+    //             currency: currency,
+    //             amount: amount,
+    //             type: 'spot_to_futures',
+    //             recvWindow: 7000
+    //         };
             
-            const response =  await this._makeRequest('POST', endpoint, data);
+    //         const response =  await this._makeRequest('POST', endpoint, data);
 
-            if (response.code === 1000) {
-                console.log(`✅ Transfer Successful!`);
-                console.log(`Transfer ID: ${response.data?.transfer_id || 'N/A'}`);
-                return response;
-            } else {
-                console.log(`❌ Transfer Failed - Code: ${response.code}, Message: ${response.message}`);
-                return response; // Return the response so we can see the actual error
-            }
+    //         if (response.code === 1000) {
+    //             console.log(`✅ Transfer Successful!`);
+    //             console.log(`Transfer ID: ${response.data?.transfer_id || 'N/A'}`);
+    //             return response;
+    //         } else {
+    //             console.log(`❌ Transfer Failed - Code: ${response.code}, Message: ${response.message}`);
+    //             return response; // Return the response so we can see the actual error
+    //         }
 
-        } catch (error) {
-            console.error(`❌ Transfer Exception:`, error);
-            return {
-                code: 4001,
-                message: error.message,
-                data: null,
-                error: true
-            };
-        }
-    }
+    //     } catch (error) {
+    //         console.error(`❌ Transfer Exception:`, error);
+    //         return {
+    //             code: 4001,
+    //             message: error.message,
+    //             data: null,
+    //             error: true
+    //         };
+    //     }
+    // }
 
-    async FuturesToSpotTransfer(currency, amount) {
-        const endpoint = '/account/v1/transfer-contract';
-        const data = {
-            currency: currency,
-            amount: amount,
-            type: 'futures_to_spot',
-            recvWindow: 7000
-        };
+    // async FuturesToSpotTransfer(currency, amount) {
+    //     const endpoint = '/account/v1/transfer-contract';
+    //     const data = {
+    //         currency: currency,
+    //         amount: amount,
+    //         type: 'futures_to_spot',
+    //         recvWindow: 7000
+    //     };
         
-        return await this._makeRequestV2('POST', endpoint, data);
-    }
+    //     return await this._makeRequestV2('POST', endpoint, data);
+    // }
 
 
     // Enhanced submitSpotOrder with better order tracking

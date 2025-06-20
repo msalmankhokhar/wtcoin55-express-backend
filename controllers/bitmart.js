@@ -156,23 +156,23 @@ async function getFuturesWalletBalance(req, res) {
     }
 }
 
-async function fundFuturesAccount(req, res) {
-    try {
-        const user = req.user;
-        const { currency, amount } = req.body;
+// async function fundFuturesAccount(req, res) {
+//     try {
+//         const user = req.user;
+//         const { currency, amount } = req.body;
 
-        // Validate and fund the user's futures account
-        if (!amount || amount <= 0) {
-            return res.status(400).json({ error: 'Invalid funding amount' });
-        }
+//         // Validate and fund the user's futures account
+//         if (!amount || amount <= 0) {
+//             return res.status(400).json({ error: 'Invalid funding amount' });
+//         }
 
-        const result = await bitmart.SpotToFuturesTransfer(currency, amount);
-        res.status(200).json(result);
-    } catch (error) {
-        console.error('Error funding futures account:', error);
-        res.status(500).json({ error: 'Failed to fund futures account' });
-    }
-}
+//         const result = await bitmart.SpotToFuturesTransfer(currency, amount);
+//         res.status(200).json(result);
+//     } catch (error) {
+//         console.error('Error funding futures account:', error);
+//         res.status(500).json({ error: 'Failed to fund futures account' });
+//     }
+// }
 
 
 
@@ -435,179 +435,179 @@ async function testTrades(req, res) {
     return res.status(200).json(spotHist);
 }
 
-async function transferFromSpotsToFutures(req, res) {
-    try {
-        const { currency, amount } = req.body;
-        const userId = req.user._id;
+// async function transferFromSpotsToFutures(req, res) {
+//     try {
+//         const { currency, amount } = req.body;
+//         const userId = req.user._id;
 
-        console.log(`Transfer request: ${amount} ${currency} from Spot to Futures for user ${userId}`);
+//         console.log(`Transfer request: ${amount} ${currency} from Spot to Futures for user ${userId}`);
 
-        // Validate input
-        if (!currency || !amount || amount <= 0) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Invalid currency or amount' 
-            });
-        }
+//         // Validate input
+//         if (!currency || !amount || amount <= 0) {
+//             return res.status(400).json({ 
+//                 success: false, 
+//                 error: 'Invalid currency or amount' 
+//             });
+//         }
 
-        // ✅ CHECK ACTUAL SPOT BALANCE FROM SpotBalance COLLECTION
-        let spotBalance;
+//         // ✅ CHECK ACTUAL SPOT BALANCE FROM SpotBalance COLLECTION
+//         let spotBalance;
 
-        if (currency === 'USDT') {
-            spotBalance = await SpotBalance.findOne({
-                user: userId,
-                coinId: 1280
-            });
-        } else {
-            spotBalance = await SpotBalance.findOne({
-                user: userId,
-                coinName: currency.toUpperCase()
-            });
-        }
+//         if (currency === 'USDT') {
+//             spotBalance = await SpotBalance.findOne({
+//                 user: userId,
+//                 coinId: 1280
+//             });
+//         } else {
+//             spotBalance = await SpotBalance.findOne({
+//                 user: userId,
+//                 coinName: currency.toUpperCase()
+//             });
+//         }
 
 
-        if (!spotBalance) {
-            return res.status(400).json({ 
-                success: false, 
-                error: `No ${currency} balance found in spot wallet` 
-            });
-        }
+//         if (!spotBalance) {
+//             return res.status(400).json({ 
+//                 success: false, 
+//                 error: `No ${currency} balance found in spot wallet` 
+//             });
+//         }
 
-        const availableBalance = spotBalance.balance;
-        console.log(`Current ${currency} spot balance: ${availableBalance}`);
+//         const availableBalance = spotBalance.balance;
+//         console.log(`Current ${currency} spot balance: ${availableBalance}`);
 
-        // Check if sufficient balance
-        if (availableBalance < amount) {
-            return res.status(400).json({ 
-                success: false, 
-                error: `Insufficient ${currency} balance in spot wallet. Available: ${availableBalance.toFixed(8)}, Requested: ${amount}` 
-            });
-        }
+//         // Check if sufficient balance
+//         if (availableBalance < amount) {
+//             return res.status(400).json({ 
+//                 success: false, 
+//                 error: `Insufficient ${currency} balance in spot wallet. Available: ${availableBalance.toFixed(8)}, Requested: ${amount}` 
+//             });
+//         }
 
-        // Execute transfer via BitMart API
-        console.log(`Executing transfer: ${amount} ${currency} to futures account...`);
+//         // Execute transfer via BitMart API
+//         console.log(`Executing transfer: ${amount} ${currency} to futures account...`);
         
-        const transferResponse = await bitmart.SpotToFuturesTransfer(currency, amount);
+//         const transferResponse = await bitmart.SpotToFuturesTransfer(currency, amount);
 
-        if (transferResponse.code !== 1000) {
-            console.error('BitMart transfer failed:', transferResponse);
-            return res.status(400).json({ 
-                success: false, 
-                error: transferResponse.message || 'Transfer failed' 
-            });
-        }
+//         if (transferResponse.code !== 1000) {
+//             console.error('BitMart transfer failed:', transferResponse);
+//             return res.status(400).json({ 
+//                 success: false, 
+//                 error: transferResponse.message || 'Transfer failed' 
+//             });
+//         }
 
-        // ✅ UPDATE BOTH SPOT AND FUTURES BALANCES
-        const transferAmount = parseFloat(amount);
+//         // ✅ UPDATE BOTH SPOT AND FUTURES BALANCES
+//         const transferAmount = parseFloat(amount);
 
-        // Decrease spot balance
-        await SpotBalance.findByIdAndUpdate(spotBalance._id, {
-            $inc: { balance: -transferAmount },
-            updatedAt: new Date()
-        });
+//         // Decrease spot balance
+//         await SpotBalance.findByIdAndUpdate(spotBalance._id, {
+//             $inc: { balance: -transferAmount },
+//             updatedAt: new Date()
+//         });
 
-        // Get coinId from existing spot balance or use dynamic lookup
-        let coinId = spotBalance.coinId; // Use the same coinId from spot balance
+//         // Get coinId from existing spot balance or use dynamic lookup
+//         let coinId = spotBalance.coinId; // Use the same coinId from spot balance
         
-        // If spot balance doesn't have coinId, try to find it from futures or use fallback
-        if (!coinId) {
-            // Try to find existing futures balance for this currency
-            const existingFuturesBalance = await FuturesBalance.findOne({
-                user: userId,
-                coinName: currency.toUpperCase()
-            });
+//         // If spot balance doesn't have coinId, try to find it from futures or use fallback
+//         if (!coinId) {
+//             // Try to find existing futures balance for this currency
+//             const existingFuturesBalance = await FuturesBalance.findOne({
+//                 user: userId,
+//                 coinName: currency.toUpperCase()
+//             });
             
-            if (existingFuturesBalance) {
-                coinId = existingFuturesBalance.coinId;
-            } else {
-                // Fallback: use a dynamic coinId or just the currency name
-                coinId = null; // We'll create without coinId and just use coinName
-            }
-        }
+//             if (existingFuturesBalance) {
+//                 coinId = existingFuturesBalance.coinId;
+//             } else {
+//                 // Fallback: use a dynamic coinId or just the currency name
+//                 coinId = null; // We'll create without coinId and just use coinName
+//             }
+//         }
 
-        // Find or create futures balance (search by coinName if no coinId)
-        let futuresBalance;
-        if (coinId) {
-            futuresBalance = await FuturesBalance.findOne({
-                user: userId,
-                coinId: coinId
-            });
-        } else {
-            futuresBalance = await FuturesBalance.findOne({
-                user: userId,
-                coinName: currency.toUpperCase()
-            });
-        }
+//         // Find or create futures balance (search by coinName if no coinId)
+//         let futuresBalance;
+//         if (coinId) {
+//             futuresBalance = await FuturesBalance.findOne({
+//                 user: userId,
+//                 coinId: coinId
+//             });
+//         } else {
+//             futuresBalance = await FuturesBalance.findOne({
+//                 user: userId,
+//                 coinName: currency.toUpperCase()
+//             });
+//         }
 
-        if (futuresBalance) {
-            // Update existing balance
-            await FuturesBalance.findByIdAndUpdate(futuresBalance._id, {
-                $inc: { balance: transferAmount },
-                updatedAt: new Date()
-            });
-        } else {
-            // Create new futures balance (use coinId from spot if available)
-            futuresBalance = new FuturesBalance({
-                user: userId,
-                coinId: spotBalance.coinId || null, // Use spot's coinId or null
-                coinName: currency.toUpperCase(),
-                balance: transferAmount,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            });
-            await futuresBalance.save();
-        }
+//         if (futuresBalance) {
+//             // Update existing balance
+//             await FuturesBalance.findByIdAndUpdate(futuresBalance._id, {
+//                 $inc: { balance: transferAmount },
+//                 updatedAt: new Date()
+//             });
+//         } else {
+//             // Create new futures balance (use coinId from spot if available)
+//             futuresBalance = new FuturesBalance({
+//                 user: userId,
+//                 coinId: spotBalance.coinId || null, // Use spot's coinId or null
+//                 coinName: currency.toUpperCase(),
+//                 balance: transferAmount,
+//                 createdAt: new Date(),
+//                 updatedAt: new Date()
+//             });
+//             await futuresBalance.save();
+//         }
 
-        // Record the transfer for tracking
-        const transferRecord = {
-            userId: userId,
-            currency: currency,
-            amount: transferAmount,
-            type: 'spot_to_futures',
-            timestamp: new Date(),
-            bitMartTransferId: transferResponse.data?.transfer_id || null,
-            status: 'completed'
-        };
+//         // Record the transfer for tracking
+//         const transferRecord = {
+//             userId: userId,
+//             currency: currency,
+//             amount: transferAmount,
+//             type: 'spot_to_futures',
+//             timestamp: new Date(),
+//             bitMartTransferId: transferResponse.data?.transfer_id || null,
+//             status: 'completed'
+//         };
 
-        console.log(`✅ Successfully transferred ${amount} ${currency} to futures account`);
-        console.log(`Transfer ID: ${transferResponse.data?.transfer_id || 'N/A'}`);
+//         console.log(`✅ Successfully transferred ${amount} ${currency} to futures account`);
+//         console.log(`Transfer ID: ${transferResponse.data?.transfer_id || 'N/A'}`);
 
-        // Get updated balances
-        const newSpotBalance = availableBalance - transferAmount;
-        const newFuturesBalance = (futuresBalance.balance || 0) + transferAmount;
+//         // Get updated balances
+//         const newSpotBalance = availableBalance - transferAmount;
+//         const newFuturesBalance = (futuresBalance.balance || 0) + transferAmount;
 
-        // Return success response
-        res.status(200).json({
-            success: true,
-            message: `Successfully transferred ${amount} ${currency} to futures account`,
-            data: {
-                transferId: transferResponse.data?.transfer_id,
-                currency: currency,
-                amount: transferAmount,
-                balances: {
-                    spot: {
-                        currency: currency,
-                        previous: availableBalance,
-                        current: newSpotBalance
-                    },
-                    futures: {
-                        currency: currency,
-                        previous: (futuresBalance.balance || 0) - transferAmount,
-                        current: newFuturesBalance
-                    }
-                }
-            }
-        });
+//         // Return success response
+//         res.status(200).json({
+//             success: true,
+//             message: `Successfully transferred ${amount} ${currency} to futures account`,
+//             data: {
+//                 transferId: transferResponse.data?.transfer_id,
+//                 currency: currency,
+//                 amount: transferAmount,
+//                 balances: {
+//                     spot: {
+//                         currency: currency,
+//                         previous: availableBalance,
+//                         current: newSpotBalance
+//                     },
+//                     futures: {
+//                         currency: currency,
+//                         previous: (futuresBalance.balance || 0) - transferAmount,
+//                         current: newFuturesBalance
+//                     }
+//                 }
+//             }
+//         });
 
-    } catch (error) {
-        console.error('Error in transferFromSpotsToFutures:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Failed to transfer funds to futures account',
-            details: error.message 
-        });
-    }
-}
+//     } catch (error) {
+//         console.error('Error in transferFromSpotsToFutures:', error);
+//         res.status(500).json({ 
+//             success: false, 
+//             error: 'Failed to transfer funds to futures account',
+//             details: error.message 
+//         });
+//     }
+// }
 
 async function submitFuturesOrder(req, res) {
     try {
@@ -856,11 +856,11 @@ module.exports = {
     getDepositAddress,
     getFuturesWalletBalance,
     getSpotWalletBalance,
-    fundFuturesAccount,
+    // fundFuturesAccount,
     submitSpotOrder,
     spotsWithdraw,
     futuresWithdraw,
-    transferFromSpotsToFutures,
+    // transferFromSpotsToFutures,
     testSpotOrder,
     testTrades,
     submitFuturesOrder,
