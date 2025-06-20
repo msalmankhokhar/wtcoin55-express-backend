@@ -705,7 +705,7 @@ async function submitFuturesPlanOrder(req, res) {
 
         if (quoteCurrency === 'USDT') {
             console.log(userId);
-            balance = await FuturesBalance.find({ user: req.user._id, coinId: '1280' });
+            balance = await FuturesBalance.find({ user: userId, coinId: '1280' });
             console.log(balance);
         } else {
             balance = await FuturesBalance.findOne({ user: userId, coinName: quoteCurrency });
