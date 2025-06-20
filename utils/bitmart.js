@@ -149,12 +149,13 @@ class BitMart {
             const response = await axios(config);
 
             if (response.data.code !== 1000) {
+                console.log("Response: ",response);
                 throw new Error(`BitMart API Error: ${response.data.message}`);
             }
 
             return response.data;
         } catch (error) {
-            console.log(error);
+            console.log("Response Error: ",error);
             const errorMessage = error.response?.data?.message || error.message;
             throw new Error(`BitMart API Error: ${errorMessage}`);
         }
@@ -638,7 +639,27 @@ class BitMart {
             price: price
         };
 
-        return await this._makeRequestV2('POST', endpoint, data);
+        try {
+            const response =  await this._makeRequestV2('POST', endpoint, data);
+            if (response.code === 1000) {
+                    return response;
+                }
+                console.log("repsonse: ", response);
+                return {
+                    code: 4001,
+                    message: error.message,
+                    data: null,
+                    error: true
+                }
+        } catch (error) {
+            console.log(`❌ Spot Order Exception:`, error);
+            return {
+                code: 4001,
+                message: error.message,
+                data: null,
+                error: true
+            }
+        }
     }
 
     /**
