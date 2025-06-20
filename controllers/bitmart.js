@@ -187,6 +187,7 @@ async function submitSpotOrder(req, res) {
         balance = await SpotBalance.findOne({ user: req.user._id, coinName: symbol.split("_")[0] });
 
         const orderCost = quantity * price;
+        console.log("Balance:", balance);
 
         if (!balance || balance.balance < orderCost) {
             return res.status(400).json({ message: 'Insufficient funds' });
