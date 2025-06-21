@@ -467,7 +467,7 @@ class BitMart {
                 }
                 data.notional = notional;
             } else if (side === 'sell') {
-                if (!quantity) {
+                if (quantity === null) {
                     throw new Error("Market sell order requires 'quantity'.");
                 }
                 data.size = quantity;
