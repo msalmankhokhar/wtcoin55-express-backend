@@ -131,7 +131,9 @@ async function getSpotWalletBalance(req, res) {
         } else {
             balance = await SpotBalance.find({ user: user._id});
         }
-        res.status(200).json(balance);
+        if (balance === []) return res.status(200).json({message: 'No tokens found', balance});
+
+        res.status(200).json({message: 'Successfully retrieved', balance});
     } catch (error) {
         console.error('Error fetching spot balance:', error);
         res.status(500).json({ error: 'Failed to fetch spot balance' });
