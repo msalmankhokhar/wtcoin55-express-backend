@@ -501,12 +501,50 @@ class BitMart {
 
     // Get order trades to see execution details
     async getOrderTrades(orderId) {
+        console.log(`🔍 [BitMart] Getting order trades for: ${orderId}`);
+        
         const endpoint = '/spot/v4/query/order-trades';
         const data = {
             orderId: orderId
         };
         
-        return await this._makeRequestV2('POST', endpoint, data);
+        console.log(`📋 [BitMart] Order trades request data:`, data);
+        console.log(`🌐 [BitMart] Making request to: ${this.baseURL}${endpoint}`);
+        
+        try {
+            const response = await this._makeRequestV2('POST', endpoint, data);
+            console.log(`📊 [BitMart] Order trades response:`, {
+                code: response.code,
+                message: response.message,
+                hasData: !!response.data,
+                dataLength: response.data ? response.data.length : 0,
+                dataType: response.data ? typeof response.data : 'undefined'
+            });
+            
+            if (response.code === 1000 && Array.isArray(response.data)) {
+                console.log(`✅ [BitMart] Found ${response.data.length} trades for order ${orderId}`);
+                // Log first few trades for debugging
+                if (response.data.length > 0) {
+                    console.log(`📝 [BitMart] Sample trade:`, {
+                        tradeId: response.data[0].tradeId,
+                        price: response.data[0].price,
+                        size: response.data[0].size,
+                        fee: response.data[0].fee,
+                        role: response.data[0].tradeRole,
+                        feeCoinName: response.data[0].feeCoinName
+                    });
+                }
+            } else {
+                console.warn(`⚠️ [BitMart] No trades found or invalid response for order ${orderId}`);
+                console.warn(`📊 [BitMart] Response details:`, JSON.stringify(response, null, 2));
+            }
+            
+            return response;
+        } catch (error) {
+            console.error(`❌ [BitMart] Error getting order trades for ${orderId}:`, error.message);
+            console.error(`📊 [BitMart] Full error:`, error);
+            throw error;
+        }
     }
 
     // Get user's current fee rates
@@ -556,23 +594,64 @@ class BitMart {
     }
 
     async getSpotOrder(order_id) {
+        console.log(`🔍 [BitMart] Getting spot order: ${order_id}`);
+        
         const endpoint = `/spot/v4/query/order`;
-        const data = {
+        
+        // First try to get from history (completed orders)
+        const historyData = {
             orderId: order_id,
             queryState: 'history'
         };
-        console.log("Trying Query History");
-
-        const response =  await this._makeRequestV2('POST', endpoint, data);
-        if (response.code !== 1000) {
-            console.log("Trying Query Open");
-            const newData = {
-                orderId: order_id,
-                queryState: 'open'
-            };
-            return await this._makeRequestV2('GET', endpoint, newData);
+        
+        console.log(`📋 [BitMart] Trying history query with data:`, historyData);
+        
+        try {
+            const historyResponse = await this._makeRequestV2('POST', endpoint, historyData);
+            console.log(`📊 [BitMart] History response:`, {
+                code: historyResponse.code,
+                message: historyResponse.message,
+                hasData: !!historyResponse.data
+            });
+            
+            if (historyResponse.code === 1000 && historyResponse.data) {
+                console.log(`✅ [BitMart] Order found in history`);
+                return historyResponse;
+            }
+        } catch (historyError) {
+            console.log(`⚠️ [BitMart] History query failed:`, historyError.message);
         }
-        return response;
+        
+        // If not found in history, try open orders
+        console.log(`📋 [BitMart] Trying open orders query...`);
+        const openData = {
+            orderId: order_id,
+            queryState: 'open'
+        };
+        
+        try {
+            const openResponse = await this._makeRequestV2('POST', endpoint, openData);
+            console.log(`📊 [BitMart] Open orders response:`, {
+                code: openResponse.code,
+                message: openResponse.message,
+                hasData: !!openResponse.data
+            });
+            
+            if (openResponse.code === 1000 && openResponse.data) {
+                console.log(`✅ [BitMart] Order found in open orders`);
+                return openResponse;
+            }
+        } catch (openError) {
+            console.log(`⚠️ [BitMart] Open orders query failed:`, openError.message);
+        }
+        
+        // If both failed, return error response
+        console.log(`❌ [BitMart] Order ${order_id} not found in either history or open orders`);
+        return {
+            code: 4001,
+            message: `Order ${order_id} not found`,
+            data: null
+        };
     }
    
     async getSpotTrades(symbol, orderMode = 'spot', startTime = null, endTime = null, limit = 10) {

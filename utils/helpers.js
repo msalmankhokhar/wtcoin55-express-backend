@@ -177,100 +177,117 @@ async function updateTradingWallet(transaction) {
  * @returns {Promise<Object>} - Updated order data
  */
 async function getSpotOrder(orderId) {
+    console.log(`🔍 [getSpotOrder] Starting order lookup for: ${orderId}`);
+    
     try {
-        // 1. Get order details
-        const { code: orderCode, message: orderMessage, data: orderData } = await bitmart.getSpotOrder(orderId);
+        // 1. First try to get order details from history (completed orders)
+        console.log(`📋 [getSpotOrder] Attempting to get order from history...`);
+        let orderResponse = await bitmart.getSpotOrder(orderId);
         
-        if (orderCode !== 1000) {
-            console.log("Order response error:", { code: orderCode, message: orderMessage });
-            throw new Error(orderMessage || 'Unknown error fetching order');
+        console.log(`📊 [getSpotOrder] Initial order response:`, {
+            code: orderResponse.code,
+            message: orderResponse.message,
+            hasData: !!orderResponse.data,
+            dataKeys: orderResponse.data ? Object.keys(orderResponse.data) : []
+        });
+
+        // 2. If order not found in history, try open orders
+        if (orderResponse.code !== 1000 || !orderResponse.data) {
+            console.log(`⚠️ [getSpotOrder] Order not found in history, trying open orders...`);
+            
+            // Try to get from open orders (this might need a different approach)
+            // For now, let's assume the order exists but might be in a different state
+            console.log(`❌ [getSpotOrder] Order ${orderId} not found in BitMart API`);
+            return {
+                orderId: orderId,
+                error: 'Order not found in BitMart API',
+                needsUpdate: false
+            };
         }
 
-        // 2. Check if order needs trade analysis
+        const orderData = orderResponse.data;
+        console.log(`✅ [getSpotOrder] Order found! State: ${orderData.state}, Symbol: ${orderData.symbol}`);
+
+        // 3. Check if order needs trade analysis
         if (orderData.state !== 'filled' && orderData.state !== 'partially_filled') {
+            console.log(`⏭️ [getSpotOrder] Order ${orderId} is not filled (state: ${orderData.state}), skipping trade analysis`);
             return {
                 orderId: orderData.orderId,
+                symbol: orderData.symbol,
                 state: orderData.state,
+                side: orderData.side,
+                type: orderData.type,
                 filledSize: orderData.filledSize || '0',
                 priceAvg: orderData.priceAvg || '0',
                 needsUpdate: false
             };
         }
 
-        // 3. Get account trades around the order execution time to find matching trades
-        const orderCreateTime = orderData.createTime;
-        const orderUpdateTime = orderData.updateTime;
-        
-        // Search for trades in a window around order execution
-        const searchStartTime = orderCreateTime - 60000; // 1 minute before
-        const searchEndTime = orderUpdateTime + 60000;   // 1 minute after
-        
-        const { code: tradesCode, message: tradesMessage, data: tradesData } = await bitmart.getSpotTrades(
-            orderData.symbol,
-            'spot',
-            searchStartTime,
-            searchEndTime,
-            50 // Get more trades to find matches
-        );
-
-        let matchingTrades = [];
+        // 4. Get specific trades for this order using the dedicated endpoint
+        console.log(`🔍 [getSpotOrder] Getting trades for order ${orderId}...`);
+        let orderTrades = [];
         let totalFees = 0;
-        let feeType = 'taker'; // Default
+        let feeType = 'taker';
         let feeCurrency = 'USDT';
 
-        console.log("Trades Data: ", tradesData);
-
-        if (tradesCode === 1000 && Array.isArray(tradesData) && tradesData.length > 0) {
-            // Filter trades that likely belong to this order
-            matchingTrades = tradesData.filter(trade => {
-                const tradeTime = trade.createTime;
-                const tradeSide = trade.side;
-                const tradePrice = parseFloat(trade.price);
-                const orderPrice = parseFloat(orderData.priceAvg || orderData.price);
-                
-                // Match criteria:
-                // 1. Trade time between order create and update time
-                // 2. Same side (buy/sell)
-                // 3. Price within reasonable range of order execution price
-                const timeMatch = tradeTime >= orderCreateTime && tradeTime <= orderUpdateTime;
-                const sideMatch = tradeSide === orderData.side;
-                const priceMatch = Math.abs(tradePrice - orderPrice) < (orderPrice * 0.01); // Within 1%
-                
-                return timeMatch && sideMatch && priceMatch;
+        try {
+            const tradesResponse = await bitmart.getOrderTrades(orderId);
+            console.log(`📊 [getSpotOrder] Trades response:`, {
+                code: tradesResponse.code,
+                message: tradesResponse.message,
+                hasData: !!tradesResponse.data,
+                dataLength: tradesResponse.data ? tradesResponse.data.length : 0
             });
 
-            // Calculate fees from matching trades
-            for (const trade of matchingTrades) {
-                totalFees += parseFloat(trade.fee || 0);
-                if (trade.tradeRole === 'maker') {
-                    feeType = 'maker';
+            if (tradesResponse.code === 1000 && Array.isArray(tradesResponse.data)) {
+                orderTrades = tradesResponse.data;
+                console.log(`✅ [getSpotOrder] Found ${orderTrades.length} trades for order ${orderId}`);
+                
+                // Calculate fees from actual trades
+                for (const trade of orderTrades) {
+                    const tradeFee = parseFloat(trade.fee || 0);
+                    totalFees += tradeFee;
+                    
+                    console.log(`💰 [getSpotOrder] Trade fee: ${tradeFee} ${trade.feeCoinName || 'USDT'}`);
+                    
+                    if (trade.tradeRole === 'maker') {
+                        feeType = 'maker';
+                    }
+                    feeCurrency = trade.feeCoinName || feeCurrency;
                 }
-                feeCurrency = trade.feeCoinName || feeCurrency;
+                
+                console.log(`💳 [getSpotOrder] Total fees calculated: ${totalFees} ${feeCurrency} (${feeType})`);
+            } else {
+                console.warn(`⚠️ [getSpotOrder] Could not get trades for order ${orderId}:`, tradesResponse.message);
             }
+        } catch (tradeError) {
+            console.error(`❌ [getSpotOrder] Error getting trades for order ${orderId}:`, tradeError.message);
         }
 
-        // 4. Fallback fee estimation if no matching trades found
-        if (matchingTrades.length === 0 && orderData.state === 'filled') {
-            console.warn(`No matching trades found for order ${orderId}, using fallback estimation`);
+        // 5. Fallback fee estimation if no trades found
+        if (orderTrades.length === 0 && orderData.state === 'filled') {
+            console.warn(`⚠️ [getSpotOrder] No trades found for filled order ${orderId}, using fallback estimation`);
             
-            // Estimate fees based on order type and timing
-            const executionSpeed = orderUpdateTime - orderCreateTime;
+            // Estimate fees based on order type and execution
+            const executedValue = parseFloat(orderData.filledNotional || 0);
+            const executionSpeed = orderData.updateTime - orderData.createTime;
             
-            // If order executed very quickly (< 1 second), likely a taker
+            // Determine fee type based on order characteristics
             if (orderData.type === 'market' || executionSpeed < 1000) {
                 feeType = 'taker';
             } else {
                 feeType = 'maker';
             }
             
-            // Estimate fee (you'll need to get actual fee rates)
-            const executedValue = parseFloat(orderData.filledNotional || 0);
-            const estimatedFeeRate = feeType === 'maker' ? 0.001 : 0.0025; // Example rates
+            // Estimate fee rates (you should get actual rates from BitMart)
+            const estimatedFeeRate = feeType === 'maker' ? 0.001 : 0.0025; // 0.1% maker, 0.25% taker
             totalFees = executedValue * estimatedFeeRate;
+            
+            console.log(`💰 [getSpotOrder] Estimated fees: ${totalFees.toFixed(6)} ${feeCurrency} (${feeType})`);
         }
 
-        // 5. Return complete order data
-        return {
+        // 6. Return complete order data
+        const result = {
             orderId: orderData.orderId,
             symbol: orderData.symbol,
             state: orderData.state,
@@ -286,13 +303,24 @@ async function getSpotOrder(orderId) {
             feeCurrency: feeCurrency,
             createTime: orderData.createTime,
             updateTime: orderData.updateTime,
-            matchingTrades: matchingTrades,
-            isEstimated: matchingTrades.length === 0,
+            orderTrades: orderTrades,
+            isEstimated: orderTrades.length === 0,
             needsUpdate: true
         };
 
+        console.log(`✅ [getSpotOrder] Successfully processed order ${orderId}:`, {
+            state: result.state,
+            filledSize: result.filledSize,
+            executionPrice: result.executionPrice,
+            totalFees: result.exchangeFees,
+            tradeCount: result.orderTrades.length,
+            isEstimated: result.isEstimated
+        });
+
+        return result;
+
     } catch (error) {
-        console.error(`Error processing order ${orderId}:`, error);
+        console.error(`❌ [getSpotOrder] Error processing order ${orderId}:`, error);
         return {
             orderId: orderId,
             error: error.message,
@@ -304,22 +332,24 @@ async function getSpotOrder(orderId) {
 
 async function updateSpotOrder(orderDetails) {
     if (!orderDetails.needsUpdate) {
-        console.log(`Order ${orderDetails.orderId} doesn't need update`);
+        console.log(`⏭️ [updateSpotOrder] Order ${orderDetails.orderId} doesn't need update`);
         return null;
     }
 
     try {
-        console.log(`Updating order ${orderDetails.orderId} in database...`);
+        console.log(`🔄 [updateSpotOrder] Updating order ${orderDetails.orderId} in database...`);
         
         // Get the current order from database to check previous status
         const currentOrder = await SpotOrderHistory.findOne({ orderId: orderDetails.orderId });
         if (!currentOrder) {
-            console.error(`Order ${orderDetails.orderId} not found in database`);
+            console.error(`❌ [updateSpotOrder] Order ${orderDetails.orderId} not found in database`);
             return null;
         }
         
         const previousStatus = currentOrder.status;
         const userId = currentOrder.user;
+        
+        console.log(`📊 [updateSpotOrder] Previous status: ${previousStatus}, User: ${userId}`);
         
         // Map BitMart states to your internal status
         const statusMapping = {
@@ -332,74 +362,21 @@ async function updateSpotOrder(orderDetails) {
         };
         
         const newStatus = statusMapping[orderDetails.state] || 'unknown';
+        console.log(`📊 [updateSpotOrder] New status: ${newStatus}`);
         
-        // Get fee information from trades endpoint if order is filled/partial
-        let totalFees = 0;
-        let feeCurrency = 'USDT';
-        let tradeRole = 'taker';
-        let trades = [];
-        
-        if (newStatus === 'completed' || newStatus === 'partial') {
-            try {
-                console.log(`Getting trade details for order ${orderDetails.orderId}...`);
-                
-                // Get trades for this specific order
-                const tradesResponse = await bitmart.getTrades(orderDetails.symbol);
-                
-                if (tradesResponse.code === 1000 && Array.isArray(tradesResponse.data)) {
-                    // Find trades that match this order ID
-                    const orderTrades = tradesResponse.data.filter(trade => 
-                        trade.orderId === orderDetails.orderId
-                    );
-                    
-                    console.log(`Found ${orderTrades.length} trades for order ${orderDetails.orderId}`);
-                    
-                    // Calculate total fees from all trades for this order
-                    for (const trade of orderTrades) {
-                        totalFees += parseFloat(trade.fee || 0);
-                        feeCurrency = trade.feeCoinName || feeCurrency;
-                        tradeRole = trade.tradeRole || tradeRole;
-                        
-                        trades.push({
-                            tradeId: trade.tradeId,
-                            price: parseFloat(trade.price),
-                            quantity: parseFloat(trade.size),
-                            fee: parseFloat(trade.fee || 0),
-                            role: trade.tradeRole,
-                            timestamp: new Date(trade.createTime)
-                        });
-                    }
-                    
-                    console.log(`Total fees calculated: ${totalFees} ${feeCurrency}`);
-                } else {
-                    console.warn(`Could not get trades for order ${orderDetails.orderId}, using estimated fees`);
-                    // Fallback: estimate fees based on filled notional
-                    const filledValue = parseFloat(orderDetails.filledNotional || 0);
-                    const estimatedFeeRate = 0.0025; // 0.25% taker fee estimate
-                    totalFees = filledValue * estimatedFeeRate;
-                }
-            } catch (tradeError) {
-                console.warn(`Error getting trades for order ${orderDetails.orderId}:`, tradeError.message);
-                // Fallback fee estimation
-                const filledValue = parseFloat(orderDetails.filledNotional || 0);
-                const estimatedFeeRate = 0.0025;
-                totalFees = filledValue * estimatedFeeRate;
-            }
-        }
-
         // Update the order in database
         const updatedOrder = await SpotOrderHistory.findOneAndUpdate(
             { orderId: orderDetails.orderId },
             {
                 $set: {
                     status: newStatus,
-                    averageExecutionPrice: parseFloat(orderDetails.priceAvg || 0),
+                    averageExecutionPrice: parseFloat(orderDetails.executionPrice || 0),
                     executedQuantity: parseFloat(orderDetails.filledSize || 0),
-                    exchangeFees: totalFees,
-                    totalFees: totalFees, // Platform fees could be added here if needed
-                    feeCurrency: feeCurrency,
-                    role: tradeRole,
-                    trades: trades,
+                    exchangeFees: orderDetails.exchangeFees || 0,
+                    totalFees: orderDetails.exchangeFees || 0,
+                    feeCurrency: orderDetails.feeCurrency || 'USDT',
+                    role: orderDetails.feeType || 'taker',
+                    trades: orderDetails.orderTrades || [],
                     executedAt: orderDetails.updateTime ? new Date(orderDetails.updateTime) : new Date(),
                     updatedAt: new Date()
                 }
@@ -411,105 +388,168 @@ async function updateSpotOrder(orderDetails) {
         );
 
         if (!updatedOrder) {
-            console.error(`Failed to update order ${orderDetails.orderId} in database`);
+            console.error(`❌ [updateSpotOrder] Failed to update order ${orderDetails.orderId} in database`);
             return null;
         }
 
-        console.log(`✅ Updated order ${orderDetails.orderId}: ${previousStatus} → ${newStatus}`);
+        console.log(`✅ [updateSpotOrder] Updated order ${orderDetails.orderId}: ${previousStatus} → ${newStatus}`);
 
-        // Calculate and update user's profit/loss and balances if order completed/partial
+        // Handle balance updates for completed/partial orders
         if ((newStatus === 'completed' || newStatus === 'partial') && 
             (previousStatus !== 'completed' && previousStatus !== 'partial')) {
 
-            console.log(`💰 Calculating profit/loss and balances for user ${userId}...`);
-
+            console.log(`💰 [updateSpotOrder] Processing balance updates for user ${userId}...`);
+            
             try {
-                // Calculate current balances for this symbol
-                const [baseCurrency, quoteCurrency] = orderDetails.symbol.split('_');
-                
-                // Get all completed orders for this user and symbol
-                const allOrders = await SpotOrderHistory.find({
-                    user: userId,
-                    symbol: orderDetails.symbol,
-                    status: { $in: ['completed', 'partial'] }
-                }).sort({ createdAt: 1 });
-                
-                let totalBought = 0;
-                let totalBoughtValue = 0;
-                let totalSold = 0;
-                let totalSoldValue = 0;
-                let totalAllFees = 0;
-                
-                // Calculate totals
-                for (const order of allOrders) {
-                    const executedValue = order.executedQuantity * order.averageExecutionPrice;
-                    totalAllFees += order.totalFees;
-                    
-                    if (order.side === 'buy') {
-                        totalBought += order.executedQuantity;
-                        totalBoughtValue += executedValue;
-                    } else {
-                        totalSold += order.executedQuantity;
-                        totalSoldValue += executedValue;
-                    }
-                }
-                
-                // Calculate current position and P&L
-                const currentPosition = totalBought - totalSold; // How many tokens currently held
-                const avgBuyPrice = totalBought > 0 ? totalBoughtValue / totalBought : 0;
-                const avgSellPrice = totalSold > 0 ? totalSoldValue / totalSold : 0;
-                const realizedPnL = totalSoldValue - (totalSold * avgBuyPrice) - totalAllFees;
-                const unrealizedPnL = currentPosition > 0 ? currentPosition * (parseFloat(orderDetails.priceAvg) - avgBuyPrice) : 0;
-                const totalPnL = realizedPnL + unrealizedPnL;
-                
-                // Current balances
-                const currentBaseBalance = currentPosition;
-                const netQuoteSpent = totalBoughtValue - totalSoldValue + totalAllFees;
-                
-                console.log(`📊 Trading Summary for ${orderDetails.symbol}:`);
-                console.log(`   Current ${baseCurrency} Balance: ${currentBaseBalance.toFixed(8)}`);
-                console.log(`   Net ${quoteCurrency} Spent: ${netQuoteSpent.toFixed(8)}`);
-                console.log(`   Average Buy Price: ${avgBuyPrice.toFixed(8)}`);
-                console.log(`   Average Sell Price: ${avgSellPrice.toFixed(8)}`);
-                console.log(`   Total Fees: ${totalAllFees.toFixed(8)} ${quoteCurrency}`);
-                console.log(`   Realized P&L: ${realizedPnL.toFixed(8)} ${quoteCurrency}`);
-                console.log(`   Unrealized P&L: ${unrealizedPnL.toFixed(8)} ${quoteCurrency}`);
-                console.log(`   Total P&L: ${totalPnL.toFixed(8)} ${quoteCurrency} ${totalPnL >= 0 ? '🟢' : '🔴'}`);
-                
-                // Log this order's impact
-                if (newStatus === 'completed') {
-                    console.log(`🎉 Order ${orderDetails.orderId} completed!`);
-                    console.log(`   Executed: ${updatedOrder.executedQuantity} ${baseCurrency} at ${updatedOrder.averageExecutionPrice} ${quoteCurrency}`);
-                    console.log(`   Value: ${(updatedOrder.executedQuantity * updatedOrder.averageExecutionPrice).toFixed(8)} ${quoteCurrency}`);
-                    console.log(`   Fees: ${updatedOrder.totalFees.toFixed(8)} ${quoteCurrency}`);
-                    
-                    if (updatedOrder.side === 'buy') {
-                        console.log(`   💳 Bought ${updatedOrder.executedQuantity} ${baseCurrency}`);
-                    } else {
-                        const profit = (updatedOrder.averageExecutionPrice - avgBuyPrice) * updatedOrder.executedQuantity;
-                        console.log(`   💰 Sold ${updatedOrder.executedQuantity} ${baseCurrency}`);
-                        console.log(`   Profit from this sale: ${profit.toFixed(8)} ${quoteCurrency} ${profit >= 0 ? '🟢' : '🔴'}`);
-                    }
-                }
-                
-            } catch (calcError) {
-                console.error(`Error calculating P&L for user ${userId}:`, calcError);
+                await updateSpotBalances(userId, updatedOrder, orderDetails);
+            } catch (balanceError) {
+                console.error(`❌ [updateSpotOrder] Error updating balances for user ${userId}:`, balanceError);
             }
         }
         
         // Log status changes
         if (newStatus === 'completed') {
-            console.log(`🎉 Order ${orderDetails.orderId} completed! Filled: ${orderDetails.filledSize} at avg price: ${orderDetails.priceAvg}`);
+            console.log(`🎉 [updateSpotOrder] Order ${orderDetails.orderId} completed!`);
+            console.log(`   Filled: ${orderDetails.filledSize} at avg price: ${orderDetails.executionPrice}`);
+            console.log(`   Fees: ${orderDetails.exchangeFees} ${orderDetails.feeCurrency}`);
         } else if (newStatus === 'cancelled') {
-            console.log(`❌ Order ${orderDetails.orderId} was cancelled`);
+            console.log(`❌ [updateSpotOrder] Order ${orderDetails.orderId} was cancelled`);
         } else if (newStatus === 'partial') {
-            console.log(`⚡ Order ${orderDetails.orderId} partially filled: ${orderDetails.filledSize}/${orderDetails.size}`);
+            console.log(`⚡ [updateSpotOrder] Order ${orderDetails.orderId} partially filled: ${orderDetails.filledSize}/${orderDetails.originalSize}`);
         }
 
         return updatedOrder;
 
     } catch (error) {
-        console.error(`Error updating order ${orderDetails.orderId}:`, error);
+        console.error(`❌ [updateSpotOrder] Error updating order ${orderDetails.orderId}:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Update User's Spot Balances After Order Execution
+ * @param {string} userId - User ID
+ * @param {Object} order - Updated order document
+ * @param {Object} orderDetails - Order details from BitMart
+ */
+async function updateSpotBalances(userId, order, orderDetails) {
+    try {
+        console.log(`🔄 [updateSpotBalances] Processing balance update for spot order...`);
+        
+        // Parse symbol to get base and quote currencies
+        const [baseCurrency, quoteCurrency] = orderDetails.symbol.split('_');
+        console.log(`📊 [updateSpotBalances] Symbol: ${orderDetails.symbol} (${baseCurrency}/${quoteCurrency})`);
+        
+        const executedQuantity = parseFloat(orderDetails.filledSize || 0);
+        const executionPrice = parseFloat(orderDetails.executionPrice || 0);
+        const totalFees = parseFloat(orderDetails.exchangeFees || 0);
+        const totalCost = (executedQuantity * executionPrice) + totalFees;
+        
+        console.log(`💰 [updateSpotBalances] Order details:`);
+        console.log(`   Executed Quantity: ${executedQuantity} ${baseCurrency}`);
+        console.log(`   Execution Price: ${executionPrice} ${quoteCurrency}`);
+        console.log(`   Total Cost: ${totalCost} ${quoteCurrency} (including ${totalFees} fees)`);
+        
+        // Handle BUY orders - Add base currency, deduct quote currency
+        if (orderDetails.side === 'buy') {
+            console.log(`📈 [updateSpotBalances] Processing BUY order...`);
+            
+            // 1. Add base currency (e.g., BTC) to user's balance
+            await updateSpotBalance(userId, baseCurrency, executedQuantity, 'add');
+            
+            // 2. Deduct quote currency (e.g., USDT) from user's balance
+            await updateSpotBalance(userId, quoteCurrency, totalCost, 'subtract');
+            
+            console.log(`✅ [updateSpotBalances] BUY order processed:`);
+            console.log(`   +${executedQuantity} ${baseCurrency} added to balance`);
+            console.log(`   -${totalCost} ${quoteCurrency} deducted from balance`);
+            
+        }
+        // Handle SELL orders - Deduct base currency, add quote currency
+        else if (orderDetails.side === 'sell') {
+            console.log(`📉 [updateSpotBalances] Processing SELL order...`);
+            
+            // 1. Deduct base currency (e.g., BTC) from user's balance
+            await updateSpotBalance(userId, baseCurrency, executedQuantity, 'subtract');
+            
+            // 2. Add quote currency (e.g., USDT) to user's balance (minus fees)
+            const netQuoteReceived = (executedQuantity * executionPrice) - totalFees;
+            await updateSpotBalance(userId, quoteCurrency, netQuoteReceived, 'add');
+            
+            console.log(`✅ [updateSpotBalances] SELL order processed:`);
+            console.log(`   -${executedQuantity} ${baseCurrency} deducted from balance`);
+            console.log(`   +${netQuoteReceived} ${quoteCurrency} added to balance (after ${totalFees} fees)`);
+        }
+        
+        console.log(`🎉 [updateSpotBalances] Balance updates completed successfully!`);
+        
+    } catch (error) {
+        console.error(`❌ [updateSpotBalances] Error updating spot balances:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Update individual spot balance for a user
+ * @param {string} userId - User ID
+ * @param {string} coinName - Coin name (e.g., 'BTC', 'USDT')
+ * @param {number} amount - Amount to add/subtract
+ * @param {string} operation - 'add' or 'subtract'
+ */
+async function updateSpotBalance(userId, coinName, amount, operation) {
+    try {
+        console.log(`🔄 [updateSpotBalance] Updating ${coinName} balance for user ${userId}: ${operation} ${amount}`);
+        
+        // Find existing balance for this coin
+        let balance = await SpotBalance.findOne({ 
+            user: userId, 
+            coinName: coinName 
+        });
+        
+        if (balance) {
+            console.log(`📊 [updateSpotBalance] Current ${coinName} balance: ${balance.balance}`);
+            
+            // Update existing balance
+            if (operation === 'add') {
+                balance.balance += amount;
+            } else if (operation === 'subtract') {
+                balance.balance -= amount;
+                
+                // Prevent negative balance
+                if (balance.balance < 0) {
+                    console.warn(`⚠️ [updateSpotBalance] Negative balance detected for ${coinName}: ${balance.balance}`);
+                    balance.balance = 0;
+                }
+            }
+            
+            balance.updatedAt = new Date();
+            await balance.save();
+            
+            console.log(`✅ [updateSpotBalance] Updated ${coinName} balance: ${balance.balance}`);
+            
+        } else {
+            console.log(`📝 [updateSpotBalance] Creating new balance record for ${coinName}`);
+            
+            // Create new balance record
+            const newBalance = new SpotBalance({
+                user: userId,
+                coinId: coinName, // Using coinName as coinId since BitMart doesn't have coinId
+                coinName: coinName,
+                balance: operation === 'add' ? amount : 0,
+                currency: coinName,
+                chain: 'bitmart', // Default chain
+                memo: '',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
+            
+            await newBalance.save();
+            
+            console.log(`✅ [updateSpotBalance] Created new ${coinName} balance: ${newBalance.balance}`);
+        }
+        
+    } catch (error) {
+        console.error(`❌ [updateSpotBalance] Error updating ${coinName} balance:`, error);
         throw error;
     }
 }
@@ -849,9 +889,95 @@ async function testSingleFuturesOrder(orderId, symbol) {
     }
 }
 
+// ===============================
+// 🧪 DEBUGGING AND TESTING FUNCTIONS
+// ===============================
 
+/**
+ * Test BitMart API integration for debugging
+ * @param {string} orderId - Order ID to test
+ */
+async function testBitMartOrder(orderId) {
+    console.log(`🧪 [TEST] Testing BitMart order: ${orderId}`);
+    
+    try {
+        // Test 1: Get order details
+        console.log(`\n📋 [TEST] Step 1: Getting order details...`);
+        const orderResponse = await bitmart.getSpotOrder(orderId);
+        console.log(`📊 [TEST] Order response:`, JSON.stringify(orderResponse, null, 2));
+        
+        if (orderResponse.code === 1000 && orderResponse.data) {
+            const orderData = orderResponse.data;
+            console.log(`✅ [TEST] Order found!`);
+            console.log(`   State: ${orderData.state}`);
+            console.log(`   Symbol: ${orderData.symbol}`);
+            console.log(`   Side: ${orderData.side}`);
+            console.log(`   Type: ${orderData.type}`);
+            console.log(`   Filled Size: ${orderData.filledSize}`);
+            console.log(`   Price Avg: ${orderData.priceAvg}`);
+            console.log(`   Create Time: ${new Date(orderData.createTime).toISOString()}`);
+            console.log(`   Update Time: ${new Date(orderData.updateTime).toISOString()}`);
+            
+            // Test 2: Get order trades if order is filled
+            if (orderData.state === 'filled' || orderData.state === 'partially_filled') {
+                console.log(`\n📋 [TEST] Step 2: Getting order trades...`);
+                const tradesResponse = await bitmart.getOrderTrades(orderId);
+                console.log(`📊 [TEST] Trades response:`, JSON.stringify(tradesResponse, null, 2));
+                
+                if (tradesResponse.code === 1000 && Array.isArray(tradesResponse.data)) {
+                    console.log(`✅ [TEST] Found ${tradesResponse.data.length} trades`);
+                    tradesResponse.data.forEach((trade, index) => {
+                        console.log(`   Trade ${index + 1}:`, {
+                            tradeId: trade.tradeId,
+                            price: trade.price,
+                            size: trade.size,
+                            fee: trade.fee,
+                            role: trade.tradeRole,
+                            time: new Date(trade.createTime).toISOString()
+                        });
+                    });
+                } else {
+                    console.warn(`⚠️ [TEST] No trades found or invalid response`);
+                }
+            } else {
+                console.log(`⏭️ [TEST] Order not filled, skipping trade lookup`);
+            }
+            
+            // Test 3: Test our getSpotOrder function
+            console.log(`\n📋 [TEST] Step 3: Testing getSpotOrder function...`);
+            const processedOrder = await getSpotOrder(orderId);
+            console.log(`📊 [TEST] Processed order result:`, JSON.stringify(processedOrder, null, 2));
+            
+        } else {
+            console.error(`❌ [TEST] Order not found or error:`, orderResponse.message);
+        }
+        
+    } catch (error) {
+        console.error(`❌ [TEST] Test failed:`, error);
+    }
+}
 
+/**
+ * Test multiple orders to check for patterns
+ * @param {Array<string>} orderIds - Array of order IDs to test
+ */
+async function testMultipleOrders(orderIds) {
+    console.log(`🧪 [BATCH_TEST] Testing ${orderIds.length} orders...`);
+    
+    for (const orderId of orderIds) {
+        console.log(`\n${'='.repeat(50)}`);
+        console.log(`🧪 [BATCH_TEST] Testing order: ${orderId}`);
+        console.log(`${'='.repeat(50)}`);
+        
+        await testBitMartOrder(orderId);
+        
+        // Add delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    console.log(`\n✅ [BATCH_TEST] All tests completed`);
+}
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
-    updateTradingWallet, getSpotOrder, updateSpotOrder, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder
- };
+    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders
+};
