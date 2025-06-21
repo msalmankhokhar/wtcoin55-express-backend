@@ -178,7 +178,7 @@ async function getFuturesWalletBalance(req, res) {
 
 async function submitSpotOrder(req, res) {
     try {
-        const { symbol, side, type, price, quantity, notional="" } = req.body;
+        const { symbol, side, type, quantity, price, notional="" } = req.body;
         let balance;
         console.log("req.body: ", req.body);
 
@@ -201,7 +201,7 @@ async function submitSpotOrder(req, res) {
             return res.status(400).json({ message: 'Insufficient funds' });
         }
 
-        const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity, notional);
+        const data = await bitmart.submitSpotOrder(symbol, side, type, quantity, price, notional);
         console.log(data);
 
         if (data.code !== 1000 || data.error) {
@@ -259,7 +259,7 @@ async function FollowSpotOrder(req, res) {
             return res.status(400).json({ message: 'Insufficient Balance' });
         }
 
-        const { order, error } = await bitmart.submitSpotOrder(symbol, side, type, price, quantity);
+        const { order, error } = await bitmart.submitSpotOrder(symbol, side, type, quantity, price);
 
         if (error) {
             return res.status(500).json({ error: 'Failed to submit spot order' });

@@ -447,6 +447,8 @@ class BitMart {
 
     // Enhanced submitSpotOrder with better order tracking
     async submitSpotOrder(symbol, side, type, quantity = null, price = null, notional = null) {
+        console.log(`🔍 [BitMart] Submitting spot order:`, { symbol, side, type, quantity, price, notional });
+        
         const endpoint = '/spot/v2/submit_order';
         const data = {
             symbol: symbol,
@@ -467,7 +469,7 @@ class BitMart {
                 }
                 data.notional = notional;
             } else if (side === 'sell') {
-                if (quantity === null) {
+                if (!quantity) {
                     throw new Error("Market sell order requires 'quantity'.");
                 }
                 data.size = quantity;
@@ -475,20 +477,24 @@ class BitMart {
         } else {
             throw new Error("Invalid order type. Must be 'limit' or 'market'.");
         }
+        
+        console.log(`📋 [BitMart] Order data:`, data);
+        
         try {
-            const response =  await this._makeRequestV2('POST', endpoint, data);
+            const response = await this._makeRequestV2('POST', endpoint, data);
             if (response.code === 1000) {
+                console.log(`✅ [BitMart] Order submitted successfully:`, response.data);
                 return response;
             }
-            console.log("repsonse: ", response);
+            console.log(`❌ [BitMart] Order submission failed:`, response);
             return {
                 code: 4001,
-                message: error.message,
+                message: response.message || 'Order submission failed',
                 data: null,
                 error: true
             }
         } catch (error) {
-            console.log(`❌ Spot Order Exception:`, error);
+            console.log(`❌ [BitMart] Spot Order Exception:`, error);
             return {
                 code: 4001,
                 message: error.message,
@@ -496,7 +502,6 @@ class BitMart {
                 error: true
             }
         }
-
     }
 
     // Get order trades to see execution details
