@@ -30,16 +30,95 @@ async function checkTradingDepositTransactions() {
  * @returns {Promise<Object>} -
  */
 async function getSpotHistoryAndStatus() {
-    // Get all pending spot orders and update their status
-    let orderDetails;
-    await SpotOrderHistory.find({ status: 'pending' }).then(async (orders) => {
-        console.log(orders);
-        for (const order of orders) {
-            console.log("Analyzing Order: ", order);
-            orderDetails = await getSpotOrder(order.orderId);
-            console.log("Updated Order: ", await updateSpotOrder(orderDetails));
+    console.log('🔍 Starting spot order tracking cronjob...');
+    
+    try {
+        // Debug: Check if the specific order exists
+        const specificOrder = await SpotOrderHistory.findOne({ orderId: '1131389971761218048' });
+        if (specificOrder) {
+            console.log(`🔍 Found specific order: ${specificOrder.orderId}, Status: ${specificOrder.status}, Symbol: ${specificOrder.symbol}, ExecutedQuantity: ${specificOrder.executedQuantity}`);
+        } else {
+            console.log('❌ Specific order 1131389971761218048 not found in database');
         }
-    })
+        
+        // Get all pending spot orders and update their status
+        const pendingOrders = await SpotOrderHistory.find({ status: 'pending' });
+        console.log(`📋 Found ${pendingOrders.length} pending spot orders`);
+        
+        // Also check for orders that might need balance updates (completed/partial_cancelled with fills but no balance updates)
+        const ordersNeedingBalanceUpdates = await SpotOrderHistory.find({
+            status: { $in: ['completed', 'partial_cancelled', 'partial'] },
+            executedQuantity: { $gt: 0 },
+            $or: [
+                { exchangeFees: { $exists: false } },
+                { exchangeFees: 0 },
+                { averageExecutionPrice: { $exists: false } },
+                { averageExecutionPrice: 0 }
+            ]
+        });
+        
+        console.log(`💰 Found ${ordersNeedingBalanceUpdates.length} orders that might need balance updates`);
+        
+        if (pendingOrders.length === 0 && ordersNeedingBalanceUpdates.length === 0) {
+            console.log('✅ No orders to process');
+            return;
+        }
+        
+        // Process pending orders
+        if (pendingOrders.length > 0) {
+            console.log('📊 Pending orders:', pendingOrders.map(order => ({
+                orderId: order.orderId,
+                symbol: order.symbol,
+                side: order.side,
+                status: order.status,
+                createdAt: order.createdAt
+            })));
+            
+            for (const order of pendingOrders) {
+                console.log(`\n🔍 Analyzing Pending Order: ${order.orderId} (${order.symbol})`);
+                try {
+                    const orderDetails = await getSpotOrder(order.orderId);
+                    const updatedOrder = await updateSpotOrder(orderDetails);
+                    console.log(`✅ Updated Order: ${updatedOrder ? 'Success' : 'No update needed'}`);
+                } catch (error) {
+                    console.error(`❌ Error processing order ${order.orderId}:`, error);
+                }
+            }
+        }
+        
+        // Process orders that might need balance updates
+        if (ordersNeedingBalanceUpdates.length > 0) {
+            console.log('📊 Orders needing balance updates:', ordersNeedingBalanceUpdates.map(order => ({
+                orderId: order.orderId,
+                symbol: order.symbol,
+                side: order.side,
+                status: order.status,
+                executedQuantity: order.executedQuantity,
+                averageExecutionPrice: order.averageExecutionPrice,
+                exchangeFees: order.exchangeFees
+            })));
+            
+            for (const order of ordersNeedingBalanceUpdates) {
+                console.log(`\n🔍 Checking Balance Updates for Order: ${order.orderId} (${order.symbol})`);
+                try {
+                    const orderDetails = await getSpotOrder(order.orderId);
+                    if (orderDetails.needsUpdate) {
+                        const updatedOrder = await updateSpotOrder(orderDetails);
+                        console.log(`✅ Balance Update: ${updatedOrder ? 'Success' : 'No update needed'}`);
+                    } else {
+                        console.log(`⏭️ No balance update needed for order ${order.orderId}`);
+                    }
+                } catch (error) {
+                    console.error(`❌ Error processing balance update for order ${order.orderId}:`, error);
+                }
+            }
+        }
+        
+        console.log('✅ Spot order tracking cronjob completed');
+        
+    } catch (error) {
+        console.error('❌ Error in spot order tracking cronjob:', error);
+    }
 }
 
 /**

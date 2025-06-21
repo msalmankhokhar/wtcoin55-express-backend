@@ -180,6 +180,7 @@ async function submitSpotOrder(req, res) {
     try {
         const { symbol, side, type, price, quantity, notional="" } = req.body;
         let balance;
+        console.log("req.body: ", req.body);
 
         // symbol = BUYINGCOIN_BASECOIN
         // Get Base coin
