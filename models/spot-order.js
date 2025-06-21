@@ -7,7 +7,7 @@ const SpotOrderHistorySchema = new mongoose.Schema({
     executedQuantity: { type: Number, default: 0 },
     owner: { type: Boolean, required: true, default: false },
     type: { type: String, required: true, enum: ['limit', 'market', 'limit_maker', 'ioc'] },
-    role: { type: String, required: true, enum: ['maker', 'taker', 'pending', 'admin'] },
+    role: { type: String, required: true, enum: ['maker', 'taker', 'pending', 'admin', 'follower'] },
     price: { type: Number, required: true },
     averageExecutionPrice: { type: Number, default: 0 },
     side: { type: String, enum: ['buy', 'sell'], required: true },

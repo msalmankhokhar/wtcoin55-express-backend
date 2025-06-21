@@ -78,6 +78,7 @@ async function followSpotOrder(req, res) {
             orderId: fakeOrderId,
             status: 'pending_profit', // New status for orders waiting for profit
             owner: false,
+            role: 'follower',
             percentage: profitPercentage,
             executedQuantity: originalOrder.quantity,
             averageExecutionPrice: finalPrice,
