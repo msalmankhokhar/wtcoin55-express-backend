@@ -1,0 +1,183 @@
+const { v4: uuidv4 } = require('uuid');
+const { Users } = require('../models/users');
+const { SpotOrderHistory } = require('../models/spot-order');
+const SpotBalance = require('../models/spot-balance');
+
+
+/**
+ * Follow spot order (simulated - generates fake profitable order)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function followSpotOrder(req, res) {
+    try {
+        const { copyCode } = req.body;
+        const user = req.user;
+
+        if (!copyCode) {
+            return res.status(400).json({ error: 'Copy code is required' });
+        }
+
+        // Find the original order
+        const originalOrder = await SpotOrderHistory.findOne({ 
+            copyCode, 
+            owner: true,
+            status: 'pending'
+        });
+
+        if (!originalOrder) {
+            return res.status(404).json({ error: 'Order not found or not available for following' });
+        }
+
+        // Check if order has expired
+        if (originalOrder.expiration && new Date() > originalOrder.expiration) {
+            return res.status(400).json({ error: 'Order has expired' });
+        }
+
+        // Check user balance
+        const coinName = originalOrder.symbol.split('_')[1] || originalOrder.symbol.split('-')[1] || 'USDT';
+        let balance;
+        balance = await SpotBalance.find({ user: user._id });
+        console.log(balance);
+        
+        if (coinName === 'USDT') {
+            balance = await SpotBalance.findOne({ user: user._id, coinId: "1280" });
+        } else {
+            balance = await SpotBalance.findOne({ user: user._id, coinName: coinName });
+        }
+
+        if (!balance) {
+            return res.status(400).json({ error: 'Insufficient balance to follow this order' });
+        }
+
+        // Generate fake order ID
+        const fakeOrderId = uuidv4();
+        const currentPrice = originalOrder.price;
+        const profitPercentage = originalOrder.percentage;
+        
+        // Calculate profit based on the percentage
+        let finalPrice;
+        
+        if (originalOrder.side === 'buy') {
+            // For buy orders, we simulate price increase
+            finalPrice = currentPrice * (1 + profitPercentage / 100);
+        } else {
+            // For sell orders, we simulate price decrease
+            finalPrice = currentPrice * (1 - profitPercentage / 100);
+        }
+
+        // Create follower order (pending profit distribution)
+        const followerOrder = new SpotOrderHistory({
+            user: user._id,
+            symbol: originalOrder.symbol,
+            quantity: originalOrder.quantity,
+            price: currentPrice,
+            side: originalOrder.side,
+            type: originalOrder.type,
+            copyCode: copyCode,
+            orderId: fakeOrderId,
+            status: 'pending_profit', // New status for orders waiting for profit
+            owner: false,
+            percentage: profitPercentage,
+            executedQuantity: originalOrder.quantity,
+            averageExecutionPrice: finalPrice,
+            expiration: originalOrder.expiration, // Inherit expiration from original order
+            trades: [{
+                tradeId: uuidv4(),
+                price: finalPrice,
+                quantity: originalOrder.quantity,
+                fee: 0,
+                role: 'taker',
+                timestamp: new Date()
+            }]
+        });
+
+        await followerOrder.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Order followed successfully. Profit will be distributed at expiration.',
+            data: {
+                orderId: fakeOrderId,
+                copyCode: copyCode,
+                symbol: originalOrder.symbol,
+                side: originalOrder.side,
+                originalPrice: currentPrice,
+                expectedFinalPrice: finalPrice,
+                profitPercentage: profitPercentage,
+                expiration: originalOrder.expiration,
+                status: 'pending_profit'
+            }
+        });
+
+    } catch (error) {
+        console.error('Error following spot order:', error);
+        res.status(500).json({ error: 'Failed to follow spot order' });
+    }
+}
+
+/**
+ * Get available orders for following
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getAvailableOrders(req, res) {
+    try {
+        const availableOrders = await SpotOrderHistory.find({
+            user: req.user._id,
+            status: 'pending',
+            $or: [
+                { expiration: { $exists: false } },
+                { expiration: { $gt: new Date() } }
+            ]
+        }).populate('user', 'email');
+
+        res.status(200).json({
+            success: true,
+            data: availableOrders.map(order => ({
+                copyCode: order.copyCode,
+                symbol: order.symbol,
+                side: order.side,
+                type: order.type,
+                quantity: order.quantity,
+                price: order.price,
+                percentage: order.percentage,
+                expiration: order.expiration,
+                createdAt: order.createdAt,
+                user: order.user.email
+            }))
+        });
+
+    } catch (error) {
+        console.error('Error getting available orders:', error);
+        res.status(500).json({ error: 'Failed to get available orders' });
+    }
+}
+
+/**
+ * Get user's order history (only their own orders)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getUserOrders(req, res) {
+    try {
+        const user = req.user;
+        const orders = await SpotOrderHistory.find({ user: user._id })
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: orders
+        });
+
+    } catch (error) {
+        console.error('Error getting user orders:', error);
+        res.status(500).json({ error: 'Failed to get user orders' });
+    }
+}
+
+module.exports = {
+    followSpotOrder,
+    getAvailableOrders,
+    getUserOrders
+}; 

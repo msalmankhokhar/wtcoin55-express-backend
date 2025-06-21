@@ -75,7 +75,7 @@ async function createOrUpdateResetOTP(emailOrPhonenumber) {
     const otpCode = generateNumericOTP();
 
     // Create and save the new OTP
-    const newOtp = new OTP({ email, otp: otpCode });
+    const newOtp = new OTP({ emailOrPhone: emailOrPhonenumber, otp: otpCode });
     await newOtp.save();
 
     return otpCode;
@@ -1003,6 +1003,85 @@ async function testMultipleOrders(orderIds) {
     console.log(`\n✅ [BATCH_TEST] All tests completed`);
 }
 
+/**
+ * Distribute profits for expired orders
+ * @returns {Promise<void>}
+ */
+async function distributeExpiredOrderProfits() {
+    try {
+        console.log('💰 Starting profit distribution for expired orders...');
+        
+        // Find all orders that have expired and are pending profit distribution
+        const expiredOrders = await SpotOrderHistory.find({
+            status: 'pending_profit',
+            expiration: { $lte: new Date() }
+        });
+
+        console.log(`📋 Found ${expiredOrders.length} expired orders to process`);
+
+        for (const order of expiredOrders) {
+            try {
+                console.log(`\n🔍 Processing expired order: ${order.orderId} for user ${order.user}`);
+                
+                // Calculate profit
+                const currentPrice = order.price;
+                const finalPrice = order.averageExecutionPrice;
+                const quantity = order.executedQuantity;
+                const profitPercentage = order.percentage;
+                
+                let profitAmount;
+                
+                if (order.side === 'buy') {
+                    profitAmount = (finalPrice - currentPrice) * quantity;
+                } else {
+                    profitAmount = (currentPrice - finalPrice) * quantity;
+                }
+
+                // Update user's USDT balance
+                const usdtBalance = await SpotBalance.findOne({ user: order.user, coinId: 1280 });
+                
+                if (usdtBalance) {
+                    await SpotBalance.findByIdAndUpdate(usdtBalance._id, {
+                        $inc: { balance: profitAmount },
+                        updatedAt: new Date()
+                    });
+                    console.log(`✅ Added ${profitAmount} USDT profit to user ${order.user}`);
+                } else {
+                    // Create USDT balance if it doesn't exist
+                    const newUsdtBalance = new SpotBalance({
+                        user: order.user,
+                        coinId: 1280,
+                        coinName: 'USDT',
+                        balance: profitAmount,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                    });
+                    await newUsdtBalance.save();
+                    console.log(`✅ Created new USDT balance with ${profitAmount} USDT for user ${order.user}`);
+                }
+
+                // Update order status to completed
+                await SpotOrderHistory.findByIdAndUpdate(order._id, {
+                    status: 'completed',
+                    executedAt: new Date(),
+                    updatedAt: new Date()
+                });
+
+                console.log(`✅ Order ${order.orderId} marked as completed with profit: ${profitAmount} USDT`);
+
+            } catch (orderError) {
+                console.error(`❌ Error processing expired order ${order.orderId}:`, orderError);
+                continue; // Continue with next order
+            }
+        }
+        
+        console.log('✅ Profit distribution completed');
+        
+    } catch (error) {
+        console.error('❌ Error in profit distribution:', error);
+    }
+}
+
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
-    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders
+    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits
  };

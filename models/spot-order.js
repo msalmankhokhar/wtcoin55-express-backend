@@ -1,18 +1,20 @@
 const mongoose = require('mongoose');
 
 const SpotOrderHistorySchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     symbol: { type: String, required: false },
     quantity: { type: Number, required: true },
     executedQuantity: { type: Number, default: 0 },
     owner: { type: Boolean, required: true, default: false },
     type: { type: String, required: true, enum: ['limit', 'market', 'limit_maker', 'ioc'] },
-    role: { type: String, required: true, enum: ['maker', 'taker', 'pending'] },
+    role: { type: String, required: true, enum: ['maker', 'taker', 'pending', 'admin'] },
     price: { type: Number, required: true },
     averageExecutionPrice: { type: Number, default: 0 },
     side: { type: String, enum: ['buy', 'sell'], required: true },
-    status: { type: String, default: 'pending' },
+    status: { type: String, default: 'pending', enum: ['pending', 'completed', 'cancelled', 'partial', 'partial_cancelled', 'failed', 'pending_profit'] },
     copyCode: { type: String, required: true},
+    expiration: { type: Date, required: false },
+    percentage: { type: Number, default: 1, min: 0.1, max: 100 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     executedAt: { type: Date },
@@ -50,10 +52,7 @@ const SpotOrderHistorySchema = new mongoose.Schema({
 
 // Index for efficient queries
 SpotOrderHistorySchema.index({ user: 1, createdAt: -1 });
-SpotOrderHistorySchema.index({ orderId: 1 });
+SpotOrderHistorySchema.index({ copyCode: 1 });
 SpotOrderHistorySchema.index({ status: 1 });
-SpotOrderHistorySchema.index({ role: 1 });
 
-const SpotOrderHistory = mongoose.model('SpotOrderHistory', SpotOrderHistorySchema);
-
-module.exports = { SpotOrderHistory };
+module.exports = { SpotOrderHistory: mongoose.model('SpotOrderHistory', SpotOrderHistorySchema) };

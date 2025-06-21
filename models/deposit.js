@@ -3,7 +3,7 @@ let mongoose = require('mongoose');
 let transactionSchema = new mongoose.Schema({
      userId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
+            ref: 'Users',
             required: true
      },
      reference: {

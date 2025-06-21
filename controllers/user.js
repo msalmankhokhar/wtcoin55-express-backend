@@ -52,4 +52,91 @@ const transactionHistory = async (req, res) => {
     }
 }
 
-module.exports = { getProfile, getBalance, transactionHistory };
+/**
+ * Get user's balances across all accounts
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getUserBalances(req, res) {
+    try {
+        const user = req.user;
+
+        // Get Exchange (main) balances
+        const { MainBalance } = require('../models/balance');
+        const exchangeBalances = await MainBalance.find({ user: user._id });
+
+        // Get Spot balances
+        const SpotBalance = require('../models/spot-balance');
+        const spotBalances = await SpotBalance.find({ user: user._id });
+
+        // Get Futures balances
+        const FuturesBalance = require('../models/futures-balance');
+        const futuresBalances = await FuturesBalance.find({ user: user._id });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                exchange: exchangeBalances,
+                spot: spotBalances,
+                futures: futuresBalances
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting user balances:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get user balances'
+        });
+    }
+}
+
+/**
+ * Get user's trading volume status for all coins
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getUserTradingVolumeStatus(req, res) {
+    try {
+        const user = req.user;
+        const { getTradingVolumeStatus } = require('../utils/tradingVolume');
+
+        // Get all spot balances
+        const SpotBalance = require('../models/spot-balance');
+        const spotBalances = await SpotBalance.find({ user: user._id });
+
+        // Get all futures balances
+        const FuturesBalance = require('../models/futures-balance');
+        const futuresBalances = await FuturesBalance.find({ user: user._id });
+
+        // Calculate volume status for each balance
+        const spotVolumeStatus = await Promise.all(
+            spotBalances.map(async (balance) => {
+                return await getTradingVolumeStatus(user._id, balance.coinId, 'spot');
+            })
+        );
+
+        const futuresVolumeStatus = await Promise.all(
+            futuresBalances.map(async (balance) => {
+                return await getTradingVolumeStatus(user._id, balance.coinId, 'futures');
+            })
+        );
+
+        res.status(200).json({
+            success: true,
+            data: {
+                spot: spotVolumeStatus,
+                futures: futuresVolumeStatus
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting user trading volume status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get user trading volume status'
+        });
+    }
+}
+
+module.exports = { getProfile, getBalance, transactionHistory, getUserBalances, getUserTradingVolumeStatus };

@@ -57,6 +57,10 @@ const ccpaymentRoutes = require('./routes/ccpayment');
 const bitmartRoutes = require('./routes/bitmart');
 // const kucoinRoutes = require('./routes/kucoin');
 const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
+const tradesRoutes = require('./routes/trades');
+const withdrawalRoutes = require('./routes/withdrawal');
+const transferRoutes = require('./routes/transfer');
 
 app.get("/", (req, res) => {
   res.send("Hello, Express.js!");
@@ -64,9 +68,13 @@ app.get("/", (req, res) => {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authRoutes);
 app.use('/api/ccpayment', ccpaymentRoutes);
-app.use('/api/bitmart', bitmartRoutes);
+// app.use('/api/bitmart', bitmartRoutes);
 // app.use('/api/kucoin', kucoinRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/trades', tradesRoutes);
+app.use('/api/withdrawal', withdrawalRoutes);
+app.use('/api/transfer', transferRoutes);
 
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true, serverSelectionTimeoutMS: 10000 })

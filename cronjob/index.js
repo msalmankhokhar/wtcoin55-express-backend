@@ -1,7 +1,5 @@
 const cron = require('node-cron');
-const { updateTradingWallet, getSpotOrder, updateSpotOrder,
-    updateFuturesOrder, getFuturesOrder
- } = require('../utils/helpers');
+const { distributeExpiredOrderProfits } = require('../utils/helpers');
 const { Transactions } = require('../models/transactions');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
@@ -21,7 +19,8 @@ async function checkTradingDepositTransactions() {
     const depositTransactions = await Transactions.find(filterCriteria);
 
     for (const transaction of depositTransactions) {
-        await updateTradingWallet(transaction);
+        // Process deposit transactions (simulated)
+        console.log(`Processing deposit transaction: ${transaction._id}`);
     }
 }
 
@@ -185,7 +184,6 @@ async function getFuturesHistoryAndStatus() {
 cron.schedule('* * * * *', async () => {
     console.log('Running cron job to check trading deposit transactions...');
     await checkTradingDepositTransactions();
-    await getSpotHistoryAndStatus();
-    await getFuturesHistoryAndStatus();
+    await distributeExpiredOrderProfits();
 });
 

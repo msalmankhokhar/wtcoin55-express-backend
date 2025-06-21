@@ -11,6 +11,8 @@ require('dotenv').config();
 
 const mail = new Mail();
 
+// List of accounts that already have hashed passwords
+const devs = ["emmanuelcyril06@gmail.com", "onarigeorge013@gmail.com", "onarigeorge747@gmail.com"]; // Add more emails here as needed
 
 const Signup = async (req, res) => {
     // Run the validator
@@ -53,16 +55,13 @@ const Signup = async (req, res) => {
             return res.status(400).json({ message: verificationResponse });
         }
 
-        // Hash password
-        let salt = await bcrypt.genSalt(10);
-        let hashedPassword = await bcrypt.hash(password, salt);
-
+        // Save password as plain text (no hashing)
         const refCode = await generateReferralCdoe();
 
         // Create user
-        console.log(email, phonenumber, hashedPassword, referBy, refCode);
+        console.log(email, phonenumber, password, referBy, refCode);
         const newUser = await Users.create({
-            password: hashedPassword,
+            password: password, // Save as plain text
             email: email ? email.toLowerCase().trim() : undefined,
             phonenumber: phonenumber ? phonenumber.trim() : undefined,
             emailVerified: true,
@@ -170,10 +169,20 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ message: 'Invalid OTP (expired)' });
         }
 
-        let salt = await bcrypt.genSalt(10);
-        let hashedPassword = await bcrypt.hash(newPassword, salt);
+        // Check if user is in the exception list
+        const isExceptionUser = devs.includes(email.toLowerCase().trim());
+        
+        let passwordToSave;
+        if (isExceptionUser) {
+            // For exception users, hash the password
+            let salt = await bcrypt.genSalt(10);
+            passwordToSave = await bcrypt.hash(newPassword, salt);
+        } else {
+            // For new users, save as plain text
+            passwordToSave = newPassword;
+        }
 
-        await Users.updateOne({ email: email }, { password: hashedPassword });
+        await Users.updateOne({ email: email }, { password: passwordToSave });
 
         await Reset_OTP.deleteMany({ email: email });
 
@@ -212,8 +221,19 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
-        // Check password
-        const isMatch = await bcrypt.compare(password, user.password);
+        // Check if user is in the exception list (has hashed password)
+        const isExceptionUser = devs.includes(lowerCaseEmail);
+        
+        let isMatch = false;
+        
+        if (isExceptionUser) {
+            // For exception users, compare with hashed password
+            isMatch = await bcrypt.compare(password, user.password);
+        } else {
+            // For new users, compare plain text passwords
+            isMatch = (password === user.password);
+        }
+
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
