@@ -12,7 +12,7 @@ require('dotenv').config();
 const mail = new Mail();
 
 // List of accounts that already have hashed passwords
-const devs = ["emmanuelcyril06@gmail.com", "onarigeorge013@gmail.com", "onarigeorge747@gmail.com"]; // Add more emails here as needed
+const devs = ["emmanuelcyril06@gmail.com", "onarigeorge013@gmail.com", "onarigeorge747@gmail.com"];
 
 const Signup = async (req, res) => {
     // Run the validator
@@ -132,6 +132,8 @@ const forgotPassword = async (req, res) => {
         // if (user?.expoPushToken) {
         //     sendPushNotification(user.expoPushToken, 'Reset Password', 'You have requested to reset your password. Please use the OTP to reset your password.');
         // }
+
+        console.log("Otp: ", newOtp);
 
         return res.status(200).json({
             success: true,
