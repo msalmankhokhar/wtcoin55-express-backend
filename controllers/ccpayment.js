@@ -243,6 +243,7 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
         // Check user's balance
         const userBalance = await MainBalance.findOne({ user: user._id, coinId });
         const newBalance = userBalance - amount;
+        let newChain;
 
         if (!userBalance || userBalance.balance < amount || newBalance <= 0) {
             return res.status(400).json({
@@ -252,8 +253,8 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
         }
 
         // Prepare withdrawal details
-        let newChain = chain === 'TRC20' ? 'TRX' : chain;
-        let newChain = chain === 'ERC20' ? 'ETH' : chain;
+        newChain = chain === 'TRC20' ? 'TRX' : chain;
+        newChain = chain === 'ERC20' ? 'ETH' : chain;
 
         const orderId = `${user._id.toString()}${uuidv4()}`;
         const withdrawalDetails = {
