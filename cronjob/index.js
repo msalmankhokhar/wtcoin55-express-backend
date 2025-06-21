@@ -41,7 +41,7 @@ async function getSpotHistoryAndStatus() {
             console.log('❌ Specific order 1131389971761218048 not found in database');
         }
         
-        // Get all pending spot orders and update their status
+    // Get all pending spot orders and update their status
         const pendingOrders = await SpotOrderHistory.find({ status: 'pending' });
         console.log(`📋 Found ${pendingOrders.length} pending spot orders`);
         

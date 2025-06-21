@@ -446,61 +446,84 @@ class BitMart {
 
 
     // Enhanced submitSpotOrder with better order tracking
-    async submitSpotOrder(symbol, side, type, quantity = null, price = null, notional = null) {
-        console.log(`🔍 [BitMart] Submitting spot order:`, { symbol, side, type, quantity, price, notional });
-        
-        const endpoint = '/spot/v2/submit_order';
-        const data = {
-            symbol: symbol,
-            side: side,
-            type: type
-        };
-
-        if (type === 'limit') {
-            if (!price || !quantity) {
-                throw new Error("Limit order requires both price and quantity.");
-            }
-            data.price = price;
-            data.size = quantity; // BitMart uses 'size' not 'quantity'
-        } else if (type === 'market') {
-            if (side === 'buy') {
-                if (!notional) {
-                    throw new Error("Market buy order requires 'notional' (amount in quote currency).");
-                }
-                data.notional = notional;
-            } else if (side === 'sell') {
-                if (!quantity) {
-                    throw new Error("Market sell order requires 'quantity'.");
-                }
-                data.size = quantity;
-            }
-        } else {
-            throw new Error("Invalid order type. Must be 'limit' or 'market'.");
-        }
-        
-        console.log(`📋 [BitMart] Order data:`, data);
-        
+    async submitSpotOrder(symbol, side, type, price, quantity, clientOrderId) {
         try {
-            const response = await this._makeRequestV2('POST', endpoint, data);
-            if (response.code === 1000) {
-                console.log(`✅ [BitMart] Order submitted successfully:`, response.data);
-                return response;
+            console.log(`[submitSpotOrder] Preparing to submit order: ${side} ${quantity} ${symbol} at ${price || 'market'}`);
+
+            // 1. Get trading pair details for validation
+            const pairDetails = await this.getTradingPairDetails(symbol);
+            if (!pairDetails) {
+                throw new Error(`Could not retrieve trading pair details for ${symbol}`);
             }
-            console.log(`❌ [BitMart] Order submission failed:`, response);
-            return {
-                code: 4001,
-                message: response.message || 'Order submission failed',
-                data: null,
-                error: true
+
+            const minSize = parseFloat(pairDetails.base_min_size);
+            const minBuyAmount = parseFloat(pairDetails.min_buy_amount);
+            const minSellAmount = parseFloat(pairDetails.min_sell_amount);
+            const pricePrecision = parseInt(pairDetails.price_max_precision);
+            
+            console.log(`[submitSpotOrder] Validation rules for ${symbol}: minSize=${minSize}, pricePrecision=${pricePrecision}, minBuyAmount=${minBuyAmount}`);
+
+            // 2. Validate quantity against the minimum size
+            if (quantity && parseFloat(quantity) < minSize) {
+                throw new Error(`Order quantity (${quantity}) is below the minimum of ${minSize} for ${symbol}.`);
             }
+
+            // 3. Validate order value for market orders
+            if (type === 'market') {
+                if (side === 'buy' && price && quantity) { // For market buy, value is price * quantity
+                    const orderValue = parseFloat(price) * parseFloat(quantity);
+                    if (orderValue < minBuyAmount) {
+                         throw new Error(`Market buy order value (${orderValue}) is below the minimum of ${minBuyAmount} USDT for ${symbol}.`);
+                    }
+                }
+            }
+
+
+            const params = {
+                symbol,
+                side,
+                type,
+            };
+
+            // Add parameters based on order type
+            if (type === 'limit' || type === 'limit_maker' || type === 'ioc') {
+                if (!price) {
+                    throw new Error('Price is required for limit orders');
+                }
+                params.price = this._formatNumber(price, pricePrecision);
+            }
+            
+            if (quantity) {
+                 // For market sell, use 'size'
+                if (type === 'market' && side === 'sell') {
+                    params.size = this._formatNumber(quantity);
+                } 
+                // For market buy, use 'notional' (total value in quote currency)
+                else if (type === 'market' && side === 'buy') {
+                    if (price && quantity) {
+                        params.notional = this._formatNumber(parseFloat(price) * parseFloat(quantity));
+                    } else {
+                        throw new Error("Market buy orders require price and quantity to calculate total value (notional).");
+                    }
+                }
+                // For limit orders, use 'size'
+                else {
+                    params.size = this._formatNumber(quantity);
+                }
+            }
+
+
+            if (clientOrderId) {
+                params.clientOrderId = clientOrderId;
+            }
+
+            console.log(`[submitSpotOrder] Submitting order with params:`, params);
+            return await this._makeRequestV2('POST', '/spot/v2/submit_order', params);
+
         } catch (error) {
-            console.log(`❌ [BitMart] Spot Order Exception:`, error);
-            return {
-                code: 4001,
-                message: error.message,
-                data: null,
-                error: true
-            }
+            console.error(`[submitSpotOrder] Error submitting spot order for ${symbol}:`, error.message);
+            // Re-throw the error to be caught by the controller
+            throw error;
         }
     }
 
@@ -630,9 +653,9 @@ class BitMart {
         // If not found in history, try open orders
         console.log(`📋 [BitMart] Trying open orders query...`);
         const openData = {
-            orderId: order_id,
-            queryState: 'open'
-        };
+                orderId: order_id,
+                queryState: 'open'
+            };
         
         try {
             const openResponse = await this._makeRequestV2('POST', endpoint, openData);
@@ -1008,6 +1031,58 @@ class BitMart {
         });
 
         return await this._makeRequestV2('GET', `/contract/private/get-open-orders?${queryParams.toString()}`, params);
+    }
+
+    /**
+     * Get trading pair details including minimum order sizes
+     * @param {string} symbol - Trading pair symbol (e.g., "ETH_USDT")
+     * @returns {Promise<Object>} - Trading pair details
+     */
+    async getTradingPairDetails(symbol) {
+        console.log(`🔍 [BitMart] Getting trading pair details for: ${symbol}`);
+        
+        try {
+            // Get all trading pairs first
+            const allPairs = await this.getAllTradingPairs();
+            
+            if (allPairs.code === 1000 && Array.isArray(allPairs.data)) {
+                const pair = allPairs.data.find(p => p.symbol === symbol);
+                if (pair) {
+                    console.log(`✅ [BitMart] Found trading pair details:`, {
+                        symbol: pair.symbol,
+                        minSize: pair.min_size,
+                        maxSize: pair.max_size,
+                        pricePrecision: pair.price_precision,
+                        sizePrecision: pair.size_precision
+                    });
+                    return {
+                        code: 1000,
+                        data: pair
+                    };
+                } else {
+                    console.warn(`⚠️ [BitMart] Trading pair ${symbol} not found`);
+                    return {
+                        code: 4001,
+                        message: `Trading pair ${symbol} not found`,
+                        data: null
+                    };
+                }
+            } else {
+                console.error(`❌ [BitMart] Failed to get trading pairs`);
+                return {
+                    code: 4001,
+                    message: 'Failed to get trading pairs',
+                    data: null
+                };
+            }
+        } catch (error) {
+            console.error(`❌ [BitMart] Error getting trading pair details:`, error);
+            return {
+                code: 4001,
+                message: error.message,
+                data: null
+            };
+        }
     }
 }
 

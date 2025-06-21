@@ -233,16 +233,16 @@ async function getSpotOrder(orderId) {
                 // Continue processing to handle the fills that occurred before cancellation
             } else {
                 console.log(`⏭️ [getSpotOrder] Order ${orderId} is not filled (state: ${orderData.state}), skipping trade analysis`);
-                return {
-                    orderId: orderData.orderId,
+            return {
+                orderId: orderData.orderId,
                     symbol: orderData.symbol,
-                    state: orderData.state,
+                state: orderData.state,
                     side: orderData.side,
                     type: orderData.type,
-                    filledSize: orderData.filledSize || '0',
-                    priceAvg: orderData.priceAvg || '0',
-                    needsUpdate: false
-                };
+                filledSize: orderData.filledSize || '0',
+                priceAvg: orderData.priceAvg || '0',
+                needsUpdate: false
+            };
             }
         }
 
@@ -273,11 +273,11 @@ async function getSpotOrder(orderId) {
                     
                     console.log(`💰 [getSpotOrder] Trade fee: ${tradeFee} ${trade.feeCoinName || 'USDT'}`);
                     
-                    if (trade.tradeRole === 'maker') {
-                        feeType = 'maker';
-                    }
-                    feeCurrency = trade.feeCoinName || feeCurrency;
+                if (trade.tradeRole === 'maker') {
+                    feeType = 'maker';
                 }
+                feeCurrency = trade.feeCoinName || feeCurrency;
+            }
                 
                 console.log(`💳 [getSpotOrder] Total fees calculated: ${totalFees} ${feeCurrency} (${feeType})`);
             } else {
@@ -386,7 +386,7 @@ async function updateSpotOrder(orderDetails) {
         
         const newStatus = statusMapping[orderDetails.state] || 'unknown';
         console.log(`📊 [updateSpotOrder] New status: ${newStatus}`);
-        
+
         // Update the order in database
         const updatedOrder = await SpotOrderHistory.findOneAndUpdate(
             { orderId: orderDetails.orderId },
@@ -572,7 +572,7 @@ async function updateSpotBalance(userId, coinName, amount, operation) {
             
             console.log(`✅ [updateSpotBalance] Created new ${coinName} balance: ${newBalance.balance}`);
         }
-        
+
     } catch (error) {
         console.error(`❌ [updateSpotBalance] Error updating ${coinName} balance:`, error);
         throw error;
@@ -1005,4 +1005,4 @@ async function testMultipleOrders(orderIds) {
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
     updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders
-};
+ };

@@ -179,33 +179,51 @@ async function getFuturesWalletBalance(req, res) {
 async function submitSpotOrder(req, res) {
     try {
         const { symbol, side, type, quantity, price, notional="" } = req.body;
-        let balance;
         console.log("req.body: ", req.body);
 
-        // symbol = BUYINGCOIN_BASECOIN
-        // Get Base coin
-        // 
+        // 1. Get trading pair details for validation
+        const pairDetails = await bitmart.getTradingPairDetails(symbol);
+        if (!pairDetails) {
+            return res.status(400).json({ message: `Could not retrieve trading pair details for ${symbol}` });
+        }
+
+        const minSize = parseFloat(pairDetails.base_min_size);
+
+        // 2. Validate quantity against the minimum size
+        if (quantity && parseFloat(quantity) < minSize) {
+            return res.status(400).json({ message: `Order quantity (${quantity}) is below the minimum of ${minSize} for ${symbol}.` });
+        }
+        
+        let balance;
+        
         const coinName = symbol.split("_")[1];
         console.log("Coin Name: ", coinName);
 
         if (coinName === 'USDT') {
             balance = await SpotBalance.findOne({ user: req.user._id, coinId: 1280 });
         } else {
-            balance = await SpotBalance.findOne({ user: req.user._id, coinName: symbol.split("_")[1] });
+            balance = await SpotBalance.findOne({ user: req.user._id, coinName: coinName });
         }
 
-        const orderCost = quantity * price;
-        console.log("Balance:", balance);
+        // For limit orders, check balance against total cost
+        if (type === 'limit' && price && quantity) {
+            const orderCost = parseFloat(quantity) * parseFloat(price);
+            console.log("Balance:", balance);
 
-        if (!balance || balance.balance < orderCost) {
-            return res.status(400).json({ message: 'Insufficient funds' });
+            if (!balance || balance.balance < orderCost) {
+                return res.status(400).json({ message: 'Insufficient funds' });
+            }
+        } else if (!balance) {
+             return res.status(400).json({ message: 'Insufficient funds' });
         }
 
-        const data = await bitmart.submitSpotOrder(symbol, side, type, quantity, price, notional);
+
+        const data = await bitmart.submitSpotOrder(symbol, side, type, price, quantity, notional);
         console.log(data);
 
         if (data.code !== 1000 || data.error) {
-            return res.status(500).json({ error: 'Failed to submit spot order' });
+            // Error is already logged in the bitmart utility, just return it
+            return res.status(500).json({ error: data.message || 'Failed to submit spot order' });
         }
 
         // Determine initial role based on order type
@@ -235,8 +253,9 @@ async function submitSpotOrder(req, res) {
 
         res.status(200).json(data);
     } catch (error) {
-        console.log(error);
-        return res.status(500).json({ error: 'Failed to submit spot order' });
+        console.error("Error in submitSpotOrder controller:", error.message);
+        // The error message from the utility is what we want to send to the user
+        return res.status(500).json({ error: error.message || 'Failed to submit spot order' });
     }
 }
 
