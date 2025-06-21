@@ -207,20 +207,43 @@ async function getSpotOrder(orderId) {
 
         const orderData = orderResponse.data;
         console.log(`✅ [getSpotOrder] Order found! State: ${orderData.state}, Symbol: ${orderData.symbol}`);
+        console.log(`📊 [getSpotOrder] Order details:`, {
+            orderId: orderData.orderId,
+            symbol: orderData.symbol,
+            state: orderData.state,
+            side: orderData.side,
+            type: orderData.type,
+            size: orderData.size,
+            filledSize: orderData.filledSize,
+            price: orderData.price,
+            priceAvg: orderData.priceAvg,
+            filledNotional: orderData.filledNotional,
+            createTime: orderData.createTime,
+            updateTime: orderData.updateTime
+        });
 
         // 3. Check if order needs trade analysis
         if (orderData.state !== 'filled' && orderData.state !== 'partially_filled') {
-            console.log(`⏭️ [getSpotOrder] Order ${orderId} is not filled (state: ${orderData.state}), skipping trade analysis`);
-            return {
-                orderId: orderData.orderId,
-                symbol: orderData.symbol,
-                state: orderData.state,
-                side: orderData.side,
-                type: orderData.type,
-                filledSize: orderData.filledSize || '0',
-                priceAvg: orderData.priceAvg || '0',
-                needsUpdate: false
-            };
+            // Check if it's a partially cancelled order with some fills
+            if (orderData.state === 'partially_canceled' && parseFloat(orderData.filledSize || 0) > 0) {
+                console.log(`⚠️ [getSpotOrder] Order ${orderId} is partially cancelled but has fills: ${orderData.filledSize}`);
+                // Continue processing to handle the partial fills
+            } else if (orderData.state === 'canceled' && parseFloat(orderData.filledSize || 0) > 0) {
+                console.log(`⚠️ [getSpotOrder] Order ${orderId} is cancelled but has fills: ${orderData.filledSize}`);
+                // Continue processing to handle the fills that occurred before cancellation
+            } else {
+                console.log(`⏭️ [getSpotOrder] Order ${orderId} is not filled (state: ${orderData.state}), skipping trade analysis`);
+                return {
+                    orderId: orderData.orderId,
+                    symbol: orderData.symbol,
+                    state: orderData.state,
+                    side: orderData.side,
+                    type: orderData.type,
+                    filledSize: orderData.filledSize || '0',
+                    priceAvg: orderData.priceAvg || '0',
+                    needsUpdate: false
+                };
+            }
         }
 
         // 4. Get specific trades for this order using the dedicated endpoint
@@ -305,7 +328,7 @@ async function getSpotOrder(orderId) {
             updateTime: orderData.updateTime,
             orderTrades: orderTrades,
             isEstimated: orderTrades.length === 0,
-            needsUpdate: true
+            needsUpdate: parseFloat(orderData.filledSize || 0) > 0
         };
 
         console.log(`✅ [getSpotOrder] Successfully processed order ${orderId}:`, {
@@ -395,8 +418,8 @@ async function updateSpotOrder(orderDetails) {
         console.log(`✅ [updateSpotOrder] Updated order ${orderDetails.orderId}: ${previousStatus} → ${newStatus}`);
 
         // Handle balance updates for completed/partial orders
-        if ((newStatus === 'completed' || newStatus === 'partial') && 
-            (previousStatus !== 'completed' && previousStatus !== 'partial')) {
+        if ((newStatus === 'completed' || newStatus === 'partial' || newStatus === 'partial_cancelled' || newStatus === 'cancelled') && 
+            (previousStatus !== 'completed' && previousStatus !== 'partial' && previousStatus !== 'partial_cancelled' && previousStatus !== 'cancelled')) {
 
             console.log(`💰 [updateSpotOrder] Processing balance updates for user ${userId}...`);
             
@@ -416,6 +439,8 @@ async function updateSpotOrder(orderDetails) {
             console.log(`❌ [updateSpotOrder] Order ${orderDetails.orderId} was cancelled`);
         } else if (newStatus === 'partial') {
             console.log(`⚡ [updateSpotOrder] Order ${orderDetails.orderId} partially filled: ${orderDetails.filledSize}/${orderDetails.originalSize}`);
+        } else if (newStatus === 'partial_cancelled') {
+            console.log(`⚠️ [updateSpotOrder] Order ${orderDetails.orderId} partially cancelled: ${orderDetails.filledSize}/${orderDetails.originalSize} filled`);
         }
 
         return updatedOrder;
