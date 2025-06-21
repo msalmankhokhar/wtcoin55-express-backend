@@ -149,16 +149,164 @@ class BitMart {
             const response = await axios(config);
 
             if (response.data.code !== 1000) {
-                console.log("Response: ",response);
-                throw new Error(`BitMart API Error: ${response.data.message}`);
+                console.log("BitMart API Error Response:", response.data);
+                
+                // Create a custom error with appropriate status code
+                const error = new Error(response.data.message || 'BitMart API Error');
+                error.name = 'BitMartError';
+                error.statusCode = this._getHttpStatusFromBitMartError(response.data.code, response.data.message);
+                error.bitmartCode = response.data.code;
+                error.details = response.data;
+                
+                throw error;
             }
 
             return response.data;
         } catch (error) {
-            console.log("Response Error: ",error);
-            const errorMessage = error.response?.data?.message || error.message;
-            throw new Error(`BitMart API Error: ${errorMessage}`);
+            console.log("Request Error:", error);
+            
+            // If it's already a BitMartError, re-throw it
+            if (error.name === 'BitMartError') {
+                throw error;
+            }
+            
+            // Handle axios errors
+            if (error.response) {
+                const bitmartError = new Error(error.response.data?.message || 'BitMart API Error');
+                bitmartError.name = 'BitMartError';
+                bitmartError.statusCode = this._getHttpStatusFromBitMartError(
+                    error.response.data?.code, 
+                    error.response.data?.message
+                );
+                bitmartError.bitmartCode = error.response.data?.code;
+                bitmartError.details = error.response.data;
+                throw bitmartError;
+            }
+            
+            // Handle network/timeout errors
+            const networkError = new Error(error.message || 'Network Error');
+            networkError.name = 'BitMartError';
+            networkError.statusCode = 500;
+            networkError.bitmartCode = 5007; // Network error
+            throw networkError;
         }
+    }
+
+    /**
+     * Map BitMart error codes to appropriate HTTP status codes
+     */
+    _getHttpStatusFromBitMartError(bitmartCode, message) {
+        // BitMart error codes and their corresponding HTTP status codes
+        const errorMap = {
+            // Authentication errors (401)
+            1001: 401, // Invalid signature
+            1002: 401, // Invalid timestamp
+            1003: 401, // Invalid API key
+            1004: 401, // Invalid memo
+            
+            // Rate limiting (429)
+            1005: 429, // Rate limit exceeded
+            
+            // Bad request errors (400)
+            1006: 400, // Invalid parameter
+            1007: 400, // Invalid symbol
+            1008: 400, // Invalid side
+            1009: 400, // Invalid type
+            1010: 400, // Invalid price
+            1011: 400, // Invalid size
+            1012: 400, // Invalid quantity
+            1013: 400, // Invalid currency
+            1014: 400, // Invalid address
+            1015: 400, // Invalid amount
+            1016: 400, // Invalid order ID
+            1017: 400, // Invalid client order ID
+            1018: 400, // Invalid time range
+            1019: 400, // Invalid limit
+            1020: 400, // Invalid offset
+            
+            // Business logic errors (400)
+            2001: 400, // Insufficient balance
+            2002: 400, // Order not found
+            2003: 400, // Order already exists
+            2004: 400, // Order already filled
+            2005: 400, // Order already cancelled
+            2006: 400, // Order partially filled
+            2007: 400, // Order partially cancelled
+            2008: 400, // Order rejected
+            2009: 400, // Order expired
+            2010: 400, // Order too small
+            2011: 400, // Order too large
+            2012: 400, // Price too high
+            2013: 400, // Price too low
+            2014: 400, // Size too small
+            2015: 400, // Size too large
+            2016: 400, // Insufficient margin
+            2017: 400, // Position not found
+            2018: 400, // Position already exists
+            2019: 400, // Position already closed
+            2020: 400, // Position liquidated
+        };
+
+        // Check for specific error messages that indicate certain status codes
+        if (message) {
+            const lowerMessage = message.toLowerCase();
+            
+            // Size/quantity too small errors
+            if (lowerMessage.includes('size is too small') || 
+                lowerMessage.includes('quantity is too small') ||
+                (lowerMessage.includes('param not match') && lowerMessage.includes('size'))) {
+                return 400;
+            }
+            
+            // Insufficient balance errors
+            if (lowerMessage.includes('insufficient balance') || 
+                lowerMessage.includes('insufficient funds') ||
+                lowerMessage.includes('balance not enough')) {
+                return 400;
+            }
+            
+            // Authentication errors
+            if (lowerMessage.includes('invalid signature') || 
+                lowerMessage.includes('invalid api key') ||
+                lowerMessage.includes('authentication failed')) {
+                return 401;
+            }
+            
+            // Rate limiting
+            if (lowerMessage.includes('rate limit') || 
+                lowerMessage.includes('too many requests')) {
+                return 429;
+            }
+            
+            // Not found errors
+            if (lowerMessage.includes('not found') || 
+                lowerMessage.includes('does not exist')) {
+                return 404;
+            }
+        }
+
+        // Return mapped status code or default to 400 for business logic errors, 500 for system errors
+        return errorMap[bitmartCode] || (bitmartCode >= 2000 && bitmartCode < 5000 ? 400 : 500);
+    }
+
+    /**
+     * Format number to specified precision for API requests
+     * @param {number|string} value - The number to format
+     * @param {number} [precision=8] - Number of decimal places (default: 8)
+     * @returns {string} - Formatted number as string
+     */
+    _formatNumber(value, precision = 8) {
+        if (value === null || value === undefined || value === '') {
+            return '0';
+        }
+        
+        const num = parseFloat(value);
+        if (isNaN(num)) {
+            return '0';
+        }
+        
+        // Format to specified precision and remove trailing zeros
+        return num.toFixed(precision).replace(/\.?0+$/, '');
     }
 
     // ==================== DEPOSIT METHODS ====================
