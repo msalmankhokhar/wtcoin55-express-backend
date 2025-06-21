@@ -252,7 +252,8 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
         }
 
         // Prepare withdrawal details
-        let newChain = chain === 'TRX' ? 'TRC20' : chain;
+        let newChain = chain === 'TRC20' ? 'TRX' : chain;
+        let newChain = chain === 'ERC20' ? 'ETH' : chain;
 
         const orderId = `${user._id.toString()}${uuidv4()}`;
         const withdrawalDetails = {
