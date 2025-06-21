@@ -1,7 +1,7 @@
 const BitMart = require('../utils/bitmart');
 const CCpayment = require('../utils/ccpayment');
-const { SpotBalance } = require('../models/spot-balance');
-const { FuturesBalance } = require('../models/futures-balance');
+const SpotBalance  = require('../models/spot-balance');
+const FuturesBalance = require('../models/futures-balance');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
 const { Transactions } = require('../models/transactions');
@@ -124,7 +124,7 @@ async function getSpotWalletBalance(req, res) {
         const user = req.user;
         console.log(req.user);
         const coinId = req.params.coinId || "";
-        let balance
+        let balance;
 
         if (coinId !== "") {
             balance = await SpotBalance.findOne({ user: user._id, coinId });
