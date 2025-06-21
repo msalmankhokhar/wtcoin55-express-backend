@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Users } = require('../models/users');
 const { SpotOrderHistory } = require('../models/spot-order');
+const { FuturesOrderHistory } = require('../models/future-order');
 const { SpotBalance } = require('../models/spot-balance');
 const TransferHistory = require('../models/transfer');
 
@@ -78,6 +79,96 @@ async function submitSpotOrder(req, res) {
 }
 
 /**
+ * Submit real futures order (admin only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function submitFuturesOrder(req, res) {
+    try {
+        const { 
+            symbol, 
+            side, 
+            type, 
+            leverage = "10", 
+            open_type = "cross", 
+            size, 
+            trigger_price, 
+            executive_price, 
+            price_way, 
+            price_type = 1,
+            expiration,
+            percentage = 1 
+        } = req.body;
+        const user = req.user;
+
+        // Check if user is admin
+        if (!user.isAdmin) {
+            return res.status(403).json({ 
+                error: 'Only admins can place futures orders' 
+            });
+        }
+
+        if (!symbol || !side || !type || !size || !trigger_price) {
+            return res.status(400).json({ error: 'Symbol, side, type, size, and trigger_price are required' });
+        }
+
+        // Validate percentage
+        if (percentage < 0.1 || percentage > 100) {
+            return res.status(400).json({ error: 'Percentage must be between 0.1 and 100' });
+        }
+
+        // Generate order ID and copy code
+        const orderId = uuidv4();
+        const copyCode = uuidv4().slice(0, 6);
+
+        // Create futures order history entry (no real API call)
+        const orderHistory = new FuturesOrderHistory({
+            user: user._id,
+            symbol: symbol,
+            orderId: orderId,
+            side: side,
+            type: type,
+            leverage: leverage.toString(),
+            open_type: open_type,
+            size: size,
+            trigger_price: trigger_price,
+            executive_price: executive_price || trigger_price,
+            price_way: price_way || (side === 'buy' ? 1 : 2),
+            price_type: price_type,
+            status: 'pending',
+            copyCode: copyCode,
+            owner: true,
+            followers: [],
+            percentage: percentage,
+            expiration: expiration ? new Date(expiration) : null
+        });
+
+        await orderHistory.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Futures order submitted successfully (simulated)',
+            data: {
+                orderId: orderId,
+                copyCode: copyCode,
+                symbol: symbol,
+                side: side,
+                type: type,
+                leverage: leverage,
+                size: size,
+                trigger_price: trigger_price,
+                percentage: percentage,
+                expiration: expiration
+            }
+        });
+
+    } catch (error) {
+        console.error('Error submitting futures order:', error);
+        res.status(500).json({ error: 'Failed to submit futures order' });
+    }
+}
+
+/**
  * Get all orders (admin only)
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -105,6 +196,37 @@ async function getAllOrders(req, res) {
     } catch (error) {
         console.error('Error getting all orders:', error);
         res.status(500).json({ error: 'Failed to get all orders' });
+    }
+}
+
+/**
+ * Get all futures orders (admin only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getAllFuturesOrders(req, res) {
+    try {
+        const user = req.user;
+
+        // Check if user is admin
+        if (!user.isAdmin) {
+            return res.status(403).json({ 
+                error: 'Only admins can view all futures orders' 
+            });
+        }
+
+        const orders = await FuturesOrderHistory.find({})
+            .populate('user', 'email')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: orders
+        });
+
+    } catch (error) {
+        console.error('Error getting all futures orders:', error);
+        res.status(500).json({ error: 'Failed to get all futures orders' });
     }
 }
 
@@ -169,6 +291,71 @@ async function getAvailableOrders(req, res) {
     } catch (error) {
         console.error('Error getting available orders:', error);
         res.status(500).json({ error: 'Failed to get available orders' });
+    }
+}
+
+/**
+ * Get available futures orders for following (admin only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getAvailableFuturesOrders(req, res) {
+    try {
+        const user = req.user;
+        const { status = 'pending' } = req.query;
+
+        // Check if user is admin
+        if (!user.isAdmin) {
+            return res.status(403).json({ 
+                error: 'Only admins can view available futures orders' 
+            });
+        }
+
+        // Build query based on status
+        let query = {
+            owner: true
+        };
+
+        if (status === 'pending') {
+            query.status = 'pending';
+            query.$or = [
+                { expiration: { $exists: false } },
+                { expiration: { $gt: new Date() } }
+            ];
+        } else {
+            query.status = status;
+        }
+
+        const availableOrders = await FuturesOrderHistory.find(query)
+            .populate('user', 'email')
+            .populate('followers', 'orderId user')
+            .sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: availableOrders.map(order => ({
+                copyCode: order.copyCode,
+                symbol: order.symbol,
+                side: order.side,
+                type: order.type,
+                quantity: order.quantity,
+                price: order.price,
+                percentage: order.percentage,
+                leverage: order.leverage,
+                expiration: order.expiration,
+                status: order.status,
+                createdAt: order.createdAt,
+                user: order.user.email,
+                followers: order.followers.map(follower => ({
+                    orderId: follower.orderId,
+                    userId: follower.user
+                }))
+            }))
+        });
+
+    } catch (error) {
+        console.error('Error getting available futures orders:', error);
+        res.status(500).json({ error: 'Failed to get available futures orders' });
     }
 }
 
@@ -288,7 +475,6 @@ async function getAllUsers(req, res) {
         }
 
         const users = await Users.find({})
-            .select('-password')
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -349,11 +535,22 @@ async function approveWithdrawalRequest(req, res) {
         const adminUser = req.user;
         const { requestId } = req.params;
 
+        console.log(`🔍 [approveWithdrawalRequest] Request ID received: "${requestId}"`);
+        console.log(`🔍 [approveWithdrawalRequest] Request ID type: ${typeof requestId}`);
+        console.log(`🔍 [approveWithdrawalRequest] Request ID length: ${requestId?.length}`);
+
         // Check if user is admin
         if (!adminUser.isAdmin) {
             return res.status(403).json({
                 success: false,
                 message: 'Only admins can approve withdrawal requests'
+            });
+        }
+
+        if (!requestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Request ID is required'
             });
         }
 
@@ -363,16 +560,33 @@ async function approveWithdrawalRequest(req, res) {
         const ccpayment = require('../utils/ccpayment');
         const { v4: uuidv4 } = require('uuid');
 
+        // Validate ObjectId format
+        const { ObjectId } = require('mongodb');
+        if (!ObjectId.isValid(requestId)) {
+            console.log(`❌ [approveWithdrawalRequest] Invalid ObjectId format: "${requestId}"`);
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid request ID format. Expected a valid MongoDB ObjectId.',
+                receivedId: requestId
+            });
+        }
+
+        console.log(`✅ [approveWithdrawalRequest] Valid ObjectId format, searching for withdrawal request...`);
+
         // Find the withdrawal request
         const withdrawalRequest = await WithdrawalRequest.findById(requestId)
             .populate('user', 'email');
 
         if (!withdrawalRequest) {
+            console.log(`❌ [approveWithdrawalRequest] Withdrawal request not found for ID: "${requestId}"`);
             return res.status(404).json({
                 success: false,
-                message: 'Withdrawal request not found'
+                message: 'Withdrawal request not found',
+                requestId: requestId
             });
         }
+
+        console.log(`✅ [approveWithdrawalRequest] Found withdrawal request: ${withdrawalRequest._id}, Status: ${withdrawalRequest.status}`);
 
         if (withdrawalRequest.status !== 'pending') {
             return res.status(400).json({
@@ -385,16 +599,6 @@ async function approveWithdrawalRequest(req, res) {
         let userBalance;
         if (withdrawalRequest.walletType === 'main') {
             userBalance = await MainBalance.findOne({ 
-                user: withdrawalRequest.user._id, 
-                coinId: withdrawalRequest.coinId 
-            });
-        } else if (withdrawalRequest.walletType === 'spot') {
-            userBalance = await SpotBalance.findOne({ 
-                user: withdrawalRequest.user._id, 
-                coinId: withdrawalRequest.coinId 
-            });
-        } else if (withdrawalRequest.walletType === 'futures') {
-            userBalance = await FuturesBalance.findOne({ 
                 user: withdrawalRequest.user._id, 
                 coinId: withdrawalRequest.coinId 
             });
@@ -461,6 +665,10 @@ async function declineWithdrawalRequest(req, res) {
         const { requestId } = req.params;
         const { reason } = req.body;
 
+        console.log(`🔍 [declineWithdrawalRequest] Request ID received: "${requestId}"`);
+        console.log(`🔍 [declineWithdrawalRequest] Request ID type: ${typeof requestId}`);
+        console.log(`🔍 [declineWithdrawalRequest] Request ID length: ${requestId?.length}`);
+
         // Check if user is admin
         if (!adminUser.isAdmin) {
             return res.status(403).json({
@@ -469,17 +677,41 @@ async function declineWithdrawalRequest(req, res) {
             });
         }
 
+        if (!requestId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Request ID is required'
+            });
+        }
+
         const { WithdrawalRequest } = require('../models/withdrawal');
+
+        // Validate ObjectId format
+        const { ObjectId } = require('mongodb');
+        if (!ObjectId.isValid(requestId)) {
+            console.log(`❌ [declineWithdrawalRequest] Invalid ObjectId format: "${requestId}"`);
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid request ID format. Expected a valid MongoDB ObjectId.',
+                receivedId: requestId
+            });
+        }
+
+        console.log(`✅ [declineWithdrawalRequest] Valid ObjectId format, searching for withdrawal request...`);
 
         // Find the withdrawal request
         const withdrawalRequest = await WithdrawalRequest.findById(requestId);
 
         if (!withdrawalRequest) {
+            console.log(`❌ [declineWithdrawalRequest] Withdrawal request not found for ID: "${requestId}"`);
             return res.status(404).json({
                 success: false,
-                message: 'Withdrawal request not found'
+                message: 'Withdrawal request not found',
+                requestId: requestId
             });
         }
+
+        console.log(`✅ [declineWithdrawalRequest] Found withdrawal request: ${withdrawalRequest._id}, Status: ${withdrawalRequest.status}`);
 
         if (withdrawalRequest.status !== 'pending') {
             return res.status(400).json({
@@ -872,8 +1104,11 @@ async function getUserTransferDetails(req, res) {
 
 module.exports = {
     submitSpotOrder,
+    submitFuturesOrder,
     getAllOrders,
+    getAllFuturesOrders,
     getAvailableOrders,
+    getAvailableFuturesOrders,
     makeUserAdmin,
     removeAdmin,
     getAllUsers,

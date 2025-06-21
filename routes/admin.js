@@ -1,8 +1,11 @@
 const express = require('express');
 const { 
     submitSpotOrder, 
+    submitFuturesOrder,
     getAllOrders, 
+    getAllFuturesOrders,
     getAvailableOrders, 
+    getAvailableFuturesOrders,
     makeUserAdmin, 
     removeAdmin, 
     getAllUsers,
@@ -70,6 +73,80 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
 
 /**
  * @swagger
+ * /api/admin/futures-order:
+ *   post:
+ *     summary: Submit real futures order (admin only)
+ *     security:
+ *       - quantumAccessToken: []
+ *     tags: [Admin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - symbol
+ *               - side
+ *               - type
+ *               - size
+ *               - trigger_price
+ *             properties:
+ *               symbol:
+ *                 type: string
+ *                 description: Trading pair symbol (e.g., BTCUSDT)
+ *               side:
+ *                 type: number
+ *                 description: Order side (1=long, 2=short)
+ *               type:
+ *                 type: string
+ *                 enum: [limit, market, take_profit, stop_loss]
+ *               leverage:
+ *                 type: string
+ *                 default: "10"
+ *                 description: Leverage as string
+ *               open_type:
+ *                 type: string
+ *                 enum: [cross, isolated]
+ *                 default: "cross"
+ *               size:
+ *                 type: number
+ *                 description: Number of contracts
+ *               trigger_price:
+ *                 type: string
+ *                 description: Trigger price for the order
+ *               executive_price:
+ *                 type: string
+ *                 description: Execution price (for limit orders)
+ *               price_way:
+ *                 type: number
+ *                 description: 1=long, 2=short
+ *               price_type:
+ *                 type: number
+ *                 default: 1
+ *                 description: 1=last_price, 2=fair_price
+ *               expiration:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Order expiration time
+ *               percentage:
+ *                 type: number
+ *                 minimum: 0.1
+ *                 maximum: 100
+ *                 default: 1
+ *                 description: Expected profit percentage
+ *     responses:
+ *       200:
+ *         description: Futures order submitted successfully
+ *       403:
+ *         description: Admin access required
+ *       500:
+ *         description: Server error
+ */
+router.post('/futures-order', tokenRequired, submitFuturesOrder);
+
+/**
+ * @swagger
  * /api/admin/orders:
  *   get:
  *     summary: Get all orders (admin only)
@@ -85,6 +162,24 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
  *         description: Server error
  */
 router.get('/orders', tokenRequired, getAllOrders);
+
+/**
+ * @swagger
+ * /api/admin/futures-orders:
+ *   get:
+ *     summary: Get all futures orders (admin only)
+ *     security:
+ *       - quantumAccessToken: []
+ *     tags: [Admin]
+ *     responses:
+ *       200:
+ *         description: All futures orders retrieved successfully
+ *       403:
+ *         description: Admin access required
+ *       500:
+ *         description: Server error
+ */
+router.get('/futures-orders', tokenRequired, getAllFuturesOrders);
 
 /**
  * @swagger
@@ -111,6 +206,32 @@ router.get('/orders', tokenRequired, getAllOrders);
  *         description: Server error
  */
 router.get('/available-orders', tokenRequired, getAvailableOrders);
+
+/**
+ * @swagger
+ * /api/admin/available-futures-orders:
+ *   get:
+ *     summary: Get available futures orders for following (admin only)
+ *     security:
+ *       - quantumAccessToken: []
+ *     tags: [Admin]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, completed, cancelled, partial, partial_cancelled, failed, pending_profit]
+ *         required: false
+ *         description: Filter futures orders by status. Default is 'pending'
+ *     responses:
+ *       200:
+ *         description: Available futures orders retrieved successfully
+ *       403:
+ *         description: Admin access required
+ *       500:
+ *         description: Server error
+ */
+router.get('/available-futures-orders', tokenRequired, getAvailableFuturesOrders);
 
 /**
  * @swagger
@@ -221,9 +342,26 @@ router.get('/withdrawal-requests', tokenRequired, getAllWithdrawalRequests);
  *         schema:
  *           type: string
  *         description: Withdrawal request ID
+ *         example: "507f1f77bcf86cd799439011"
  *     responses:
  *       200:
  *         description: Withdrawal request approved successfully
+ *       400:
+ *         description: Bad request - invalid request ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid request ID format. Expected a valid MongoDB ObjectId."
+ *                 receivedId:
+ *                   type: string
+ *                   example: ":requestId"
  *       403:
  *         description: Admin access required
  *       404:
@@ -248,6 +386,7 @@ router.post('/withdrawal-requests/:requestId/approve', tokenRequired, approveWit
  *         schema:
  *           type: string
  *         description: Withdrawal request ID
+ *         example: "507f1f77bcf86cd799439011"
  *     requestBody:
  *       required: true
  *       content:
@@ -258,9 +397,26 @@ router.post('/withdrawal-requests/:requestId/approve', tokenRequired, approveWit
  *               reason:
  *                 type: string
  *                 description: Reason for declining the request
+ *                 example: "Insufficient documentation provided"
  *     responses:
  *       200:
  *         description: Withdrawal request declined successfully
+ *       400:
+ *         description: Bad request - invalid request ID format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid request ID format. Expected a valid MongoDB ObjectId."
+ *                 receivedId:
+ *                   type: string
+ *                   example: ":requestId"
  *       403:
  *         description: Admin access required
  *       404:
@@ -393,17 +549,20 @@ router.get('/transfer-stats', tokenRequired, getTransferStats);
  *         schema:
  *           type: string
  *         description: User ID
+ *         example: "507f1f77bcf86cd799439012"
  *       - in: query
  *         name: coinId
  *         schema:
  *           type: string
  *         description: Filter by coin ID
+ *         example: "1280"
  *       - in: query
  *         name: accountType
  *         schema:
  *           type: string
  *           enum: [spot, futures]
  *         description: Filter by account type
+ *         example: "spot"
  *     responses:
  *       200:
  *         description: User transfer details retrieved successfully

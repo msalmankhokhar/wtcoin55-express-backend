@@ -5,7 +5,6 @@ const SpotBalance = require('../models/spot-balance');
 const FuturesBalance = require('../models/futures-balance');
 const { Transactions } = require('../models/transactions');
 const TransferHistory = require('../models/transfer');
-const { calculateTradingProfit, getTradingVolumeStatus: getVolumeStatus } = require('../utils/tradingVolume');
 
 /**
  * Transfer funds from Exchange (main balance) to Trade (spot/futures balance)
@@ -50,7 +49,7 @@ async function transferToTrade(req, res) {
         }
 
         // Calculate required trading volume (1% per trade, so 100x the amount)
-        const requiredVolume = amount * 100;
+        const requiredVolume = amount * 2;
 
         // Create transfer record
         const transfer = new TransferHistory({
@@ -74,13 +73,15 @@ async function transferToTrade(req, res) {
             updatedAt: new Date()
         });
 
-        // Add to Trade balance
+        // Add to Trade balance and RESET trading volume to 0
         let tradeBalance;
         if (destination === 'spot') {
             tradeBalance = await SpotBalance.findOne({ user: user._id, coinId });
             if (tradeBalance) {
                 await SpotBalance.findByIdAndUpdate(tradeBalance._id, {
                     $inc: { balance: amount },
+                    tradingVolume: 0, // Reset trading volume when new funds are added
+                    requiredVolume: requiredVolume, // Set required volume
                     updatedAt: new Date()
                 });
             } else {
@@ -90,6 +91,8 @@ async function transferToTrade(req, res) {
                     coinId,
                     coinName,
                     balance: amount,
+                    tradingVolume: 0, // Start with 0 trading volume
+                    requiredVolume: requiredVolume, // Set required volume
                     currency: coinName,
                     chain: 'default', // You might want to make this configurable
                     memo: '',
@@ -103,6 +106,8 @@ async function transferToTrade(req, res) {
             if (tradeBalance) {
                 await FuturesBalance.findByIdAndUpdate(tradeBalance._id, {
                     $inc: { balance: amount },
+                    tradingVolume: 0, // Reset trading volume when new funds are added
+                    requiredVolume: requiredVolume, // Set required volume
                     updatedAt: new Date()
                 });
             } else {
@@ -112,6 +117,8 @@ async function transferToTrade(req, res) {
                     coinId,
                     coinName,
                     balance: amount,
+                    tradingVolume: 0, // Start with 0 trading volume
+                    requiredVolume: requiredVolume, // Set required volume
                     createdAt: new Date(),
                     updatedAt: new Date()
                 });
@@ -171,6 +178,13 @@ async function transferToExchange(req, res) {
                 message: 'Missing required fields: amount, source, coinId, coinName'
             });
         }
+        const validCoins = ['1280'];
+        if (!validCoins.includes(coinId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid coinId. Must be 1280'
+            });
+        }
 
         if (amount <= 0) {
             return res.status(400).json({
@@ -202,35 +216,23 @@ async function transferToExchange(req, res) {
             });
         }
 
-        // Get all transfers to this trade account
-        const transfers = await TransferHistory.find({
-            user: user._id,
-            toAccount: source,
-            coinId,
-            status: 'completed'
-        }).sort({ createdAt: -1 });
-
-        // Calculate total required volume and current volume
-        let totalRequiredVolume = 0;
-        let totalTransferred = 0;
-
-        transfers.forEach(transfer => {
-            totalRequiredVolume += transfer.requiredVolume;
-            totalTransferred += transfer.amount;
-        });
-
-        // Get user's trading profit (this would come from completed trades)
-        const tradingProfit = await calculateTradingProfit(user._id, coinId, source);
+        // Get current trading volume from balance model (much more efficient!)
+        const currentVolume = tradeBalance.tradingVolume || 0;
+        const requiredVolume = tradeBalance.requiredVolume || 0;
+        
+        console.log(`📊 [transferToExchange] Current volume: ${currentVolume}, Required volume: ${requiredVolume}`);
 
         // Check if volume requirement is met
-        const volumeMet = tradingProfit >= totalRequiredVolume;
+        const volumeMet = currentVolume >= requiredVolume;
+        console.log(`📊 [transferToExchange] Volume met: ${volumeMet}`);
+        
         let fee = 0;
         let feeType = '';
 
         if (volumeMet) {
-            // 10% withdrawal fee if volume is met
-            fee = amount * 0.10;
-            feeType = 'withdrawal_fee';
+            // 0% withdrawal fee if volume is met (as per your changes)
+            fee = 0;
+            feeType = 'no_fee';
         } else {
             // 20% penalty fee if volume is not met
             fee = amount * 0.20;
@@ -250,8 +252,8 @@ async function transferToExchange(req, res) {
             fee,
             feeType,
             netAmount,
-            requiredVolume: totalRequiredVolume,
-            currentVolume: tradingProfit,
+            requiredVolume: requiredVolume,
+            currentVolume: currentVolume,
             volumeMet,
             status: 'completed',
             transferType: 'trade_to_exchange'
@@ -259,9 +261,14 @@ async function transferToExchange(req, res) {
 
         await transfer.save();
 
-        // Deduct from Trade balance
+        // Calculate new balance after withdrawal
+        const newBalance = tradeBalance.balance - amount;
+        const newRequiredVolume = newBalance * 2; // 2x the remaining balance
+
+        // Deduct from Trade balance and update required volume
         await (source === 'spot' ? SpotBalance : FuturesBalance).findByIdAndUpdate(tradeBalance._id, {
-            $inc: { balance: -amount },
+            balance: newBalance,
+            requiredVolume: newRequiredVolume,
             updatedAt: new Date()
         });
 
@@ -302,7 +309,7 @@ async function transferToExchange(req, res) {
 
         res.status(200).json({
             success: true,
-            message: `Successfully transferred ${amount} ${coinName} from ${source} to Exchange`,
+            message: `Successfully transferred ${netAmount} ${coinName} from ${source} to Exchange`,
             data: {
                 transferId: transfer._id,
                 amount,
@@ -310,8 +317,8 @@ async function transferToExchange(req, res) {
                 fee,
                 feeType,
                 volumeMet,
-                requiredVolume: totalRequiredVolume,
-                currentVolume: tradingProfit,
+                requiredVolume: newRequiredVolume,
+                currentVolume: currentVolume,
                 status: 'completed'
             }
         });
@@ -367,7 +374,40 @@ async function getTradingVolumeStatus(req, res) {
             });
         }
 
-        const volumeStatus = await getVolumeStatus(user._id, coinId, accountType);
+        // Get balance and current trading volume directly from balance model
+        let balance;
+        if (accountType === 'spot') {
+            balance = await SpotBalance.findOne({ user: user._id, coinId });
+        } else if (accountType === 'futures') {
+            balance = await FuturesBalance.findOne({ user: user._id, coinId });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid accountType. Must be spot or futures'
+            });
+        }
+
+        if (!balance) {
+            return res.status(404).json({
+                success: false,
+                message: `No ${accountType} balance found for this coin`
+            });
+        }
+
+        const currentVolume = balance.tradingVolume || 0;
+        const requiredVolume = balance.requiredVolume || 0;
+
+        const volumeMet = currentVolume >= requiredVolume;
+        const remainingVolume = Math.max(0, requiredVolume - currentVolume);
+
+        const volumeStatus = {
+            totalRequiredVolume: requiredVolume,
+            currentVolume,
+            volumeMet,
+            remainingVolume,
+            withdrawalFee: 0.00, // 0% if volume met (as per your changes)
+            penaltyFee: 0.20     // 20% if volume not met
+        };
 
         res.status(200).json({
             success: true,

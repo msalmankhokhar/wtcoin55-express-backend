@@ -131,7 +131,7 @@ async function getSpotWalletBalance(req, res) {
         } else {
             balance = await SpotBalance.find({ user: user._id});
         }
-        if (balance === []) return res.status(200).json({message: 'No tokens found', balance});
+        if (balance.length === 0) return res.status(200).json({message: 'No tokens found', balance});
 
         res.status(200).json({message: 'Successfully retrieved', balance});
     } catch (error) {
@@ -157,26 +157,6 @@ async function getFuturesWalletBalance(req, res) {
         res.status(500).json({ error: 'Failed to fetch spot balance' });
     }
 }
-
-// async function fundFuturesAccount(req, res) {
-//     try {
-//         const user = req.user;
-//         const { currency, amount } = req.body;
-
-//         // Validate and fund the user's futures account
-//         if (!amount || amount <= 0) {
-//             return res.status(400).json({ error: 'Invalid funding amount' });
-//         }
-
-//         const result = await bitmart.SpotToFuturesTransfer(currency, amount);
-//         res.status(200).json(result);
-//     } catch (error) {
-//         console.error('Error funding futures account:', error);
-//         res.status(500).json({ error: 'Failed to fund futures account' });
-//     }
-// }
-
-
 
 async function submitSpotOrder(req, res) {
     try {
@@ -873,8 +853,134 @@ async function GetContractDetails(req, res) {
     }
 }
 
+async function FollowFuturesOrder(req, res) {
+    try {
+        const { copyCode } = req.body;
 
+        // Find Order
+        const futuresOrder = await FuturesOrderHistory.findOne({ copyCode });
 
+        if (!futuresOrder || futuresOrder.status !== 'pending') {
+            return res.status(406).json({ message: 'Invalid Order' });
+        }
+        const { symbol, side, type, price, quantity, leverage } = futuresOrder;
+
+        // Check if account is funded
+        const balance = await FuturesBalance.findOne({ user: req.user._id, coinName: 'USDT' });
+        if (!balance) {
+            return res.status(400).json({ message: 'Insufficient Balance' });
+        }
+
+        const { order, error } = await bitmart.submitFuturesOrder(symbol, side, type, quantity, price, leverage);
+
+        if (error) {
+            return res.status(500).json({ error: 'Failed to submit futures order' });
+        }
+
+        // Determine initial role based on order type
+        let preliminaryRole = 'pending'; // We'll update this when we get execution data
+        if (type === 'market') {
+            preliminaryRole = 'taker'; // Market orders are always takers
+        }
+
+        const orderHistory = new FuturesOrderHistory({
+            user: req.user._id,
+            symbol: symbol,
+            quantity: quantity || 0,
+            price: price || 0,
+            side,
+            type,
+            leverage,
+            role: preliminaryRole,
+            owner: false,
+            copyCode,
+            orderId: order.order_id,
+            status: 'pending',
+            followers: []
+        });
+
+        await orderHistory.save();
+
+        res.status(200).json(order);
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to submit futures order' });
+    }
+}
+
+/**
+ * Admin function to create futures order without hitting BitMart API
+ * This allows admins to create orders that users can follow
+ */
+async function createFuturesOrder(req, res) {
+    try {
+        const { symbol, side, type, quantity, price, leverage, percentage } = req.body;
+        
+        // Check if user is admin
+        if (!req.user.isAdmin) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Only admins can create futures orders' 
+            });
+        }
+
+        // Validate required fields
+        if (!symbol || !side || !type || !quantity || !leverage) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Missing required fields: symbol, side, type, quantity, leverage' 
+            });
+        }
+
+        // Generate copy trading code
+        const orderCopyCode = uuidv4().slice(0, 6);
+
+        // Create order without hitting BitMart API
+        const orderHistory = new FuturesOrderHistory({
+            user: req.user._id,
+            symbol: symbol,
+            quantity: quantity || 0,
+            price: price || 0,
+            side,
+            type,
+            leverage,
+            percentage: percentage || 0, // Profit percentage for copy trading
+            role: 'pending',
+            owner: true,
+            copyCode: orderCopyCode,
+            orderId: `admin_${Date.now()}`, // Generate a local order ID
+            status: 'pending',
+            followers: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+
+        await orderHistory.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Futures order created successfully',
+            data: {
+                orderId: orderHistory._id,
+                copyCode: orderCopyCode,
+                symbol,
+                side,
+                type,
+                quantity,
+                price,
+                leverage,
+                percentage
+            }
+        });
+
+    } catch (error) {
+        console.error('Error creating futures order:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to create futures order',
+            error: error.message 
+        });
+    }
+}
 
 module.exports = {
     getTradingPairs,
@@ -891,5 +997,7 @@ module.exports = {
     testTrades,
     submitFuturesOrder,
     submitFuturesPlanOrder,
-    GetContractDetails
+    GetContractDetails,
+    FollowFuturesOrder,
+    createFuturesOrder
 }

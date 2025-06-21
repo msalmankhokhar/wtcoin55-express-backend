@@ -475,6 +475,10 @@ async function updateSpotBalances(userId, order, orderDetails) {
         console.log(`   Execution Price: ${executionPrice} ${quoteCurrency}`);
         console.log(`   Total Cost: ${totalCost} ${quoteCurrency} (including ${totalFees} fees)`);
         
+        // Calculate trading volume (total value of the trade)
+        const tradingVolume = executedQuantity * executionPrice;
+        console.log(`📈 [updateSpotBalances] Trading volume for this trade: ${tradingVolume} ${quoteCurrency}`);
+        
         // Handle BUY orders - Add base currency, deduct quote currency
         if (orderDetails.side === 'buy') {
             console.log(`📈 [updateSpotBalances] Processing BUY order...`);
@@ -485,9 +489,13 @@ async function updateSpotBalances(userId, order, orderDetails) {
             // 2. Deduct quote currency (e.g., USDT) from user's balance
             await updateSpotBalance(userId, quoteCurrency, totalCost, 'subtract');
             
+            // 3. Update trading volume for quote currency (USDT)
+            await updateTradingVolume(userId, quoteCurrency, tradingVolume);
+            
             console.log(`✅ [updateSpotBalances] BUY order processed:`);
             console.log(`   +${executedQuantity} ${baseCurrency} added to balance`);
             console.log(`   -${totalCost} ${quoteCurrency} deducted from balance`);
+            console.log(`   +${tradingVolume} ${quoteCurrency} added to trading volume`);
             
         }
         // Handle SELL orders - Deduct base currency, add quote currency
@@ -501,9 +509,13 @@ async function updateSpotBalances(userId, order, orderDetails) {
             const netQuoteReceived = (executedQuantity * executionPrice) - totalFees;
             await updateSpotBalance(userId, quoteCurrency, netQuoteReceived, 'add');
             
+            // 3. Update trading volume for quote currency (USDT)
+            await updateTradingVolume(userId, quoteCurrency, tradingVolume);
+            
             console.log(`✅ [updateSpotBalances] SELL order processed:`);
             console.log(`   -${executedQuantity} ${baseCurrency} deducted from balance`);
             console.log(`   +${netQuoteReceived} ${quoteCurrency} added to balance (after ${totalFees} fees)`);
+            console.log(`   +${tradingVolume} ${quoteCurrency} added to trading volume`);
         }
         
         console.log(`🎉 [updateSpotBalances] Balance updates completed successfully!`);
@@ -575,6 +587,41 @@ async function updateSpotBalance(userId, coinName, amount, operation) {
 
     } catch (error) {
         console.error(`❌ [updateSpotBalance] Error updating ${coinName} balance:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Update trading volume for a user's specific coin
+ * @param {string} userId - User ID
+ * @param {string} coinName - Coin name (e.g., 'USDT')
+ * @param {number} volume - Trading volume to add
+ */
+async function updateTradingVolume(userId, coinName, volume) {
+    try {
+        console.log(`🔄 [updateTradingVolume] Updating ${coinName} trading volume for user ${userId}: +${volume}`);
+        
+        // Find existing balance for this coin
+        let balance = await SpotBalance.findOne({ 
+            user: userId, 
+            coinName: coinName 
+        });
+        
+        if (balance) {
+            console.log(`📊 [updateTradingVolume] Current ${coinName} trading volume: ${balance.tradingVolume || 0}`);
+            
+            // Update trading volume
+            balance.tradingVolume = (balance.tradingVolume || 0) + volume;
+            balance.updatedAt = new Date();
+            await balance.save();
+            
+            console.log(`✅ [updateTradingVolume] Updated ${coinName} trading volume: ${balance.tradingVolume}`);
+        } else {
+            console.warn(`⚠️ [updateTradingVolume] No balance found for ${coinName}, cannot update trading volume`);
+        }
+
+    } catch (error) {
+        console.error(`❌ [updateTradingVolume] Error updating ${coinName} trading volume:`, error);
         throw error;
     }
 }
@@ -816,6 +863,10 @@ async function updateFuturesBalance(userId, order, orderDetails) {
         const leverage = parseFloat(orderDetails.leverage);
         const marginUsed = executedValue / leverage;
 
+        // Calculate trading volume (total value of the trade)
+        const tradingVolume = executedValue;
+        console.log(`📈 [updateFuturesBalance] Trading volume for this futures trade: ${tradingVolume} USDT`);
+
         // Determine balance change based on order side
         let balanceChange = 0;
         let description = '';
@@ -855,6 +906,7 @@ async function updateFuturesBalance(userId, order, orderDetails) {
 
         await FuturesBalance.findByIdAndUpdate(usdtBalance._id, {
             balance: Math.max(0, newBalance), // Prevent negative balance
+            $inc: { tradingVolume: tradingVolume }, // Add to trading volume
             updatedAt: new Date()
         });
 
@@ -862,6 +914,7 @@ async function updateFuturesBalance(userId, order, orderDetails) {
         console.log(`   Previous: ${usdtBalance.balance.toFixed(6)} USDT`);
         console.log(`   Change: ${balanceChange.toFixed(6)} USDT`);
         console.log(`   New: ${newBalance.toFixed(6)} USDT`);
+        console.log(`   Trading Volume Added: ${tradingVolume.toFixed(6)} USDT`);
         console.log(`   Description: ${description}`);
 
         // TODO: Log transaction history
@@ -1023,42 +1076,28 @@ async function distributeExpiredOrderProfits() {
             try {
                 console.log(`\n🔍 Processing expired order: ${order.orderId} for user ${order.user}`);
                 
-                // Calculate profit
-                const currentPrice = order.price;
-                const finalPrice = order.averageExecutionPrice;
-                const quantity = order.executedQuantity;
-                const profitPercentage = order.percentage;
-                
-                let profitAmount;
-                
-                if (order.side === 'buy') {
-                    profitAmount = (finalPrice - currentPrice) * quantity;
-                } else {
-                    profitAmount = (currentPrice - finalPrice) * quantity;
-                }
-
-                // Update user's USDT balance
+                // Get user's current USDT balance
                 const usdtBalance = await SpotBalance.findOne({ user: order.user, coinId: 1280 });
                 
-                if (usdtBalance) {
-                    await SpotBalance.findByIdAndUpdate(usdtBalance._id, {
-                        $inc: { balance: profitAmount },
-                        updatedAt: new Date()
-                    });
-                    console.log(`✅ Added ${profitAmount} USDT profit to user ${order.user}`);
-                } else {
-                    // Create USDT balance if it doesn't exist
-                    const newUsdtBalance = new SpotBalance({
-                        user: order.user,
-                        coinId: 1280,
-                        coinName: 'USDT',
-                        balance: profitAmount,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    });
-                    await newUsdtBalance.save();
-                    console.log(`✅ Created new USDT balance with ${profitAmount} USDT for user ${order.user}`);
+                if (!usdtBalance) {
+                    console.log(`❌ No USDT balance found for user ${order.user}, skipping order`);
+                    continue;
                 }
+
+                const currentBalance = usdtBalance.balance;
+                const profitPercentage = order.percentage;
+
+                // Calculate profit based on current balance * profit percentage
+                const profitAmount = currentBalance * profitPercentage;
+                
+                console.log(`💰 Current balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}, Profit amount: ${profitAmount} USDT`);
+
+                // Update user's USDT balance with the profit
+                await SpotBalance.findByIdAndUpdate(usdtBalance._id, {
+                    $inc: { balance: profitAmount },
+                    updatedAt: new Date()
+                });
+                console.log(`✅ Added ${profitAmount} USDT profit to user ${order.user}`);
 
                 // Update order status to completed
                 await SpotOrderHistory.findByIdAndUpdate(order._id, {
@@ -1083,5 +1122,5 @@ async function distributeExpiredOrderProfits() {
 }
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
-    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits
+    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, updateTradingVolume, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits
  };

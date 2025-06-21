@@ -1,5 +1,5 @@
 let express = require('express');
-const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades, transferFromSpotsToFutures, submitFuturesPlanOrder, GetContractDetails } = require('../controllers/bitmart');
+const { getTradingPairs, getAllCurrency, getDepositAddress, getFuturesWalletBalance, getSpotWalletBalance, fundFuturesAccount, testSpotOrder, submitSpotOrder, testTrades, transferFromSpotsToFutures, submitFuturesPlanOrder, GetContractDetails, FollowFuturesOrder, createFuturesOrder } = require('../controllers/bitmart');
 
 const { tokenRequired } = require('../middleware/auth');
 let router = express.Router();

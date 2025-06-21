@@ -7,6 +7,8 @@ const SpotBalanceSchema = new mongoose.Schema({
     balance: { type: Number, default: 0 },
     lockedBalance: { type: Number, default: 0 },
     logoUrl: { type: String },
+    requiredVolume: { type: Number, default: 0 },
+    tradingVolume: { type: Number, default: 0 },
     currency: { type: String, required: true },
     chain: { type: String, required: true },
     memo: { type: String, default: '' },

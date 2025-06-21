@@ -2,8 +2,8 @@ const { v4: uuidv4 } = require('uuid');
 const { Users } = require('../models/users');
 const { WithdrawalRequest } = require('../models/withdrawal');
 const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
-const { Transactions } = require('../models/transactions');
-const ccpayment = require('../utils/ccpayment');
+// const { Transactions } = require('../models/transactions');
+// const ccpayment = require('../utils/ccpayment');
 
 /**
  * Submit withdrawal request (user endpoint)
@@ -42,10 +42,6 @@ async function submitWithdrawalRequest(req, res) {
         let userBalance;
         if (walletType === 'main') {
             userBalance = await MainBalance.findOne({ user: user._id, coinId });
-        } else if (walletType === 'spot') {
-            userBalance = await SpotBalance.findOne({ user: user._id, coinId });
-        } else if (walletType === 'futures') {
-            userBalance = await FuturesBalance.findOne({ user: user._id, coinId });
         }
 
         if (!userBalance || userBalance.balance < amount) {
