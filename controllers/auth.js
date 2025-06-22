@@ -284,7 +284,8 @@ const loginUser = async (req, res) => {
             user: {
                 id: user._id,
                 email: user.email || null,
-                phonenumber: user.phonenumber || null
+                phonenumber: user.phonenumber || null,
+                isAdmin: user.isAdmin || false
             },
             token
         });
