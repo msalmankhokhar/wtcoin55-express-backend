@@ -108,8 +108,21 @@ async function submitFuturesOrder(req, res) {
             });
         }
 
-        if (!symbol || !side || !type || !size || !trigger_price) {
-            return res.status(400).json({ error: 'Symbol, side, type, size, and trigger_price are required' });
+        if (
+            symbol == null || symbol === '' ||
+            side == null ||  // Allow 0 as valid value
+            type == null || type === '' ||
+            size == null ||  // Allow 0 as valid value  
+            trigger_price == null || trigger_price === ''
+        ) {
+            console.log("Symbol: ", symbol);
+            console.log("Side: ", side);
+            console.log("Type: ", type);
+            console.log("Size: ", size);
+            console.log("Trigger price: ", trigger_price);
+            return res.status(400).json({ 
+                error: 'Symbol, side, type, size, and trigger_price are required' 
+            });
         }
 
         // Validate percentage

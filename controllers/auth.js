@@ -64,7 +64,8 @@ const Signup = async (req, res) => {
             password: password, // Save as plain text
             email: email ? email.toLowerCase().trim() : undefined,
             phonenumber: phonenumber ? phonenumber.trim() : undefined,
-            emailVerified: true,
+            emailVerified: email ? true : false,
+            phoneVerified: phonenumber ? true : false,
             referBy,
             refCode
         });
@@ -88,7 +89,7 @@ const Signup = async (req, res) => {
 }
 
 const GetVerificationCode = async (req, res) => {
-    const { email, phonenumber } = req.body;
+    const { email } = req.body;
     if (!email && !phonenumber) return res.status(400).json({ message: 'Email or Phonenumber is required' });
 
     try {
@@ -96,10 +97,8 @@ const GetVerificationCode = async (req, res) => {
         if (email) {
             otp = await createOrUpdateOTP(email);
             await mail.sendOTPEmail({ email, otp });
-        } else if (phonenumber) {
-            otp = await createOrUpdateOTP(phonenumber);
-            await mail.sendOTPEmail({ phonenumber, otp });
         }
+
         res.status(200).json({ otp });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -296,7 +295,162 @@ const loginUser = async (req, res) => {
     }
 };
 
+/**
+ * Send phone verification OTP
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function sendPhoneOTP(req, res) {
+    try {
+        const { phoneNumber } = req.body;
+
+        if (!phoneNumber) {
+            return res.status(400).json({
+                success: false,
+                message: 'Phone number is required'
+            });
+        }
+
+        // Import Twilio service
+        const twilioService = require('../utils/twilio');
+        
+        // Format phone number
+        const formattedPhone = twilioService.formatPhoneNumber(phoneNumber);
+        
+        // Validate phone number
+        if (!twilioService.isValidPhoneNumber(formattedPhone)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid phone number format. Please include country code (e.g., +1234567890)'
+            });
+        }
+
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Save OTP to database (you can use the existing OTP model)
+        const { OTP } = require('../models/otp');
+        
+        // Delete any existing OTP for this phone number
+        await OTP.findOneAndDelete({ emailOrPhone: formattedPhone });
+        
+        // Create new OTP
+        const otpRecord = new OTP({
+            emailOrPhone: formattedPhone,
+            otp: otp,
+            type: 'phone'
+        });
+        
+        await otpRecord.save();
+
+        // Send SMS
+        const smsResult = await twilioService.sendOTP(formattedPhone, otp);
+
+        if (smsResult.success) {
+            res.status(200).json({
+                success: true,
+                message: 'OTP sent successfully to your phone number',
+                data: {
+                    phoneNumber: formattedPhone,
+                    messageId: smsResult.messageId
+                }
+            });
+        } else {
+            // If SMS fails, delete the OTP record
+            await OTP.findByIdAndDelete(otpRecord._id);
+            
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send OTP. Please try again.',
+                error: smsResult.error
+            });
+        }
+
+    } catch (error) {
+        console.error('Error sending phone OTP:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send phone OTP'
+        });
+    }
+}
+
+/**
+ * Verify phone OTP
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function verifyPhoneOTP(req, res) {
+    try {
+        const { phoneNumber, otp } = req.body;
+
+        if (!phoneNumber || !otp) {
+            return res.status(400).json({
+                success: false,
+                message: 'Phone number and OTP are required'
+            });
+        }
+
+        // Import Twilio service for phone formatting
+        const twilioService = require('../utils/twilio');
+        const formattedPhone = twilioService.formatPhoneNumber(phoneNumber);
+
+        // Find and validate OTP
+        const { OTP } = require('../models/otp');
+        const otpRecord = await OTP.findOne({
+            emailOrPhone: formattedPhone,
+            otp: otp,
+            type: 'phone',
+            status: 'pending'
+        });
+
+        if (!otpRecord) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid OTP or OTP has expired'
+            });
+        }
+
+        // Check if OTP has expired (10 minutes)
+        if (otpRecord.expiredAt < Date.now()) {
+            await OTP.findByIdAndDelete(otpRecord._id);
+            return res.status(400).json({
+                success: false,
+                message: 'OTP has expired. Please request a new one.'
+            });
+        }
+
+        // Mark OTP as verified
+        otpRecord.status = 'verified';
+        await otpRecord.save();
+
+        // Update user's phone verification status if user is logged in
+        if (req.user) {
+            const { Users } = require('../models/users');
+            await Users.findByIdAndUpdate(req.user._id, {
+                phoneVerified: true,
+                phoneNumber: formattedPhone
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Phone number verified successfully',
+            data: {
+                phoneNumber: formattedPhone,
+                verified: true
+            }
+        });
+
+    } catch (error) {
+        console.error('Error verifying phone OTP:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to verify phone OTP'
+        });
+    }
+}
 
 
-module.exports = { loginUser, Signup, GetVerificationCode, forgotPassword, resetPassword };
+module.exports = { loginUser, Signup, GetVerificationCode, forgotPassword, resetPassword, sendPhoneOTP, verifyPhoneOTP };
 

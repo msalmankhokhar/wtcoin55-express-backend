@@ -15,6 +15,7 @@ const UsersSchema = new mongoose.Schema({
     },
     // totalBalance: { type: Number, default: 0 },
     emailVerified: { type: Boolean, default: false },
+    phoneVerified: { type: Boolean, default: false },
     firstDeposit: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
     kycVerification: { type: Boolean, default: false },
