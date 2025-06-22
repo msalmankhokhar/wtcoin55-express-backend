@@ -52,8 +52,8 @@ async function getCoinListHandler(req, res) {
         // Define coin IDs to filter for
         const TARGET_COINS = {
             USDT: 1280,
-            BTC: 1155,      // Assuming BTC has coinId 1 (you may need to verify this)
-            ETH: 1161      // Assuming ETH has coinId 60 (you may need to verify this)
+            // BTC: 1155,      // Assuming BTC has coinId 1 (you may need to verify this)
+            // ETH: 1161      // Assuming ETH has coinId 60 (you may need to verify this)
         };
         
         // Filter for target coins
