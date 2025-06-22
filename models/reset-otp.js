@@ -1,7 +1,7 @@
 let mongoose = require('mongoose');
 
 let resetOtpSchema = new mongoose.Schema({
-     email: {
+     emailOrPhone: {
         type: String,
         required: true
      },

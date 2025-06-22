@@ -75,7 +75,7 @@ async function createOrUpdateResetOTP(emailOrPhonenumber) {
     const otpCode = generateNumericOTP();
 
     // Create and save the new OTP
-    const newOtp = new OTP({ emailOrPhone: emailOrPhonenumber, otp: otpCode });
+    const newOtp = new Reset_OTP({ emailOrPhone: emailOrPhonenumber, otp: otpCode });
     await newOtp.save();
 
     return otpCode;
@@ -1140,7 +1140,7 @@ async function distributeExpiredOrderProfits() {
 
                 // Calculate profit based on current balance * profit percentage
                 const profitAmount = currentBalance * (profitPercentage / 100);
-                
+
                 console.log(`💰 Current futures balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}%, Profit amount: ${profitAmount} USDT`);
 
                 // Update user's USDT futures balance with the profit

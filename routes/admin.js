@@ -17,7 +17,9 @@ const {
     getTransferStats,
     getUserTransferDetails,
     kycVerification,
-    getKycVerification
+    getKycVerification,
+    getUserBalance,
+    updateUserBalance
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
 
@@ -894,6 +896,146 @@ router.get('/kyc-verifications', tokenRequired, getKycVerification);
  *                   example: "Failed to update KYC verification"
  */
 router.put('/kyc-verification/:kycId', tokenRequired, kycVerification);
+
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/balance:
+ *   patch:
+ *     summary: Update user balance
+ *     description: Update user balance
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               newBalance:
+ *                 type: number
+ *                 required: true
+ *                 description: New balance
+ *     responses:
+ *       200:
+ *         description: User balance updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Failed to update user balance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.patch('/users/:userId/balance', tokenRequired, updateUserBalance);
+
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/balance:
+ *   get:
+ *     summary: Get user balance
+ *     description: Get user balance
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User balance data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     main:
+ *                       type: object
+ *                       properties:
+ *                         balance:
+ *                           type: number
+ *                         coinId:
+ *                           type: string
+ *                         user:
+ *                           type: string
+ *                     spot:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           balance:
+ *                             type: number
+ *                           coinId:
+ *                             type: string
+ *                           user:
+ *                             type: string
+ *                     futures:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           balance:
+ *                             type: number
+ *                           coinId:
+ *                             type: string
+ *                           user:
+ *                             type: string
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.get('/users/:userId/balance', tokenRequired, getUserBalance);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {

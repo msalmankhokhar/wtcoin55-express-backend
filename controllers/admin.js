@@ -1226,6 +1226,98 @@ async function getKycVerification(req, res) {
     }
 }
 
+async function updateUserBalance(req, res) {
+    try {
+        const { userId } = req.params;
+        const { newBalance } = req.body;
+
+        const user = await Users.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        const coinId = "1280";
+
+        const { MainBalance } = require('../models/balance');
+        const mainBalance = await MainBalance.findOne({ user: userId, coinId });
+        if (!mainBalance) {
+            return res.status(404).json({
+                success: false,
+                error: 'Main balance not found'
+            });
+        }
+
+        mainBalance.balance = newBalance;
+        await mainBalance.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'User balance updated successfully'
+        });
+
+    } catch(error) {
+        console.error('Error updating user balance:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update user balance'
+        });
+    }
+}
+
+async function getUserBalance(req, res) {
+    try {
+        console.log(req.params);
+        const { userId } = req.params;
+        const user = await Users.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        const { MainBalance } = require('../models/balance');
+        const SpotBalance = require('../models/spot-balance');
+        const FuturesBalance = require('../models/futures-balance');
+        let balances = {};
+
+        // Get Main Balance
+        balances['main'] = await MainBalance.find({ user: userId });
+
+        // Get Spot Balances
+        balances['spot'] = await SpotBalance.find({ user: userId });
+
+        // Get Futures Balances
+        balances['futures'] = await FuturesBalance.find({ user: userId });
+
+         // Check if user has any balances (fixed condition)
+        const hasMainBalance = balances.main !== null;
+        const hasSpotBalances = balances.spot && balances.spot.length > 0;
+        const hasFuturesBalances = balances.futures && balances.futures.length > 0;
+
+        if (!hasMainBalance && !hasSpotBalances && !hasFuturesBalances) {
+            return res.status(200).json({
+                success: false,
+                data: balances,
+                msg: 'User balance empty'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: balances
+        })
+    } catch(error) {
+        console.error('Error getting user balance:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get user balance'
+        });
+    }
+}
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -1244,5 +1336,7 @@ module.exports = {
     getTransferStats,
     getUserTransferDetails,
     kycVerification,
-    getKycVerification
+    getKycVerification,
+    getUserBalance,
+    updateUserBalance
 }; 

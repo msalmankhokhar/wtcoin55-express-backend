@@ -156,7 +156,7 @@ const resetPassword = async (req, res) => {
     try {
         const { otp, email, newPassword } = req.body;
 
-        let reset_otp = (await Reset_OTP.find({ email: email, otp: otp }));
+        let reset_otp = (await Reset_OTP.find({ emailOrPhone: email, otp: otp }));
 
         if (!reset_otp.length) return res.status(404).json({ status: false, message: 'Invalid code' });
 
