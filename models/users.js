@@ -17,6 +17,7 @@ const UsersSchema = new mongoose.Schema({
     emailVerified: { type: Boolean, default: false },
     firstDeposit: { type: Boolean, default: false },
     isAdmin: { type: Boolean, default: false },
+    kycVerification: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     lastLogin: {type: Date, required: false}
 });

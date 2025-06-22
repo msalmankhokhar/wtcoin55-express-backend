@@ -139,4 +139,49 @@ async function getUserTradingVolumeStatus(req, res) {
     }
 }
 
-module.exports = { getProfile, getBalance, transactionHistory, getUserBalances, getUserTradingVolumeStatus };
+async function kycVerificationSubmission(req, res) {
+    try {
+        const user = req.user;
+        const { kycVerification } = require('../models/kycVerification');
+
+        const { fullName, city, country, idNumber } = req.body;
+
+        // Validate required fields
+        if (!fullName || !city || !country || !idNumber) {
+            return res.status(400).json({
+                success: false,
+                message: 'All fields are required: fullName, city, country, idNumber'
+            });
+        }
+
+        if (user.kycVerification) {
+            return res.status(400).json({
+                success: false,
+                message: 'KYC verification already submitted'
+            });
+        }
+
+        const kycverification = new kycVerification({
+            user: user._id,
+            fullName,
+            city,
+            country,
+            idNumber
+        });
+
+        await kycverification.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'KYC verification submitted successfully'
+        });
+    } catch (error) {
+        console.error('Error submitting KYC verification:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to submit KYC verification'
+        });
+    }
+}
+
+module.exports = { getProfile, getBalance, transactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission };

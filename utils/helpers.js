@@ -1057,27 +1057,35 @@ async function testMultipleOrders(orderIds) {
 }
 
 /**
- * Distribute profits for expired orders
+ * Distribute profits for expired orders (both spot and futures)
  * @returns {Promise<void>}
  */
 async function distributeExpiredOrderProfits() {
     try {
         console.log('💰 Starting profit distribution for expired orders...');
         
-        // Find all orders that have expired and are pending profit distribution
-        const expiredOrders = await SpotOrderHistory.find({
+        // Find all spot orders that have expired and are pending profit distribution
+        const expiredSpotOrders = await SpotOrderHistory.find({
             status: 'pending_profit',
             expiration: { $lte: new Date() }
         });
 
-        console.log(`📋 Found ${expiredOrders.length} expired orders to process`);
+        // Find all futures orders that have expired and are pending profit distribution
+        const expiredFuturesOrders = await FuturesOrderHistory.find({
+            status: 'pending_profit',
+            expiration: { $lte: new Date() }
+        });
 
-        for (const order of expiredOrders) {
+        console.log(`📋 Found ${expiredSpotOrders.length} expired spot orders to process`);
+        console.log(`📋 Found ${expiredFuturesOrders.length} expired futures orders to process`);
+
+        // Process expired spot orders
+        for (const order of expiredSpotOrders) {
             try {
-                console.log(`\n🔍 Processing expired order: ${order.orderId} for user ${order.user}`);
+                console.log(`\n🔍 Processing expired spot order: ${order.orderId} for user ${order.user}`);
                 
                 // Get user's current USDT balance
-                const usdtBalance = await SpotBalance.findOne({ user: order.user, coinId: 1280 });
+                const usdtBalance = await SpotBalance.findOne({ user: order.user, coinId: "1280" });
                 
                 if (!usdtBalance) {
                     console.log(`❌ No USDT balance found for user ${order.user}, skipping order`);
@@ -1088,9 +1096,9 @@ async function distributeExpiredOrderProfits() {
                 const profitPercentage = order.percentage;
 
                 // Calculate profit based on current balance * profit percentage
-                const profitAmount = currentBalance * profitPercentage;
+                const profitAmount = currentBalance * (profitPercentage / 100);
                 
-                console.log(`💰 Current balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}, Profit amount: ${profitAmount} USDT`);
+                console.log(`💰 Current balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}%, Profit amount: ${profitAmount} USDT`);
 
                 // Update user's USDT balance with the profit
                 await SpotBalance.findByIdAndUpdate(usdtBalance._id, {
@@ -1106,15 +1114,58 @@ async function distributeExpiredOrderProfits() {
                     updatedAt: new Date()
                 });
 
-                console.log(`✅ Order ${order.orderId} marked as completed with profit: ${profitAmount} USDT`);
+                console.log(`✅ Spot order ${order.orderId} marked as completed with profit: ${profitAmount} USDT`);
 
             } catch (orderError) {
-                console.error(`❌ Error processing expired order ${order.orderId}:`, orderError);
+                console.error(`❌ Error processing expired spot order ${order.orderId}:`, orderError);
+                continue; // Continue with next order
+            }
+        }
+
+        // Process expired futures orders
+        for (const order of expiredFuturesOrders) {
+            try {
+                console.log(`\n🔍 Processing expired futures order: ${order.orderId} for user ${order.user}`);
+                
+                // Get user's current USDT balance in futures
+                const usdtBalance = await FuturesBalance.findOne({ user: order.user, coinId: "1280" });
+                
+                if (!usdtBalance) {
+                    console.log(`❌ No USDT futures balance found for user ${order.user}, skipping order`);
+                    continue;
+                }
+
+                const currentBalance = usdtBalance.balance;
+                const profitPercentage = order.percentage;
+
+                // Calculate profit based on current balance * profit percentage
+                const profitAmount = currentBalance * (profitPercentage / 100);
+                
+                console.log(`💰 Current futures balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}%, Profit amount: ${profitAmount} USDT`);
+
+                // Update user's USDT futures balance with the profit
+                await FuturesBalance.findByIdAndUpdate(usdtBalance._id, {
+                    $inc: { balance: profitAmount },
+                    updatedAt: new Date()
+                });
+                console.log(`✅ Added ${profitAmount} USDT profit to user ${order.user} futures balance`);
+
+                // Update order status to completed
+                await FuturesOrderHistory.findByIdAndUpdate(order._id, {
+                    status: 'completed',
+                    executedAt: new Date(),
+                    updatedAt: new Date()
+                });
+
+                console.log(`✅ Futures order ${order.orderId} marked as completed with profit: ${profitAmount} USDT`);
+
+            } catch (orderError) {
+                console.error(`❌ Error processing expired futures order ${order.orderId}:`, orderError);
                 continue; // Continue with next order
             }
         }
         
-        console.log('✅ Profit distribution completed');
+        console.log('✅ Profit distribution completed for both spot and futures orders');
         
     } catch (error) {
         console.error('❌ Error in profit distribution:', error);

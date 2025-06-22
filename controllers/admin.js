@@ -1102,6 +1102,117 @@ async function getUserTransferDetails(req, res) {
     }
 }
 
+async function kycVerification(req, res) {
+    try {
+        const { kycId } = req.params;
+        const { status } = req.body;
+
+        const { kycVerification: KYCVerificationModel } = require('../models/kycVerification');
+
+        const validateObjectId = require('mongoose').Types.ObjectId.isValid(kycId);
+        if (!validateObjectId) {    
+            return res.status(400).json({ 
+                success: false,
+                error: 'Invalid KYC verification ID format' 
+            });
+        }
+
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ 
+                success: false,
+                error: 'Invalid status. Must be either "approved" or "rejected"' 
+            });
+        }
+
+        const kycRecord = await KYCVerificationModel.findById(kycId);
+        if (!kycRecord) {
+            return res.status(404).json({ 
+                success: false,
+                error: 'KYC verification not found' 
+            });
+        }
+
+        if (kycRecord.status !== 'pending') {
+            return res.status(400).json({ 
+                success: false,
+                error: 'KYC verification has already been processed' 
+            });
+        }
+
+        await Users.findByIdAndUpdate(kycRecord.user, 
+            { kycVerification: status === 'approved' ? true : false },
+            { new: true }
+        );
+
+        kycRecord.status = status;
+        await kycRecord.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'KYC verification updated successfully',
+            data: {
+                kycId: kycRecord._id,
+                status: kycRecord.status,
+                fullName: kycRecord.fullName,
+                updatedAt: kycRecord.updatedAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating KYC verification:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update KYC verification'
+        });
+    }
+}
+
+async function getKycVerification(req, res) {
+    try {
+        const { kycVerification: KYCVerificationModel } = require('../models/kycVerification');
+        
+        const { status, page = 1, limit = 20 } = req.query;
+        
+        // Build query filter
+        let query = {};
+        if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+            query.status = status;
+        }
+        
+        // Calculate pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const limitNum = parseInt(limit);
+        
+        // Get KYC verifications with user details
+        const kycVerifications = await KYCVerificationModel.find(query)
+            .populate('user', 'email firstName lastName')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limitNum);
+            
+        // Get total count for pagination
+        const totalCount = await KYCVerificationModel.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            data: kycVerifications,
+            pagination: {
+                page: parseInt(page),
+                limit: limitNum,
+                total: totalCount,
+                pages: Math.ceil(totalCount / limitNum)
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting KYC verification:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get KYC verification data'
+        });
+    }
+}
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -1118,5 +1229,7 @@ module.exports = {
     getOrderDetails,
     getAllTransfers,
     getTransferStats,
-    getUserTransferDetails
+    getUserTransferDetails,
+    kycVerification,
+    getKycVerification
 }; 

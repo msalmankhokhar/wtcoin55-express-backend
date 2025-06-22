@@ -185,5 +185,7 @@ cron.schedule('* * * * *', async () => {
     console.log('Running cron job to check trading deposit transactions...');
     await checkTradingDepositTransactions();
     await distributeExpiredOrderProfits();
+    // await getSpotHistoryAndStatus();
+    // await getFuturesHistoryAndStatus(); 
 });
 
