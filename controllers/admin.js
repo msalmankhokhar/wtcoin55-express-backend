@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const { Users } = require('../models/users');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
-// const { SpotBalance } = require('../models/spot-balance');
+const { VipTier } = require('../models/vip');
 const TransferHistory = require('../models/transfer');
 
 /**
@@ -487,7 +487,8 @@ async function getAllUsers(req, res) {
             });
         }
 
-        const users = await Users.find({})
+        const users = await Users.find({ isAdmin: false })
+            .populate('vipTier', '_id vipName vipLevel')
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -1424,6 +1425,164 @@ async function getUserBalance(req, res) {
     }
 }
 
+async function updateUserVipTier(req, res) {
+    try {
+        const { userId } = req.params;
+        const { vipTierId } = req.body;
+
+        const user = await Users.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+
+        const vipTier = await VipTier.findById(vipTierId);
+        if (!vipTier) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vip tier not found'
+            });
+        }
+
+        user.vipTier = vipTierId;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            data: user
+        });
+    } catch (error) {
+        console.error('Error updating vip tier:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update vip tier'
+        });
+    }
+}
+
+async function getVipTier(req, res) {
+    try {
+        const vipTiers = await VipTier.find({});
+        return res.status(200).json({
+            success: true,
+            data: vipTiers
+        });
+    } catch (error) {
+        console.error('Error getting vip tiers:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get vip tiers'
+        });
+    }
+}
+
+async function updateVipTier(req, res) {
+    try {
+        const { vipTierId } = req.params;
+        const { vipName, vipLevel, vipStatus, vipPercentage } = req.body;
+
+        const vipTier = await VipTier.findById(vipTierId);
+        if (!vipTier) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vip tier not found'
+            });
+        }
+
+        vipTier.vipName = vipName || vipTier.vipName;
+        vipTier.vipLevel = vipLevel || vipTier.vipLevel;
+        vipTier.vipStatus = vipStatus || vipTier.vipStatus;
+        vipTier.vipPercentage = vipPercentage || vipTier.vipPercentage;
+        await vipTier.save();
+
+        return res.status(200).json({
+            success: true,
+            data: vipTier
+        });
+    } catch (error) {
+        console.error('Error updating vip tier:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update vip tier'
+        });
+    }
+}
+
+async function deleteVipTier(req, res) {
+    try {
+        const { vipTierId } = req.params;
+        const vipTier = await VipTier.findById(vipTierId);
+        if (!vipTier) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vip tier not found'
+            });
+        }
+
+        const users = await Users.find({ vipTier: vipTierId });
+        for (const user of users) {
+            user.vipTier = null;
+            await user.save();
+        }
+
+        await vipTier.deleteOne();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Vip tier deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting vip tier:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to delete vip tier'
+        });
+    }
+}
+
+async function addVipTier(req, res) {
+    try {
+        const { vipName, vipLevel, vipStatus, vipPercentage } = req.body;
+
+        if (!vipName || !vipLevel || !vipStatus || !vipPercentage) {
+            return res.status(400).json({
+                success: false,
+                error: 'Required field missing'
+            })
+        }
+        const levelExist = await VipTier.find({ vipLevel: vipLevel });
+
+        if (levelExist.length !== 0) {
+            // console.log(levelExist);
+            return res.status(406).json({
+                success: false,
+                error: 'Vip level already exists'
+            });
+        }
+
+        const vipTier = new VipTier({
+            vipName,
+            vipLevel,
+            vipStatus,
+            vipPercentage
+        });
+        await vipTier.save();
+
+        return res.status(200).json({
+            success: true,
+            data: vipTier
+        });
+    } catch(error) {
+        console.error('Error adding vip tier:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to adding vip tier'
+        });
+    }
+}
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -1444,5 +1603,10 @@ module.exports = {
     kycVerification,
     getKycVerification,
     getUserBalance,
-    updateUserBalance
+    updateUserBalance,
+    updateUserVipTier,
+    getVipTier,
+    addVipTier,
+    updateVipTier,
+    deleteVipTier
 }; 

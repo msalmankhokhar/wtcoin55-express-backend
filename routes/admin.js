@@ -19,7 +19,12 @@ const {
     kycVerification,
     getKycVerification,
     getUserBalance,
-    updateUserBalance
+    updateUserBalance,
+    updateUserVipTier,
+    getVipTier,
+    addVipTier,
+    updateVipTier,
+    deleteVipTier
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
 
@@ -897,7 +902,6 @@ router.get('/kyc-verifications', tokenRequired, getKycVerification);
  */
 router.put('/kyc-verification/:kycId', tokenRequired, kycVerification);
 
-
 /**
  * @swagger
  * /api/admin/users/{userId}/balance:
@@ -961,7 +965,6 @@ router.put('/kyc-verification/:kycId', tokenRequired, kycVerification);
  *                   type: string
  */
 router.patch('/users/:userId/balance', tokenRequired, updateUserBalance);
-
 
 /**
  * @swagger
@@ -1092,6 +1095,353 @@ router.patch('/users/:userId/balance', tokenRequired, updateUserBalance);
  *                   type: string
  */
 router.get('/users/balance', tokenRequired, getUserBalance);
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/vip-tier:
+ *   patch:
+ *     summary: Update user VIP tier
+ *     description: Assign a VIP tier to a specific user
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vipTierId:
+ *                 type: string
+ *                 required: true
+ *                 description: VIP tier ID to assign to user
+ *     responses:
+ *       200:
+ *         description: User VIP tier updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     vipTier:
+ *                       type: string
+ *       404:
+ *         description: User or VIP tier not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Failed to update user VIP tier
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.patch('/users/:userId/vip-tier', tokenRequired, updateUserVipTier);
+
+/**
+ * @swagger
+ * /api/admin/vip-tiers:
+ *   get:
+ *     summary: Get all VIP tiers
+ *     description: Retrieve all VIP tiers in the system
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: VIP tiers retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       vipName:
+ *                         type: string
+ *                       vipLevel:
+ *                         type: number
+ *                       vipStatus:
+ *                         type: string
+ *                       vipPercentage:
+ *                         type: number
+ *       500:
+ *         description: Failed to get VIP tiers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.get('/vip-tiers', tokenRequired, getVipTier);
+
+/**
+ * @swagger
+ * /api/admin/vip-tiers:
+ *   post:
+ *     summary: Add new VIP tier
+ *     description: Create a new VIP tier
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - vipName
+ *               - vipLevel
+ *               - vipStatus
+ *               - vipPercentage
+ *             properties:
+ *               vipName:
+ *                 type: string
+ *                 description: Name of the VIP tier
+ *               vipLevel:
+ *                 type: number
+ *                 description: Level of the VIP tier
+ *               vipStatus:
+ *                 type: string
+ *                 description: Status of the VIP tier
+ *               vipPercentage:
+ *                 type: number
+ *                 description: Percentage associated with the VIP tier
+ *     responses:
+ *       200:
+ *         description: VIP tier created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     vipName:
+ *                       type: string
+ *                     vipLevel:
+ *                       type: number
+ *                     vipStatus:
+ *                       type: string
+ *                     vipPercentage:
+ *                       type: number
+ *       400:
+ *         description: Required field missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       406:
+ *         description: VIP level already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Failed to add VIP tier
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.post('/vip-tiers', tokenRequired, addVipTier);
+
+/**
+ * @swagger
+ * /api/admin/vip-tiers/{vipTierId}:
+ *   patch:
+ *     summary: Update VIP tier
+ *     description: Update an existing VIP tier
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: path
+ *         name: vipTierId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: VIP tier ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               vipName:
+ *                 type: string
+ *                 description: Name of the VIP tier
+ *               vipLevel:
+ *                 type: number
+ *                 description: Level of the VIP tier
+ *               vipStatus:
+ *                 type: string
+ *                 description: Status of the VIP tier
+ *               vipPercentage:
+ *                 type: number
+ *                 description: Percentage associated with the VIP tier
+ *     responses:
+ *       200:
+ *         description: VIP tier updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     vipName:
+ *                       type: string
+ *                     vipLevel:
+ *                       type: number
+ *                     vipStatus:
+ *                       type: string
+ *                     vipPercentage:
+ *                       type: number
+ *       404:
+ *         description: VIP tier not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Failed to update VIP tier
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.patch('/vip-tiers/:vipTierId', tokenRequired, updateVipTier);
+
+/**
+ * @swagger
+ * /api/admin/vip-tiers/{vipTierId}:
+ *   delete:
+ *     summary: Delete VIP tier
+ *     description: Delete a VIP tier and remove it from all users
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: path
+ *         name: vipTierId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: VIP tier ID to delete
+ *     responses:
+ *       200:
+ *         description: VIP tier deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: VIP tier not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Failed to delete VIP tier
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.delete('/vip-tiers/:vipTierId', tokenRequired, deleteVipTier);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {
