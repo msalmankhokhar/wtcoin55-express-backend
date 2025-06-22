@@ -70,6 +70,38 @@ const Signup = async (req, res) => {
             refCode
         });
 
+        // Create the Balances for the user
+        const { MainBalance } = require('../models/balance');
+        const SpotBalance = require('../models/spot-balance');
+        const FuturesBalance = require('../models/futures-balance');
+
+        await MainBalance.create({
+            user: newUser._id,
+            balance: 0,
+            coinId: 1280,
+            chain: 'ETH',
+            coinName: 'USDT',
+            currency: 'USDT'
+        });
+
+        await SpotBalance.create({
+            user: newUser._id,
+            balance: 0,
+            coinId: 1280,
+            chain: 'ETH',
+            coinName: 'USDT',
+            currency: 'USDT'
+        });
+
+        await FuturesBalance.create({
+            user: newUser._id,
+            balance: 0,
+            coinId: 1280,
+            chain: 'ETH',
+            coinName: 'USDT',
+            currency: 'USDT'
+        });
+
         console.log('New User Created:', newUser);
         const web_base_url = process.env.WEB_BASE_URL;
 

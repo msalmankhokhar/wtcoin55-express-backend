@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const { Users } = require('../models/users');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
-const { SpotBalance } = require('../models/spot-balance');
+// const { SpotBalance } = require('../models/spot-balance');
 const TransferHistory = require('../models/transfer');
 
 /**
@@ -1297,17 +1297,46 @@ async function getUserBalance(req, res) {
             // Get Futures Balances
             balances['futures'] = await FuturesBalance.find({ user: userId });
 
-            // Check if user has any balances
-            const hasMainBalance = balances.main && balances.main.length > 0;
-            const hasSpotBalances = balances.spot && balances.spot.length > 0;
-            const hasFuturesBalances = balances.futures && balances.futures.length > 0;
-
-            if (!hasMainBalance && !hasSpotBalances && !hasFuturesBalances) {
-                return res.status(200).json({
-                    success: false,
-                    data: balances,
-                    msg: 'User balance empty'
+            // Create USDT balance for main wallet if empty
+            if (!balances.main || balances.main.length === 0) {
+                const usdtMainBalance = new MainBalance({
+                    user: userId,
+                    coinId: '1280',
+                    coinName: 'USDT',
+                    currency: 'USDT',
+                    chain: 'ETH',
+                    balance: 0
                 });
+                await usdtMainBalance.save();
+                balances['main'] = [usdtMainBalance];
+            }
+
+            // Create USDT balance for spot wallet if empty
+            if (!balances.spot || balances.spot.length === 0) {
+                const usdtSpotBalance = new SpotBalance({
+                    user: userId,
+                    coinId: '1280',
+                    coinName: 'USDT',
+                    currency: 'USDT',
+                    chain: 'ETH',
+                    balance: 0
+                });
+                await usdtSpotBalance.save();
+                balances['spot'] = [usdtSpotBalance];
+            }
+
+            // Create USDT balance for futures wallet if empty
+            if (!balances.futures || balances.futures.length === 0) {
+                const usdtFuturesBalance = new FuturesBalance({
+                    user: userId,
+                    coinId: '1280',
+                    coinName: 'USDT',
+                    currency: 'USDT',
+                    chain: 'ETH',
+                    balance: 0
+                });
+                await usdtFuturesBalance.save();
+                balances['futures'] = [usdtFuturesBalance];
             }
 
             return res.status(200).json({
@@ -1334,6 +1363,48 @@ async function getUserBalance(req, res) {
 
                 // Get Futures Balances
                 userBalances.balances['futures'] = await FuturesBalance.find({ user: user._id });
+
+                // Create USDT balance for main wallet if empty
+                if (!userBalances.balances.main || userBalances.balances.main.length === 0) {
+                    const usdtMainBalance = new MainBalance({
+                        user: user._id,
+                        coinId: '1280',
+                        coinName: 'USDT',
+                        currency: 'USDT',
+                        chain: 'ETH',
+                        balance: 0
+                    });
+                    await usdtMainBalance.save();
+                    userBalances.balances['main'] = [usdtMainBalance];
+                }
+
+                // Create USDT balance for spot wallet if empty
+                if (!userBalances.balances.spot || userBalances.balances.spot.length === 0) {
+                    const usdtSpotBalance = new SpotBalance({
+                        user: user._id,
+                        coinId: '1280',
+                        coinName: 'USDT',
+                        currency: 'USDT',
+                        chain: 'ETH',
+                        balance: 0
+                    });
+                    await usdtSpotBalance.save();
+                    userBalances.balances['spot'] = [usdtSpotBalance];
+                }
+
+                // Create USDT balance for futures wallet if empty
+                if (!userBalances.balances.futures || userBalances.balances.futures.length === 0) {
+                    const usdtFuturesBalance = new FuturesBalance({
+                        user: user._id,
+                        coinId: '1280',
+                        coinName: 'USDT',
+                        currency: 'USDT',
+                        chain: 'ETH',
+                        balance: 0
+                    });
+                    await usdtFuturesBalance.save();
+                    userBalances.balances['futures'] = [usdtFuturesBalance];
+                }
 
                 allBalances.push(userBalances);
             }
