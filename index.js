@@ -45,6 +45,7 @@ const corsOptions = {
         'https://qtex.app',
         'https://www.qtex.app',
         'https://qtrade.exchange',
+        'https://www.qtrade.exchange'
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
