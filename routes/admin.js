@@ -965,66 +965,122 @@ router.patch('/users/:userId/balance', tokenRequired, updateUserBalance);
 
 /**
  * @swagger
- * /api/admin/users/{userId}/balance:
+ * /api/admin/users/balance:
  *   get:
- *     summary: Get user balance
- *     description: Get user balance
+ *     summary: Get user balance(s)
+ *     description: Get balance for a specific user or all users if no userId provided
  *     tags: [Admin]
  *     security:
  *       - quantumAccessToken: []
  *     parameters:
- *       - in: path
+ *       - in: query
  *         name: userId
  *         schema:
  *           type: string
- *         required: true
- *         description: User ID
+ *         required: false
+ *         description: User ID (optional - if not provided, returns all users' balances)
  *     responses:
  *       200:
  *         description: User balance data
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
+ *               oneOf:
+ *                 - type: object
+ *                   description: Single user balance response
  *                   properties:
- *                     main:
+ *                     success:
+ *                       type: boolean
+ *                     data:
  *                       type: object
  *                       properties:
- *                         balance:
- *                           type: number
- *                         coinId:
- *                           type: string
- *                         user:
- *                           type: string
- *                     spot:
+ *                         main:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               balance:
+ *                                 type: number
+ *                               coinId:
+ *                                 type: string
+ *                               user:
+ *                                 type: string
+ *                         spot:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               balance:
+ *                                 type: number
+ *                               coinId:
+ *                                 type: string
+ *                               user:
+ *                                 type: string
+ *                         futures:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               balance:
+ *                                 type: number
+ *                               coinId:
+ *                                 type: string
+ *                               user:
+ *                                 type: string
+ *                 - type: object
+ *                   description: All users balance response
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                     data:
  *                       type: array
  *                       items:
  *                         type: object
  *                         properties:
- *                           balance:
- *                             type: number
- *                           coinId:
+ *                           userId:
  *                             type: string
- *                           user:
+ *                           email:
  *                             type: string
- *                     futures:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           balance:
- *                             type: number
- *                           coinId:
- *                             type: string
- *                           user:
- *                             type: string
+ *                           balances:
+ *                             type: object
+ *                             properties:
+ *                               main:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     balance:
+ *                                       type: number
+ *                                     coinId:
+ *                                       type: string
+ *                                     user:
+ *                                       type: string
+ *                               spot:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     balance:
+ *                                       type: number
+ *                                     coinId:
+ *                                       type: string
+ *                                     user:
+ *                                       type: string
+ *                               futures:
+ *                                 type: array
+ *                                 items:
+ *                                   type: object
+ *                                   properties:
+ *                                     balance:
+ *                                       type: number
+ *                                     coinId:
+ *                                       type: string
+ *                                     user:
+ *                                       type: string
+ *                     totalUsers:
+ *                       type: number
  *       404:
- *         description: User not found
+ *         description: User not found (when userId is provided)
  *         content:
  *           application/json:
  *             schema:
@@ -1035,7 +1091,7 @@ router.patch('/users/:userId/balance', tokenRequired, updateUserBalance);
  *                 error:
  *                   type: string
  */
-router.get('/users/:userId/balance', tokenRequired, getUserBalance);
+router.get('/users/balance', tokenRequired, getUserBalance);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {

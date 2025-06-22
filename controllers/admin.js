@@ -570,7 +570,8 @@ async function approveWithdrawalRequest(req, res) {
         const { WithdrawalRequest } = require('../models/withdrawal');
         const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
         const { Transactions } = require('../models/transactions');
-        const ccpayment = require('../utils/ccpayment');
+        const CcPayment = require('../utils/ccpayment');
+        const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
         const { v4: uuidv4 } = require('uuid');
 
         // Validate ObjectId format
@@ -769,7 +770,8 @@ async function executeWithdrawal(withdrawalRequest) {
         const { coinId, coinName, amount, address, chain, memo, walletType } = withdrawalRequest;
         const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
         const { Transactions } = require('../models/transactions');
-        const ccpayment = require('../utils/ccpayment');
+        const CcPayment = require('../utils/ccpayment');
+        const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
         const { v4: uuidv4 } = require('uuid');
         
         // Generate order ID
@@ -1268,47 +1270,80 @@ async function updateUserBalance(req, res) {
 
 async function getUserBalance(req, res) {
     try {
-        console.log(req.params);
-        const { userId } = req.params;
-        const user = await Users.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
+        const { userId } = req.query;
 
         const { MainBalance } = require('../models/balance');
         const SpotBalance = require('../models/spot-balance');
         const FuturesBalance = require('../models/futures-balance');
-        let balances = {};
 
-        // Get Main Balance
-        balances['main'] = await MainBalance.find({ user: userId });
+        // If userId is provided, get balance for specific user
+        if (userId) {
+            const user = await Users.findById(userId);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'User not found'
+                });
+            }
 
-        // Get Spot Balances
-        balances['spot'] = await SpotBalance.find({ user: userId });
+            let balances = {};
 
-        // Get Futures Balances
-        balances['futures'] = await FuturesBalance.find({ user: userId });
+            // Get Main Balance
+            balances['main'] = await MainBalance.find({ user: userId });
 
-         // Check if user has any balances (fixed condition)
-        const hasMainBalance = balances.main !== null;
-        const hasSpotBalances = balances.spot && balances.spot.length > 0;
-        const hasFuturesBalances = balances.futures && balances.futures.length > 0;
+            // Get Spot Balances
+            balances['spot'] = await SpotBalance.find({ user: userId });
 
-        if (!hasMainBalance && !hasSpotBalances && !hasFuturesBalances) {
+            // Get Futures Balances
+            balances['futures'] = await FuturesBalance.find({ user: userId });
+
+            // Check if user has any balances
+            const hasMainBalance = balances.main && balances.main.length > 0;
+            const hasSpotBalances = balances.spot && balances.spot.length > 0;
+            const hasFuturesBalances = balances.futures && balances.futures.length > 0;
+
+            if (!hasMainBalance && !hasSpotBalances && !hasFuturesBalances) {
+                return res.status(200).json({
+                    success: false,
+                    data: balances,
+                    msg: 'User balance empty'
+                });
+            }
+
             return res.status(200).json({
-                success: false,
-                data: balances,
-                msg: 'User balance empty'
+                success: true,
+                data: balances
+            });
+        } else {
+            // If no userId provided, get all users' balances
+            const allUsers = await Users.find({});
+            const allBalances = [];
+
+            for (const user of allUsers) {
+                const userBalances = {
+                    userId: user._id,
+                    email: user.email,
+                    balances: {}
+                };
+
+                // Get Main Balance
+                userBalances.balances['main'] = await MainBalance.find({ user: user._id });
+
+                // Get Spot Balances
+                userBalances.balances['spot'] = await SpotBalance.find({ user: user._id });
+
+                // Get Futures Balances
+                userBalances.balances['futures'] = await FuturesBalance.find({ user: user._id });
+
+                allBalances.push(userBalances);
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: allBalances,
+                totalUsers: allBalances.length
             });
         }
-
-        return res.status(200).json({
-            success: true,
-            data: balances
-        })
     } catch(error) {
         console.error('Error getting user balance:', error);
         res.status(500).json({
