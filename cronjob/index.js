@@ -4,6 +4,7 @@ const { Transactions } = require('../models/transactions');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
 const { Users } = require('../models/users');
+const { VipTier } = require('../models/vip');
 
 
 /**
@@ -186,17 +187,48 @@ async function updateUserVipTierCronjob() {
     const users = await Users.find({
         $or: [
             // Users with vipLastUpdated more than 10 days ago
-            { vipLastUpdated: { $lt: tenDaysAgo } },
+            { 
+                vipLastUpdated: { $lt: tenDaysAgo },
+                vipTier: { $exists: true, $ne: null }
+            },
             // Users with null vipLastUpdated but have a vipTier
             { 
                 vipLastUpdated: null,
                 vipTier: { $exists: true, $ne: null }
+            },
+            // Users with null vipTier (need default assignment)
+            {
+                vipTier: null
             }
         ]
     });
     
     for (const user of users) {
-        await updateUserVipTier(user._id, user.vipTier);
+        try {
+            if (user.vipTier === null) {
+                // Find default VIP tier (level 1)
+                const defaultVipTier = await VipTier.findOne({ vipLevel: 1 });
+                if (defaultVipTier) {
+                    user.vipTier = defaultVipTier._id;
+                    console.log(`Assigned default VIP tier (level 1) to user: ${user.email}`);
+                } else {
+                    console.log(`No default VIP tier found for user: ${user.email}`);
+                    continue;
+                }
+            }
+            
+            // Call the helper function that updates balance with profit
+            const response = await updateUserVipTier(user._id, user.vipTier);
+            if (response) {
+                // Update vipLastUpdated to current time
+                user.vipLastUpdated = new Date();
+                await user.save();
+                console.log(`Updated VIP tier for user: ${user.email}, vipLastUpdated: ${user.vipLastUpdated}`);
+            }
+            
+        } catch (error) {
+            console.error(`Error updating VIP tier for user ${user.email}:`, error);
+        }
     }
 }
 
@@ -207,6 +239,7 @@ cron.schedule('* * * * *', async () => {
     console.log('Running cron job to check trading deposit transactions...');
     await checkTradingDepositTransactions();
     await distributeExpiredOrderProfits();
+    await updateUserVipTierCronjob();
     // await getSpotHistoryAndStatus();
     // await getFuturesHistoryAndStatus(); 
 });

@@ -191,6 +191,12 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
             return res.status(400).json({ success: false, error: "Invalid chain" });
         }
 
+        if (chain.toUpperCase() === 'TRC20') {
+            chain = 'TRX';
+        } else if (chain.toUpperCase() === 'ERC20') {
+            chain = 'ETH';
+        }
+
         // If no existing address, create new one
         const referenceId = `${user._id.toString()}${uuidv4()}`;
         const response = await ccpayment.getOrCreateAppDepositAddress(chain, referenceId);

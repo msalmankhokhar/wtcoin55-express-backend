@@ -151,10 +151,14 @@ async function followFuturesOrder(req, res) {
 
         // Check user futures balance
         const coinName = originalOrder.symbol.split('_')[1] || originalOrder.symbol.split('-')[1] || 'USDT';
+        console.log(coinName);
         let balance;
-        
+
         if (coinName === 'USDT') {
             balance = await FuturesBalance.findOne({ user: user._id, coinId: "1280" });
+            if (!balance) {
+                balance = await FuturesBalance.findOne({ user: user._id, coinName: "USDT" });
+            }
         } else {
             balance = await FuturesBalance.findOne({ user: user._id, coinName: coinName });
         }

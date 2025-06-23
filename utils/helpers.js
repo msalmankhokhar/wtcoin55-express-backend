@@ -1179,20 +1179,20 @@ async function updateUserVipTier(userId, vipTierId) {
         const user = await Users.findById(userId);
         if (!user) {
             console.log('User not found for vip tier update', userId);
-            return;
+            return false;
         }
 
         const vipTier = await VipTier.findById(vipTierId);
         if (!vipTier) {
             console.log('Vip tier not found for user', userId);
-            return;
+            return false;
         }
 
         const balance = await MainBalance.findOne({ user: userId, coinId: '1280' });
 
         if (!balance) {
             console.log('No balance found for user', userId);
-            return;
+            return false;
         }
 
         const currentBalance = balance.balance;
@@ -1210,6 +1210,7 @@ async function updateUserVipTier(userId, vipTierId) {
         return true;
     } catch (error) {
         console.error('Error updating user vip tier:', error);
+        return false;
     }
 }
 

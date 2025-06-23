@@ -1276,27 +1276,27 @@ async function getUserBalance(req, res) {
         const { MainBalance } = require('../models/balance');
         const SpotBalance = require('../models/spot-balance');
         const FuturesBalance = require('../models/futures-balance');
-
+            
         // If userId is provided, get balance for specific user
         if (userId) {
-            const user = await Users.findById(userId);
-            if (!user) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'User not found'
-                });
-            }
+        const user = await Users.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
 
-            let balances = {};
+        let balances = {};
 
-            // Get Main Balance
-            balances['main'] = await MainBalance.find({ user: userId });
+        // Get Main Balance
+        balances['main'] = await MainBalance.find({ user: userId });
 
-            // Get Spot Balances
-            balances['spot'] = await SpotBalance.find({ user: userId });
+        // Get Spot Balances
+        balances['spot'] = await SpotBalance.find({ user: userId });
 
-            // Get Futures Balances
-            balances['futures'] = await FuturesBalance.find({ user: userId });
+        // Get Futures Balances
+        balances['futures'] = await FuturesBalance.find({ user: userId });
 
             // Create USDT balance for main wallet if empty
             if (!balances.main || balances.main.length === 0) {
@@ -1338,11 +1338,11 @@ async function getUserBalance(req, res) {
                 });
                 await usdtFuturesBalance.save();
                 balances['futures'] = [usdtFuturesBalance];
-            }
+        }
 
-            return res.status(200).json({
-                success: true,
-                data: balances
+        return res.status(200).json({
+            success: true,
+            data: balances
             });
         } else {
             // If no userId provided, get all users' balances
