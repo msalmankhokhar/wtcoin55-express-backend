@@ -782,7 +782,7 @@ async function executeWithdrawal(withdrawalRequest) {
         const { v4: uuidv4 } = require('uuid');
         
         // Generate order ID
-        const orderId = `${withdrawalRequest.user.toString()}${uuidv4()}`;
+        const orderId = `${withdrawalRequest.user.toString()}_${Date.now()}`;
         
         // Prepare withdrawal details for CCPayment
         const withdrawalDetails = {
