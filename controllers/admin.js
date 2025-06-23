@@ -1951,7 +1951,7 @@ async function getTotalBalance(req, res) {
             const response = await ccpayment.getAppCoinAsset(1280);
             const { code, msg, data } = JSON.parse(response);
 
-            console.log(response);
+            console.log(data);
             
             if (code === 10000 && msg === "success" && data) {
                 // Find USDT balance in the response
