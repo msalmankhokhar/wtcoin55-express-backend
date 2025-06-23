@@ -1955,7 +1955,7 @@ async function getTotalBalance(req, res) {
             
             if (code === 10000 && msg === "success" && data) {
                 // Find USDT balance in the response
-                const usdtBalance = data.available || 0;
+                const usdtBalance = data.asset.available || 0;
                 ccpaymentBalance = parseFloat(usdtBalance) || 0;
             }
         } catch (ccError) {
