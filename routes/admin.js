@@ -67,6 +67,10 @@ const tokenRequired = adminTokenRequired;
  *                 type: number
  *               quantity:
  *                 type: number
+ *               limit_price:
+ *                 type: number
+ *                 default: 0
+ *                 description: Limit price for the order
  *               notional:
  *                 type: number
  *               expiration:
@@ -127,6 +131,10 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
  *               size:
  *                 type: number
  *                 description: Number of contracts
+ *               limit_price:
+ *                 type: number
+ *                 default: 0
+ *                 description: Limit price for the order
  *               trigger_price:
  *                 type: string
  *                 description: Trigger price for the order
