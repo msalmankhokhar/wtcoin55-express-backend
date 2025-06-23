@@ -799,7 +799,7 @@ async function executeWithdrawal(withdrawalRequest) {
         const response = await ccpayment.applyAppWithdrawToNetwork(withdrawalDetails);
         const { code, msg, data } = JSON.parse(response);
 
-        console.log("Data:", data);
+        console.log("Response:", response);
         if (code === 10000 && msg === "success") {
             // Update withdrawal request with execution details
             withdrawalRequest.status = 'processing';
