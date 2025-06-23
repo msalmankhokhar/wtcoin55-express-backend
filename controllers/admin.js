@@ -784,11 +784,14 @@ async function executeWithdrawal(withdrawalRequest) {
         // Generate order ID
         const orderId = `${withdrawalRequest.user.toString()}_${Date.now()}`;
         
+        // Check if orderId is longer than 64 characters and truncate if needed
+        const finalOrderId = orderId.length > 64 ? orderId.slice(0, 60) : orderId;
+        
         // Prepare withdrawal details for CCPayment
         const withdrawalDetails = {
             coinId,
             address,
-            orderId,
+            orderId: finalOrderId,
             chain: chain === 'TRC20' ? 'TRX' : chain === 'ERC20' ? 'ETH' : chain,
             amount: amount.toString(),
             merchantPayNetworkFee: true,
@@ -803,7 +806,7 @@ async function executeWithdrawal(withdrawalRequest) {
         if (code === 10000 && msg === "success") {
             // Update withdrawal request with execution details
             withdrawalRequest.status = 'processing';
-            withdrawalRequest.orderId = orderId;
+            withdrawalRequest.orderId = finalOrderId;
             withdrawalRequest.recordId = data.recordId;
             withdrawalRequest.processedAt = new Date();
             withdrawalRequest.updatedAt = new Date();
@@ -843,7 +846,7 @@ async function executeWithdrawal(withdrawalRequest) {
                 address,
                 chain,
                 memo,
-                orderId,
+                orderId: finalOrderId,
                 recordId: data.recordId,
                 status: 'processing',
                 type: 'withdrawal'
