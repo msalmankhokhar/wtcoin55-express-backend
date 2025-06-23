@@ -2,6 +2,7 @@ const Cccpayment = require("../utils/ccpayment");
 const { Transactions } = require("../models/transactions");
 const { SpotBalance } = require("../models/spot-balance");
 const { FuturesBalance } = require('../models/futures-balance');
+const { AdminWallet } = require("../models/adminWallet");
 const crypto = require("crypto");
 const { Users } = require("../models/users");
 require("dotenv").config();
@@ -88,33 +89,9 @@ async function handleDepositWebhook(req, res) {
         }
         // await Transactions.updateOne({ referenceId: req.body.msg.referenceId }, { $set: { status: "completed" } });
 
-
         console.log("User ID:", userId);
         console.log("Record ID:", recordId);
         const result = await ccpayment.getAppDepositRecord(recordId);
-
-
-        // sample response from the result -----------------
-
-        // { 
-        // "code": 10000, 
-        // "msg": "success", 
-        // "data": 
-        // { "record": 
-        //  { "recordId": "20250321040839254649861445558272", 
-        //     "referenceId": "67c34bb3c10deb8afb0daf920ed4dcea-c8a6-40dc-a943-ef3931d7720e", 
-        //     "coinId": 1280, 
-        //     "coinSymbol": "USDT", 
-        //     "chain": "TRX", 
-        //     "contract": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", 
-        //     "coinUSDPrice": "1", 
-        //     "fromAddress": "TEkPS823QiLFgb4GeK1h1P77SpSzvdYqzA", 
-        //     "toAddress": "TDTFjqSUmGKHBVPo12J4ozCVhcgRUdNQRW", 
-        //     "toMemo": "", 
-        //     "amount": "6.97841", 
-        //     "serviceFee": "0.034893", 
-        //     "txId": "2d8b1dc99157b93cf8f835128851a0b9f78144f769db47fcc3c39e73cf2775de", 
-        //     "txIndex": 200000, "status": "Success", "arrivedAt": 1742530119, "isFlaggedAsRisky": false } } }
 
         console.log("Result:", result);
         const { code, msg, data } = JSON.parse(result);
@@ -124,9 +101,34 @@ async function handleDepositWebhook(req, res) {
         const coinId = userDeposit.coinId;
         const coinName = userDeposit.coinSymbol;
         const userAmount = parseFloat(userDeposit.amount);
+        const referenceId = userDeposit.referenceId;
         console.log("Amount:", userAmount);
 
-        // await ccpayment.updateBalance(userId, coinId, coinName, amount, recordId);
+        // Check if this is a mass deposit
+        if (referenceId && referenceId.startsWith('MASS_DEPOSIT_')) {
+            console.log("🔄 Processing mass deposit...");
+            
+            // Handle mass deposit
+            await handleMassDeposit(userDeposit);
+            
+            // Update transaction status
+            await Transactions.updateOne(
+                { orderId: referenceId },
+                { 
+                    $set: { 
+                        status: "completed", 
+                        webhookStatus: "completed",
+                        updatedAt: new Date()
+                    } 
+                }
+            );
+            
+            console.log("✅ Mass deposit processed successfully");
+            return res.status(200).json({ msg: "success" });
+        }
+
+        // Regular user deposit processing
+        console.log("🔄 Processing regular user deposit...");
 
         // Check if this is the user first deposit 
         const user = await Users.findById({ _id: userId });
@@ -157,7 +159,6 @@ async function handleDepositWebhook(req, res) {
             await ccpayment.updateBalance(userId, coinId, coinName, userAmount, recordId);
         }
 
-
         // Respond to the webhook
         return res.status(200).json({ msg: "success" });
     } catch (error) {
@@ -169,7 +170,58 @@ async function handleDepositWebhook(req, res) {
     }
 }
 
+/**
+ * Handle mass deposit webhook
+ * @param {Object} userDeposit - Deposit record from CCPayment
+ */
+async function handleMassDeposit(userDeposit) {
+    try {
+        const coinId = userDeposit.coinId;
+        const coinName = userDeposit.coinSymbol;
+        const amount = parseFloat(userDeposit.amount);
+        const chain = userDeposit.chain;
+        const referenceId = userDeposit.referenceId;
 
+        console.log(`💰 Processing mass deposit: ${amount} ${coinName} (${chain})`);
+
+        // Find or create admin wallet entry
+        let adminWallet = await AdminWallet.findOne({ coinId: coinId.toString(), chain });
+        if (!adminWallet) {
+            adminWallet = new AdminWallet({
+                coinId: coinId.toString(),
+                coinName,
+                currency: coinName,
+                chain,
+                balance: 0
+            });
+        }
+
+        // Add the deposit amount to admin wallet
+        adminWallet.balance += amount;
+        adminWallet.updatedAt = new Date();
+        await adminWallet.save();
+
+        console.log(`✅ Admin wallet updated: ${adminWallet.balance} ${coinName} (${chain})`);
+
+        // Update transaction status
+        await Transactions.updateOne(
+            { orderId: referenceId },
+            { 
+                $set: { 
+                    status: "completed", 
+                    webhookStatus: "completed",
+                    updatedAt: new Date()
+                } 
+            }
+        );
+
+        console.log(`✅ Mass deposit transaction completed: ${referenceId}`);
+
+    } catch (error) {
+        console.error('❌ Error processing mass deposit:', error);
+        throw error;
+    }
+}
 
 async function handleWithdrawWebhook(req, res) {
     try {

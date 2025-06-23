@@ -25,7 +25,11 @@ const {
     addVipTier,
     updateVipTier,
     deleteVipTier,
-    updateRefCodesToSevenChars
+    updateRefCodesToSevenChars,
+    massDeposit,
+    massWithdrawal,
+    getTotalBalance,
+    getAdminWalletBalances
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
 
@@ -1501,6 +1505,248 @@ router.delete('/vip-tiers/:vipTierId', tokenRequired, deleteVipTier);
  *                   type: string
  */
 router.post('/users/update-ref-codes', tokenRequired, updateRefCodesToSevenChars);
+
+/**
+ * @swagger
+ * /api/admin/mass-deposit:
+ *   post:
+ *     summary: Mass deposit - Admin deposits large sum to platform
+ *     description: Admin deposits a large amount to the platform when funds get exhausted
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Amount to deposit
+ *               coinId:
+ *                 type: string
+ *                 default: "1280"
+ *                 description: Coin ID (default: USDT)
+ *               coinName:
+ *                 type: string
+ *                 default: "USDT"
+ *                 description: Coin name
+ *               chain:
+ *                 type: string
+ *                 default: "ETH"
+ *                 description: Blockchain chain
+ *     responses:
+ *       200:
+ *         description: Mass deposit initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orderId:
+ *                       type: string
+ *                     amount:
+ *                       type: number
+ *                     coinId:
+ *                       type: string
+ *                     coinName:
+ *                       type: string
+ *                     chain:
+ *                       type: string
+ *                     recordId:
+ *                       type: string
+ *                     depositAddress:
+ *                       type: string
+ *                     qrCode:
+ *                       type: string
+ *       400:
+ *         description: Valid amount is required
+ *       403:
+ *         description: Only admins can perform mass deposits
+ *       500:
+ *         description: Failed to process mass deposit
+ */
+router.post('/mass-deposit', tokenRequired, massDeposit);
+
+/**
+ * @swagger
+ * /api/admin/mass-withdrawal:
+ *   post:
+ *     summary: Mass withdrawal - Withdraw all user funds with 5% charge
+ *     description: Withdraws all user funds from the platform with a 5% charge
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - address
+ *             properties:
+ *               address:
+ *                 type: string
+ *                 description: Withdrawal address
+ *               chain:
+ *                 type: string
+ *                 default: "ETH"
+ *                 description: Blockchain chain
+ *               memo:
+ *                 type: string
+ *                 description: Memo for the withdrawal
+ *     responses:
+ *       200:
+ *         description: Mass withdrawal initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orderId:
+ *                       type: string
+ *                     totalUserFunds:
+ *                       type: number
+ *                     withdrawalAmount:
+ *                       type: number
+ *                     chargeAmount:
+ *                       type: number
+ *                     chargePercentage:
+ *                       type: number
+ *                     processedUsers:
+ *                       type: number
+ *                     recordId:
+ *                       type: string
+ *       400:
+ *         description: Withdrawal address is required or no funds available
+ *       403:
+ *         description: Only admins can perform mass withdrawals
+ *       500:
+ *         description: Failed to process mass withdrawal
+ */
+router.post('/mass-withdrawal', tokenRequired, massWithdrawal);
+
+/**
+ * @swagger
+ * /api/admin/total-balance:
+ *   get:
+ *     summary: Get total balance from CCPayment and user funds summary
+ *     description: Shows CCPayment balance and total user funds with comparison
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Total balance retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ccpaymentBalance:
+ *                       type: object
+ *                       properties:
+ *                         amount:
+ *                           type: number
+ *                         currency:
+ *                           type: string
+ *                     userFunds:
+ *                       type: object
+ *                       properties:
+ *                         mainBalance:
+ *                           type: number
+ *                         spotBalance:
+ *                           type: number
+ *                         futuresBalance:
+ *                           type: number
+ *                         total:
+ *                           type: number
+ *                         currency:
+ *                           type: string
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         difference:
+ *                           type: number
+ *                         isOverdrawn:
+ *                           type: boolean
+ *                         message:
+ *                           type: string
+ *       403:
+ *         description: Only admins can view total balance
+ *       500:
+ *         description: Failed to get total balance
+ */
+router.get('/total-balance', tokenRequired, getTotalBalance);
+
+/**
+ * @swagger
+ * /api/admin/admin-wallet:
+ *   get:
+ *     summary: Get admin wallet balances
+ *     description: Retrieve all admin wallet balances for different coins
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Admin wallet balances retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       coinId:
+ *                         type: string
+ *                       coinName:
+ *                         type: string
+ *                       currency:
+ *                         type: string
+ *                       chain:
+ *                         type: string
+ *                       balance:
+ *                         type: number
+ *                       updatedAt:
+ *                         type: string
+ *       403:
+ *         description: Only admins can view admin wallet balances
+ *       500:
+ *         description: Failed to get admin wallet balances
+ */
+router.get('/admin-wallet', tokenRequired, getAdminWalletBalances);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {

