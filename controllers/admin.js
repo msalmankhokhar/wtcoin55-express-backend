@@ -1489,7 +1489,7 @@ async function updateVipTier(req, res) {
                 success: false,
                 error: 'Vip tier not found'
             });
-        }
+        }a
 
         vipTier.vipName = vipName || vipTier.vipName;
         vipTier.vipLevel = vipLevel || vipTier.vipLevel;
