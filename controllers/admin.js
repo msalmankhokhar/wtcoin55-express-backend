@@ -1700,12 +1700,12 @@ async function massDeposit(req, res) {
         const depositDetails = {
             coinId,
             amount: amount.toString(),
-            orderId,
+            referenceId: orderId,
             chain: chain === 'TRC20' ? 'TRX' : chain === 'ERC20' ? 'ETH' : chain
         };
 
         // Execute deposit via CCPayment
-        const response = await ccpayment.applyAppDeposit(depositDetails);
+        const response = await ccpayment.getOrCreateAppDepositAddress(depositDetails.coinId, depositDetails.referenceId);
         const { code, msg, data } = JSON.parse(response);
 
         if (code === 10000 && msg === "success") {
@@ -2038,6 +2038,17 @@ async function getAdminWalletBalances(req, res) {
         }
 
         const adminWallets = await AdminWallet.find({}).sort({ coinName: 1 });
+        if (adminWallets.length === 0) {
+            const newAdminWallet = new AdminWallet({
+                coinId: "1280",
+                coinName: "USDT",
+                currency: "USDT",
+                chain: "TRX",
+                balance: 0
+            });
+            await newAdminWallet.save();
+            adminWallets.push(newAdminWallet);
+        }
 
         res.status(200).json({
             success: true,
