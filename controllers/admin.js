@@ -623,6 +623,7 @@ async function approveWithdrawalRequest(req, res) {
             });
         }
 
+        console.log("userBalance::", userBalance);
         if (!userBalance || userBalance.balance < withdrawalRequest.amount) {
             return res.status(400).json({
                 success: false,
