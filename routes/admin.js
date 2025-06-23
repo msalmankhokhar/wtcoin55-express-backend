@@ -1530,15 +1530,15 @@ router.post('/users/update-ref-codes', tokenRequired, updateRefCodesToSevenChars
  *               coinId:
  *                 type: string
  *                 default: "1280"
- *                 description: Coin ID (default: USDT)
+ *                 description: "Coin ID (default USDT)"
  *               coinName:
  *                 type: string
  *                 default: "USDT"
- *                 description: Coin name
+ *                 description: "Coin name"
  *               chain:
  *                 type: string
  *                 default: "ETH"
- *                 description: Blockchain chain
+ *                 description: "Blockchain chain"
  *     responses:
  *       200:
  *         description: Mass deposit initiated successfully

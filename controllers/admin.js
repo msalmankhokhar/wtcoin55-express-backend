@@ -1939,14 +1939,16 @@ async function getTotalBalance(req, res) {
             });
         }
 
-        const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
+        const { MainBalance } = require('../models/balance');
+        const SpotBalance = require('../models/spot-balance');
+        const FuturesBalance = require('../models/futures-balance');
         const CcPayment = require('../utils/ccpayment');
         const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
 
         // Get CCPayment balance
         let ccpaymentBalance = 0;
         try {
-            const response = await ccpayment.getAppBalance();
+            const response = await ccpayment.getAppCoinAsset();
             const { code, msg, data } = JSON.parse(response);
             
             if (code === 10000 && msg === "success" && data) {
