@@ -1464,7 +1464,7 @@ async function updateUserVipTier(req, res) {
 
 async function getVipTier(req, res) {
     try {
-        const vipTiers = await VipTier.find({});
+        const vipTiers = await VipTier.find({}).sort({ vipLevel: 1 });
         return res.status(200).json({
             success: true,
             data: vipTiers
@@ -1583,6 +1583,86 @@ async function addVipTier(req, res) {
     }
 }
 
+/**
+ * Update all users' refCode and refBy to 7 characters
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function updateRefCodesToSevenChars(req, res) {
+    try {
+        const adminUser = req.user;
+
+        // Check if user is admin
+        if (!adminUser.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                error: 'Only admins can update ref codes'
+            });
+        }
+
+        console.log('🔄 Starting refCode and refBy update process...');
+
+        // Get all users
+        const allUsers = await Users.find({});
+        console.log(`📋 Found ${allUsers.length} users to process`);
+
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        for (const user of allUsers) {
+            try {
+                let needsUpdate = false;
+                const updates = {};
+
+                // Check and update refCode
+                if (user.refCode && user.refCode.length > 7) {
+                    updates.refCode = user.refCode.slice(0, 7);
+                    needsUpdate = true;
+                    console.log(`📝 User ${user.email}: refCode updated from "${user.refCode}" to "${updates.refCode}"`);
+                }
+
+                // Check and update refBy
+                if (user.refBy && user.refBy.length > 7) {
+                    updates.refBy = user.refBy.slice(0, 7);
+                    needsUpdate = true;
+                    console.log(`📝 User ${user.email}: refBy updated from "${user.refBy}" to "${updates.refBy}"`);
+                }
+
+                // Update user if needed
+                if (needsUpdate) {
+                    await Users.findByIdAndUpdate(user._id, updates);
+                    updatedCount++;
+                } else {
+                    skippedCount++;
+                }
+
+            } catch (userError) {
+                console.error(`❌ Error updating user ${user.email}:`, userError);
+            }
+        }
+
+        console.log(`✅ Ref code update completed!`);
+        console.log(`📊 Summary: ${updatedCount} users updated, ${skippedCount} users skipped`);
+
+        res.status(200).json({
+            success: true,
+            message: 'Ref codes updated successfully',
+            data: {
+                totalUsers: allUsers.length,
+                updatedCount,
+                skippedCount
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating ref codes:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update ref codes'
+        });
+    }
+}
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -1608,5 +1688,6 @@ module.exports = {
     getVipTier,
     addVipTier,
     updateVipTier,
-    deleteVipTier
+    deleteVipTier,
+    updateRefCodesToSevenChars
 }; 

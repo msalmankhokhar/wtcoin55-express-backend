@@ -24,7 +24,8 @@ const {
     getVipTier,
     addVipTier,
     updateVipTier,
-    deleteVipTier
+    deleteVipTier,
+    updateRefCodesToSevenChars
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
 
@@ -1442,6 +1443,64 @@ router.patch('/vip-tiers/:vipTierId', tokenRequired, updateVipTier);
  *                   type: string
  */
 router.delete('/vip-tiers/:vipTierId', tokenRequired, deleteVipTier);
+
+/**
+ * @swagger
+ * /api/admin/users/update-ref-codes:
+ *   post:
+ *     summary: Update all users' refCode and refBy to 7 characters
+ *     description: Loops through all users and truncates refCode and refBy fields to 7 characters
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Ref codes updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalUsers:
+ *                       type: number
+ *                       description: Total number of users processed
+ *                     updatedCount:
+ *                       type: number
+ *                       description: Number of users that were updated
+ *                     skippedCount:
+ *                       type: number
+ *                       description: Number of users that were skipped (no changes needed)
+ *       403:
+ *         description: Only admins can update ref codes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Failed to update ref codes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 error:
+ *                   type: string
+ */
+router.post('/users/update-ref-codes', tokenRequired, updateRefCodesToSevenChars);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {
