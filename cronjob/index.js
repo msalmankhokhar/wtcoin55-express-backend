@@ -1,8 +1,10 @@
 const cron = require('node-cron');
-const { distributeExpiredOrderProfits } = require('../utils/helpers');
+const { distributeExpiredOrderProfits, updateUserVipTier } = require('../utils/helpers');
 const { Transactions } = require('../models/transactions');
 const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
+const { Users } = require('../models/users');
+
 
 /**
  * Process Trading Deposit Transactions
@@ -175,6 +177,26 @@ async function getFuturesHistoryAndStatus() {
         
     } catch (error) {
         console.error('❌ Error in futures order tracking cronjob:', error);
+    }
+}
+
+async function updateUserVipTierCronjob() {
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    
+    const users = await Users.find({
+        $or: [
+            // Users with vipLastUpdated more than 10 days ago
+            { vipLastUpdated: { $lt: tenDaysAgo } },
+            // Users with null vipLastUpdated but have a vipTier
+            { 
+                vipLastUpdated: null,
+                vipTier: { $exists: true, $ne: null }
+            }
+        ]
+    });
+    
+    for (const user of users) {
+        await updateUserVipTier(user._id, user.vipTier);
     }
 }
 

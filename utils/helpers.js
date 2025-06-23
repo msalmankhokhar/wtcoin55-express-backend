@@ -6,6 +6,8 @@ const { SpotBalance } = require('../models/spot-balance');
 const { FuturesBalance } = require('../models/futures-balance');
 const { Transactions } = require('../models/transactions');
 const { FuturesOrderHistory } = require('../models/future-order');
+const { MainBalance } = require('../models/balance');
+const { VipTier } = require('../models/vip');
 const BitMart = require('../utils/bitmart');
 const { SpotOrderHistory } = require('../models/spot-order');
 const bitmart = new BitMart(
@@ -1172,6 +1174,46 @@ async function distributeExpiredOrderProfits() {
     }
 }
 
+async function updateUserVipTier(userId, vipTierId) {
+    try {
+        const user = await Users.findById(userId);
+        if (!user) {
+            console.log('User not found for vip tier update', userId);
+            return;
+        }
+
+        const vipTier = await VipTier.findById(vipTierId);
+        if (!vipTier) {
+            console.log('Vip tier not found for user', userId);
+            return;
+        }
+
+        const balance = await MainBalance.findOne({ user: userId, coinId: '1280' });
+
+        if (!balance) {
+            console.log('No balance found for user', userId);
+            return;
+        }
+
+        const currentBalance = balance.balance;
+        const profitPercentage = vipTier.vipPercentage;
+
+        const profitAmount = currentBalance * (profitPercentage / 100);
+
+        await MainBalance.findByIdAndUpdate(balance._id, {
+            $inc: { balance: profitAmount },
+            updatedAt: new Date()
+        });
+
+        console.log('Updated user', userId, 'balance with', profitAmount);
+
+        return true;
+    } catch (error) {
+        console.error('Error updating user vip tier:', error);
+    }
+}
+
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
-    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, updateTradingVolume, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits
+    updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, updateTradingVolume, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits,
+    updateUserVipTier
  };

@@ -20,6 +20,7 @@ const UsersSchema = new mongoose.Schema({
     isAdmin: { type: Boolean, default: false },
     kycVerification: { type: Boolean, default: false },
     vipTier: { type: mongoose.Schema.Types.ObjectId, ref: 'VipTier', default: null },
+    vipLastUpdated: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
     lastLogin: {type: Date, required: false}
 });
