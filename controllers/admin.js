@@ -1955,8 +1955,8 @@ async function getTotalBalance(req, res) {
             
             if (code === 10000 && msg === "success" && data) {
                 // Find USDT balance in the response
-                const usdtBalance = data.find(balance => balance.coinId === "1280" || balance.coinName === "USDT");
-                ccpaymentBalance = usdtBalance ? parseFloat(usdtBalance.available) : 0;
+                const usdtBalance = data.available || 0;
+                ccpaymentBalance = parseFloat(usdtBalance) || 0;
             }
         } catch (ccError) {
             console.error('Error getting CCPayment balance:', ccError);
