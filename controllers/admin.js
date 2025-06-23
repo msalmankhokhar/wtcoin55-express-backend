@@ -13,7 +13,7 @@ const { AdminWallet } = require('../models/adminWallet');
  */
 async function submitSpotOrder(req, res) {
     try {
-        const { symbol, side, type, price, quantity, notional, expiration, percentage = 1 } = req.body;
+        const { symbol, side, type, price, quantity, notional, expiration, percentage = 1, limit_price } = req.body;
         const user = req.user;
 
         // Check if user is admin
@@ -52,7 +52,8 @@ async function submitSpotOrder(req, res) {
             role: 'admin',
             percentage,
             owner: true,
-            followers: []
+            followers: [],
+            limit_price: limit_price || 0
         });
 
         await orderHistory.save();
@@ -68,8 +69,8 @@ async function submitSpotOrder(req, res) {
                 type: type,
                 quantity: quantity || notional,
                 price: price || 0,
-                percentage: percentage,
-                expiration: expiration
+                limit_price: limit_price || 0,
+                percentage: percentage
             }
         });
 
@@ -98,7 +99,8 @@ async function submitFuturesOrder(req, res) {
             price_way, 
             price_type = 1,
             expiration,
-            percentage = 1 
+            percentage = 1,
+            limit_price = 0
         } = req.body;
         const user = req.user;
 
@@ -154,7 +156,8 @@ async function submitFuturesOrder(req, res) {
             owner: true,
             followers: [],
             percentage: percentage,
-            expiration: expiration ? new Date(expiration) : null
+            expiration: expiration ? new Date(expiration) : null,
+            limit_price: limit_price || 0
         });
 
         await orderHistory.save();
@@ -172,7 +175,7 @@ async function submitFuturesOrder(req, res) {
                 size: size,
                 trigger_price: trigger_price,
                 percentage: percentage,
-                expiration: expiration
+                limit_price: limit_price || 0
             }
         });
 
@@ -1698,8 +1701,6 @@ async function massDeposit(req, res) {
 
         // Prepare deposit details
         const depositDetails = {
-            coinId,
-            amount: amount.toString(),
             referenceId: orderId,
             chain: chain === 'TRC20' ? 'TRX' : chain === 'ERC20' ? 'ETH' : chain
         };

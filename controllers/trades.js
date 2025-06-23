@@ -48,7 +48,7 @@ async function followSpotOrder(req, res) {
             balance = await SpotBalance.findOne({ user: user._id, coinName: coinName });
         }
 
-        if (!balance) {
+        if (!balance || balance.balance < originalOrder.limit_price) {
             return res.status(400).json({ error: 'Insufficient balance to follow this order' });
         }
 
@@ -163,7 +163,7 @@ async function followFuturesOrder(req, res) {
             balance = await FuturesBalance.findOne({ user: user._id, coinName: coinName });
         }
 
-        if (!balance) {
+        if (!balance || balance.balance < originalOrder.limit_price) {
             return res.status(400).json({ error: 'Insufficient futures balance to follow this order' });
         }
 

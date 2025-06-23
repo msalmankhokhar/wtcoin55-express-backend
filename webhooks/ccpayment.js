@@ -210,6 +210,7 @@ async function handleMassDeposit(userDeposit) {
                 $set: { 
                     status: "completed", 
                     webhookStatus: "completed",
+                    amount: amount,
                     updatedAt: new Date()
                 } 
             }

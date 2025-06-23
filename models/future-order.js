@@ -11,6 +11,7 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     leverage: { type: String, required: true }, // "1", "10", "50"
     open_type: { type: String, required: true, enum: ['cross', 'isolated'] },
     size: { type: Number, required: true }, // Number of contracts
+    limit_price: { type: Number, default: 0 }, // Limit price
     
     // Plan Order Specific Fields
     trigger_price: { type: String, required: true }, // Trigger price
