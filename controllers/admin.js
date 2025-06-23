@@ -228,7 +228,7 @@ async function getAllFuturesOrders(req, res) {
         // Check if user is admin
         if (!user.isAdmin) {
             return res.status(403).json({ 
-                error: 'Only admins can view all futures orders' 
+                error: 'Only admins can view all futures orders'
             });
         }
 
@@ -773,7 +773,9 @@ async function declineWithdrawalRequest(req, res) {
 async function executeWithdrawal(withdrawalRequest) {
     try {
         const { coinId, coinName, amount, address, chain, memo, walletType } = withdrawalRequest;
-        const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
+        const { MainBalance } = require('../models/balance');
+        const SpotBalance = require('../models/spot-balance');
+        const FuturesBalance = require('../models/futures-balance');
         const { Transactions } = require('../models/transactions');
         const CcPayment = require('../utils/ccpayment');
         const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
@@ -797,6 +799,7 @@ async function executeWithdrawal(withdrawalRequest) {
         const response = await ccpayment.applyAppWithdrawToNetwork(withdrawalDetails);
         const { code, msg, data } = JSON.parse(response);
 
+        console.log("Data:", data);
         if (code === 10000 && msg === "success") {
             // Update withdrawal request with execution details
             withdrawalRequest.status = 'processing';
