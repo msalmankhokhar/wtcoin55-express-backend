@@ -281,6 +281,7 @@ async function applyAppWithdrawToNetworkHandler(req, res) {
         const response = await ccpayment.applyAppWithdrawToNetwork(withdrawalDetails);
 
         // Parse the response
+        console.log("response::", response);
         const { code, msg, data } = JSON.parse(response);
         if (code === 10000 && msg === "success") {
             // Deduct the amount from user's balance
