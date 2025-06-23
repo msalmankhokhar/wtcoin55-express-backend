@@ -86,7 +86,7 @@ async function createOrUpdateResetOTP(emailOrPhonenumber) {
 
 // Generate referal code
 async function generateReferralCdoe(length = 6) {
-    const refCode = crypto.randomBytes(6).toString('hex').toUpperCase();
+    const refCode = crypto.randomBytes(6).toString('hex').toUpperCase().slice(0, 7);
 
     const checkIfExist = await Users.findOne({ refCode: refCode });
     if (checkIfExist) return generateReferralCdoe(length);

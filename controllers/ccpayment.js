@@ -191,17 +191,17 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
             return res.status(400).json({ success: false, error: "Invalid chain" });
         }
 
-        let chain;
+        let newChain;
 
         if (chain_.toUpperCase() === 'TRC20') {
-            chain = 'TRX';
+            newChain = 'TRX';
         } else if (chain_.toUpperCase() === 'ERC20') {
-            chain = 'ETH';
+            newChain = 'ETH';
         }
 
         // If no existing address, create new one
         const referenceId = `${user._id.toString()}${uuidv4()}`;
-        const response = await ccpayment.getOrCreateAppDepositAddress(chain, referenceId);
+        const response = await ccpayment.getOrCreateAppDepositAddress(newChain, referenceId);
         const { code, msg, data } = JSON.parse(response);
         if (code === 10000 && msg === "success") {
             const { address, memo } = data;
@@ -210,12 +210,12 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
                 console.log(data);
                 const newAddress = new Address({
                     user: user._id,
-                    chain: chain,
+                    chain: newChain,
                     address: address,
                     memo: memo
                 });
                 await newAddress.save();
-                return res.json({ success: true, data: { address, memo, chain } });
+                return res.json({ success: true, data: { address, memo, newChain } });
             } catch (saveError) {
                 // If there's a duplicate key error, we can ignore it since we already have the compound index
                 if (saveError.code !== 11000) {
@@ -224,7 +224,7 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
                 console.log(`Address already exists for user and chain combination, continuing...`);
             }
         } else {
-            console.error(`Failed to generate address for chain: ${chain}`);
+            console.error(`Failed to generate address for chain: ${newChain}`);
             return res.status(500).json({ success: false, error: msg });
         }
 
