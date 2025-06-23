@@ -1948,7 +1948,7 @@ async function getTotalBalance(req, res) {
         // Get CCPayment balance
         let ccpaymentBalance = 0;
         try {
-            const response = await ccpayment.getAppCoinAsset();
+            const response = await ccpayment.getAppCoinAsset(1280);
             const { code, msg, data } = JSON.parse(response);
 
             console.log(response);
