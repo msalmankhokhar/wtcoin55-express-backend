@@ -573,7 +573,7 @@ async function approveWithdrawalRequest(req, res) {
         }
 
         const { WithdrawalRequest } = require('../models/withdrawal');
-        const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
+        const { MainBalance } = require('../models/balance');
         const { Transactions } = require('../models/transactions');
         const CcPayment = require('../utils/ccpayment');
         const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
@@ -619,7 +619,7 @@ async function approveWithdrawalRequest(req, res) {
         if (withdrawalRequest.walletType === 'main') {
             userBalance = await MainBalance.findOne({ 
                 user: withdrawalRequest.user._id, 
-                coinId: withdrawalRequest.coinId 
+                coinId: withdrawalRequest.coinId.toString()
             });
         }
 
