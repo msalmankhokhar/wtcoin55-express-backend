@@ -1705,7 +1705,7 @@ async function massDeposit(req, res) {
         };
 
         // Execute deposit via CCPayment
-        const response = await ccpayment.getOrCreateAppDepositAddress(depositDetails.coinId, depositDetails.referenceId);
+        const response = await ccpayment.getOrCreateAppDepositAddress(depositDetails.chain, depositDetails.referenceId);
         const { code, msg, data } = JSON.parse(response);
 
         if (code === 10000 && msg === "success") {

@@ -167,13 +167,13 @@ async function getAppCoinAssetHandler(req, res) {
 
 async function getOrCreateAppDepositAddressHandler(req, res) {
     try {
-        const { chain: chain_ } = req.body;
+        const { chain } = req.body;
         const user = req.user; // Assuming user is attached to request
 
         // Check if user already has an address for this chain
         const existingAddress = await Address.findOne({
             user: user._id,
-            chain: chain_
+            chain: chain
         });
 
         if (existingAddress) {
@@ -187,16 +187,18 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
             });
         }
 
-        if (!['TRC20', 'TRC', 'TRX', 'ETH', 'ERC20', 'TRON', 'ERC'].includes(chain_.toUpperCase())) {
+        if (!['TRC20', 'TRC', 'TRX', 'ETH', 'ERC20', 'TRON', 'ERC'].includes(chain.toUpperCase())) {
             return res.status(400).json({ success: false, error: "Invalid chain" });
         }
 
         let newChain;
 
-        if (chain_.toUpperCase() === 'TRC20') {
+        if (chain.toUpperCase() === 'TRC20') {
             newChain = 'TRX';
-        } else if (chain_.toUpperCase() === 'ERC20') {
+        } else if (chain.toUpperCase() === 'ERC20') {
             newChain = 'ETH';
+        } else {
+            newChain = chain;
         }
 
         // If no existing address, create new one
