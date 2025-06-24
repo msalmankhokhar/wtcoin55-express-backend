@@ -29,7 +29,8 @@ const {
     massDeposit,
     massWithdrawal,
     getTotalBalance,
-    getAdminWalletBalances
+    getAdminWalletBalances,
+    resetAllUsersVipLevel
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
 
@@ -1755,6 +1756,82 @@ router.get('/total-balance', tokenRequired, getTotalBalance);
  *         description: Failed to get admin wallet balances
  */
 router.get('/admin-wallet', tokenRequired, getAdminWalletBalances);
+
+/**
+ * @swagger
+ * /api/admin/reset-vip-levels:
+ *   post:
+ *     summary: Reset all users' VIP level to 0
+ *     description: Admin endpoint to reset every user's VIP level to 0. This will create a VIP tier with level 0 if it doesn't exist and assign it to all users.
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Successfully reset VIP levels for all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully reset VIP level to 0 for 150 users"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     modifiedCount:
+ *                       type: number
+ *                       description: Number of users whose VIP level was updated
+ *                       example: 150
+ *                     vipTierId:
+ *                       type: string
+ *                       description: ID of the VIP tier with level 0
+ *                       example: "507f1f77bcf86cd799439011"
+ *                     vipTierName:
+ *                       type: string
+ *                       description: Name of the VIP tier
+ *                       example: "Basic"
+ *                     vipLevel:
+ *                       type: number
+ *                       description: VIP level (always 0 for this operation)
+ *                       example: 0
+ *             example:
+ *               success: true
+ *               message: "Successfully reset VIP level to 0 for 150 users"
+ *               data:
+ *                 modifiedCount: 150
+ *                 vipTierId: "507f1f77bcf86cd799439011"
+ *                 vipTierName: "Basic"
+ *                 vipLevel: 0
+ *       403:
+ *         description: Only admins can reset VIP levels
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Only admins can reset VIP levels"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to reset VIP levels"
+ *                 details:
+ *                   type: string
+ *                   example: "Database connection error"
+ */
+router.post('/reset-vip-levels', tokenRequired, resetAllUsersVipLevel);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {

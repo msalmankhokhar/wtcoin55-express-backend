@@ -195,23 +195,27 @@ async function updateUserVipTierCronjob() {
             { 
                 vipLastUpdated: null,
                 vipTier: { $exists: true, $ne: null }
+            },
+            // Users with vipTier null
+            { 
+                vipTier: null
             }
         ]
     });
     
     for (const user of users) {
         try {
-            // if (user.vipTier === null) {
-            //     // Find default VIP tier (level 1)
-            //     const defaultVipTier = await VipTier.findOne({ vipLevel: 1 });
-            //     if (defaultVipTier) {
-            //         user.vipTier = defaultVipTier._id;
-            //         console.log(`Assigned default VIP tier (level 1) to user: ${user.email}`);
-            //     } else {
-            //         console.log(`No default VIP tier found for user: ${user.email}`);
-            //         continue;
-            //     }
-            // }
+            if (user.vipTier === null) {
+                // Find default VIP tier (level 1)
+                const defaultVipTier = await VipTier.findOne({ vipLevel: 0 });
+                if (defaultVipTier) {
+                    user.vipTier = defaultVipTier._id;
+                    console.log(`Assigned default VIP tier (level 1) to user: ${user.email}`);
+                } else {
+                    console.log(`No default VIP tier found for user: ${user.email}`);
+                    continue;
+                }
+            }
             
             // Call the helper function that updates balance with profit
             const response = await updateUserVipTier(user._id, user.vipTier);

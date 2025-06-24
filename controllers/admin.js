@@ -1557,7 +1557,7 @@ async function addVipTier(req, res) {
     try {
         const { vipName, vipLevel, vipStatus, vipPercentage } = req.body;
 
-        if (!vipName || !vipLevel || !vipStatus || !vipPercentage) {
+        if (!vipName || vipLevel === null || !vipStatus || vipPercentage === null) {
             return res.status(400).json({
                 success: false,
                 error: 'Required field missing'
@@ -2072,6 +2072,65 @@ async function getAdminWalletBalances(req, res) {
     }
 }
 
+/**
+ * Reset all users' VIP level to 0 (admin only)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+async function resetAllUsersVipLevel(req, res) {
+    try {
+        const user = req.user;
+
+        // Check if user is admin
+        if (!user.isAdmin) {
+            return res.status(403).json({ 
+                error: 'Only admins can reset VIP levels' 
+            });
+        }
+
+        // Find or create VIP tier with level 0
+        let vipTierLevel0 = await VipTier.findOne({ vipLevel: 0 });
+        
+        if (!vipTierLevel0) {
+            // Create VIP tier with level 0 if it doesn't exist
+            vipTierLevel0 = new VipTier({
+                vipName: 'Basic',
+                vipLevel: 0,
+                vipStatus: 'active',
+                vipPercentage: 0
+            });
+            await vipTierLevel0.save();
+        }
+
+        // Update all users to have VIP level 0
+        const result = await Users.updateMany(
+            {}, // Update all users
+            { 
+                vipTier: vipTierLevel0._id,
+                vipLastUpdated: new Date()
+            }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: `Successfully reset VIP level to 0 for ${result.modifiedCount} users`,
+            data: {
+                modifiedCount: result.modifiedCount,
+                vipTierId: vipTierLevel0._id,
+                vipTierName: vipTierLevel0.vipName,
+                vipLevel: vipTierLevel0.vipLevel
+            }
+        });
+
+    } catch (error) {
+        console.error('Error resetting VIP levels:', error);
+        res.status(500).json({ 
+            error: 'Failed to reset VIP levels',
+            details: error.message 
+        });
+    }
+}
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -2102,5 +2161,6 @@ module.exports = {
     massDeposit,
     massWithdrawal,
     getTotalBalance,
-    getAdminWalletBalances
+    getAdminWalletBalances,
+    resetAllUsersVipLevel
 }; 
