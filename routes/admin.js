@@ -30,7 +30,9 @@ const {
     massWithdrawal,
     getTotalBalance,
     getAdminWalletBalances,
-    resetAllUsersVipLevel
+    resetAllUsersVipLevel,
+    getDepositHistory,
+    getWithdrawalHistory
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
 
@@ -1826,6 +1828,284 @@ router.get('/admin-wallet', tokenRequired, getAdminWalletBalances);
  *                   example: "Database connection error"
  */
 router.post('/reset-vip-levels', tokenRequired, resetAllUsersVipLevel);
+
+/**
+ * @swagger
+ * /api/admin/deposit-history:
+ *   get:
+ *     summary: Get deposit history (admin only)
+ *     description: Retrieve all deposit transactions including regular deposits and mass deposits
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Deposit history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: Transaction ID
+ *                         example: "507f1f77bcf86cd799439011"
+ *                       user:
+ *                         type: string
+ *                         description: User ID who made the deposit
+ *                         example: "507f1f77bcf86cd799439012"
+ *                       coinId:
+ *                         type: string
+ *                         description: Coin ID
+ *                         example: "1280"
+ *                       currency:
+ *                         type: string
+ *                         description: Currency name
+ *                         example: "USDT"
+ *                       amount:
+ *                         type: number
+ *                         description: Deposit amount
+ *                         example: 100.50
+ *                       address:
+ *                         type: string
+ *                         description: Deposit address
+ *                         example: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+ *                       chain:
+ *                         type: string
+ *                         description: Blockchain network
+ *                         example: "TRX"
+ *                       orderId:
+ *                         type: string
+ *                         description: Order ID for the transaction
+ *                         example: "DEPOSIT_1234567890"
+ *                       recordId:
+ *                         type: string
+ *                         description: Record ID from payment processor
+ *                         example: "REC_123456789"
+ *                       status:
+ *                         type: string
+ *                         enum: [pending, processing, completed, failed]
+ *                         description: Transaction status
+ *                         example: "completed"
+ *                       type:
+ *                         type: string
+ *                         enum: [deposit, mass_deposit]
+ *                         description: Transaction type
+ *                         example: "deposit"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction creation timestamp
+ *                         example: "2024-01-15T10:30:00.000Z"
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction last update timestamp
+ *                         example: "2024-01-15T10:35:00.000Z"
+ *             example:
+ *               status: true
+ *               data:
+ *                 - _id: "507f1f77bcf86cd799439011"
+ *                   user: "507f1f77bcf86cd799439012"
+ *                   coinId: "1280"
+ *                   currency: "USDT"
+ *                   amount: 100.50
+ *                   address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+ *                   chain: "TRX"
+ *                   orderId: "DEPOSIT_1234567890"
+ *                   recordId: "REC_123456789"
+ *                   status: "completed"
+ *                   type: "deposit"
+ *                   createdAt: "2024-01-15T10:30:00.000Z"
+ *                   updatedAt: "2024-01-15T10:35:00.000Z"
+ *                 - _id: "507f1f77bcf86cd799439013"
+ *                   user: "507f1f77bcf86cd799439014"
+ *                   coinId: "1280"
+ *                   currency: "USDT"
+ *                   amount: 500.00
+ *                   address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+ *                   chain: "TRX"
+ *                   orderId: "MASS_DEPOSIT_1234567890"
+ *                   recordId: "REC_123456790"
+ *                   status: "processing"
+ *                   type: "mass_deposit"
+ *                   createdAt: "2024-01-15T11:00:00.000Z"
+ *                   updatedAt: "2024-01-15T11:00:00.000Z"
+ *       403:
+ *         description: Only admins can view deposit history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Only admins can view deposit history"
+ *       500:
+ *         description: Failed to get deposit history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to get deposit history"
+ *                 details:
+ *                   type: string
+ *                   example: "Database connection error"
+ */
+router.get('/deposit-history', tokenRequired, getDepositHistory);
+
+/**
+ * @swagger
+ * /api/admin/withdrawal-history:
+ *   get:
+ *     summary: Get withdrawal history (admin only)
+ *     description: Retrieve all withdrawal transactions including regular withdrawals and mass withdrawals
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Withdrawal history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: Transaction ID
+ *                         example: "507f1f77bcf86cd799439015"
+ *                       user:
+ *                         type: string
+ *                         description: User ID who made the withdrawal
+ *                         example: "507f1f77bcf86cd799439016"
+ *                       coinId:
+ *                         type: string
+ *                         description: Coin ID
+ *                         example: "1280"
+ *                       currency:
+ *                         type: string
+ *                         description: Currency name
+ *                         example: "USDT"
+ *                       amount:
+ *                         type: number
+ *                         description: Withdrawal amount
+ *                         example: 50.25
+ *                       address:
+ *                         type: string
+ *                         description: Withdrawal address
+ *                         example: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+ *                       chain:
+ *                         type: string
+ *                         description: Blockchain network
+ *                         example: "TRX"
+ *                       memo:
+ *                         type: string
+ *                         description: Memo for the withdrawal (optional)
+ *                         example: "Withdrawal memo"
+ *                       orderId:
+ *                         type: string
+ *                         description: Order ID for the transaction
+ *                         example: "WITHDRAWAL_1234567890"
+ *                       recordId:
+ *                         type: string
+ *                         description: Record ID from payment processor
+ *                         example: "REC_123456791"
+ *                       status:
+ *                         type: string
+ *                         enum: [pending, processing, completed, failed]
+ *                         description: Transaction status
+ *                         example: "completed"
+ *                       type:
+ *                         type: string
+ *                         enum: [withdrawal, mass_withdrawal]
+ *                         description: Transaction type
+ *                         example: "withdrawal"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction creation timestamp
+ *                         example: "2024-01-15T12:00:00.000Z"
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction last update timestamp
+ *                         example: "2024-01-15T12:05:00.000Z"
+ *             example:
+ *               status: true
+ *               data:
+ *                 - _id: "507f1f77bcf86cd799439015"
+ *                   user: "507f1f77bcf86cd799439016"
+ *                   coinId: "1280"
+ *                   currency: "USDT"
+ *                   amount: 50.25
+ *                   address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+ *                   chain: "TRX"
+ *                   memo: "Withdrawal memo"
+ *                   orderId: "WITHDRAWAL_1234567890"
+ *                   recordId: "REC_123456791"
+ *                   status: "completed"
+ *                   type: "withdrawal"
+ *                   createdAt: "2024-01-15T12:00:00.000Z"
+ *                   updatedAt: "2024-01-15T12:05:00.000Z"
+ *                 - _id: "507f1f77bcf86cd799439017"
+ *                   user: "507f1f77bcf86cd799439018"
+ *                   coinId: "1280"
+ *                   currency: "USDT"
+ *                   amount: 1000.00
+ *                   address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+ *                   chain: "TRX"
+ *                   memo: "Mass withdrawal"
+ *                   orderId: "MASS_WITHDRAWAL_1234567890"
+ *                   recordId: "REC_123456792"
+ *                   status: "processing"
+ *                   type: "mass_withdrawal"
+ *                   createdAt: "2024-01-15T13:00:00.000Z"
+ *                   updatedAt: "2024-01-15T13:00:00.000Z"
+ *       403:
+ *         description: Only admins can view withdrawal history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Only admins can view withdrawal history"
+ *       500:
+ *         description: Failed to get withdrawal history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to get withdrawal history"
+ *                 details:
+ *                   type: string
+ *                   example: "Database connection error"
+ */
+router.get('/withdrawal-history', tokenRequired, getWithdrawalHistory);
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {
