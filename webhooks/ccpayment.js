@@ -3,6 +3,7 @@ const { Transactions } = require("../models/transactions");
 const { SpotBalance } = require("../models/spot-balance");
 const { FuturesBalance } = require('../models/futures-balance');
 const { AdminWallet } = require("../models/adminWallet");
+const { WithdrawalRequest } = require("../models/withdrawal");
 const crypto = require("crypto");
 const { Users } = require("../models/users");
 require("dotenv").config();
@@ -107,7 +108,7 @@ async function handleDepositWebhook(req, res) {
         // Check if this is a mass deposit
         if (referenceId && referenceId.startsWith('MASS_DEPOSIT_')) {
             console.log("🔄 Processing mass deposit...");
-            
+
             // Handle mass deposit
             await handleMassDeposit(userDeposit);
             
@@ -149,6 +150,18 @@ async function handleDepositWebhook(req, res) {
                 const referredUser = await Users.findOne({ referCode: user.referBy });
                 if (referredUser) {
                     await ccpayment.updateBalance(referredUser._id, coinId, coinName, amount=referrerBonus, recordId);
+                    await Transactions.create({
+                        user: referredUser._id,
+                        coinId: coinId,
+                        coinName: coinName,
+                        amount: referrerBonus,
+                        orderId: `referrer_bonus_${referenceId}`,
+                        recordId: `referrer_bonus_${recordId}`,
+                        type: "referrer_bonus",
+                        status: "completed",
+                        webhookStatus: "completed",
+                        updatedAt: new Date()
+                    });
                 }
             }
 
@@ -279,6 +292,12 @@ async function handleWithdrawWebhook(req, res) {
             { recordId: recordId, orderId: orderId }
         );
 
+        const withdrawalRequest = await WithdrawalRequest.findOne({ orderId: orderId });
+        if (!withdrawalRequest) {
+            console.log("Withdrawal request found for orderId:", orderId);
+            return res.status(404).json({ error: "Withdrawal request not found" });
+        }
+
         if (!transactions) {
             console.log("Transaction not found for recordId:", recordId, "and orderId:", orderId);
             // return res.status(404).json({ error: "Transaction not found" });
@@ -302,6 +321,11 @@ async function handleWithdrawWebhook(req, res) {
         await Transactions.updateOne(
             { recordId: recordId, orderId: orderId },
             { $set: { status: "completed", webhookStatus: "completed", updatedAt: Date.now() } }
+        );
+
+        await WithdrawalRequest.updateOne(
+            { recordId: recordId, orderId: orderId },
+            { $set: { status: "completed", updatedAt: Date.now() } }
         );
 
         // Respond to the webhook
