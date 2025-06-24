@@ -324,7 +324,7 @@ async function handleWithdrawWebhook(req, res) {
         );
 
         await WithdrawalRequest.updateOne(
-            { recordId: recordId, orderId: orderId },
+            { orderId: orderId },
             { $set: { status: "completed", updatedAt: Date.now() } }
         );
 

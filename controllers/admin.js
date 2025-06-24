@@ -770,6 +770,7 @@ async function executeWithdrawal(withdrawalRequest) {
         const SpotBalance = require('../models/spot-balance');
         const FuturesBalance = require('../models/futures-balance');
         const { Transactions } = require('../models/transactions');
+        const { WithdrawalRequest } = require('../models/withdrawal');
         const CcPayment = require('../utils/ccpayment');
         const ccpayment = new CcPayment(process.env.CCPAYMENT_APP_SECRET, process.env.CCPAYMENT_APP_ID, process.env.CCPAYMENT_BASE_URL);
         const { v4: uuidv4 } = require('uuid');
