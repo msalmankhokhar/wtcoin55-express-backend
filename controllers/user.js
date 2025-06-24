@@ -53,6 +53,28 @@ const transactionHistory = async (req, res) => {
     }
 }
 
+const depositTransactionHistory = async (req, res) => {
+    try {
+        const transactions = await Transactions.find({ user: req.user._id, type: "deposit" });
+
+        return res.status(200).json({msg: "success", transactions});
+    } catch (error) {
+        console.log("Error fetching transactions: ", error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
+const withdrawTransactionHistory = async (req, res) => {
+    try {
+        const transactions = await Transactions.find({ user: req.user._id, type: "withdrawal" });
+
+        return res.status(200).json({msg: "success", transactions});
+    } catch (error) {
+        console.log("Error fetching transactions: ", error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
 /**
  * Get user's balances across all accounts
  * @param {Object} req - Express request object
@@ -185,4 +207,4 @@ async function kycVerificationSubmission(req, res) {
     }
 }
 
-module.exports = { getProfile, getBalance, transactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission };
+module.exports = { getProfile, getBalance, transactionHistory, depositTransactionHistory, withdrawTransactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission };

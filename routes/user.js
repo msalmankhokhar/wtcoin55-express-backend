@@ -1,5 +1,5 @@
 let express = require('express');
-const { getProfile, getBalance, transactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission } = require('../controllers/user');
+const { getProfile, getBalance, transactionHistory, depositTransactionHistory, withdrawTransactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission } = require('../controllers/user');
 const { tokenRequired } = require('../middleware/auth');
 
 let router = express.Router();
@@ -70,6 +70,193 @@ router.get('/assets', tokenRequired, getBalance);
  *         description: Server Error
  */
 router.get('/transactions', tokenRequired, transactionHistory);
+
+/**
+ * @swagger
+ * /api/user/transactions/deposits:
+ *   get:
+ *     summary: Retrieve the user's deposit transaction history
+ *     description: Get all deposit transactions for the authenticated user. This includes all successful deposits made to the user's account.
+ *     tags: [User]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved deposit transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "success"
+ *                 transactions:
+ *                   type: array
+ *                   description: Array of deposit transaction objects
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: Transaction ID
+ *                         example: "507f1f77bcf86cd799439011"
+ *                       user:
+ *                         type: string
+ *                         description: User ID
+ *                         example: "507f1f77bcf86cd799439012"
+ *                       type:
+ *                         type: string
+ *                         description: Transaction type
+ *                         example: "deposit"
+ *                       amount:
+ *                         type: number
+ *                         description: Transaction amount
+ *                         example: 100.50
+ *                       coinName:
+ *                         type: string
+ *                         description: Cryptocurrency name
+ *                         example: "USDT"
+ *                       status:
+ *                         type: string
+ *                         description: Transaction status
+ *                         example: "completed"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction creation timestamp
+ *                         example: "2023-12-01T10:30:00.000Z"
+ *             example:
+ *               msg: "success"
+ *               transactions: [
+ *                 {
+ *                   _id: "507f1f77bcf86cd799439011",
+ *                   user: "507f1f77bcf86cd799439012",
+ *                   type: "deposit",
+ *                   amount: 100.50,
+ *                   coinName: "USDT",
+ *                   status: "completed",
+ *                   createdAt: "2023-12-01T10:30:00.000Z"
+ *                 }
+ *               ]
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Access token required"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Internal Server Error"
+ */
+router.get('/transactions/deposits', tokenRequired, depositTransactionHistory);
+
+/**
+ * @swagger
+ * /api/user/transactions/withdrawals:
+ *   get:
+ *     summary: Retrieve the user's withdrawal transaction history
+ *     description: Get all withdrawal transactions for the authenticated user. This includes all withdrawal requests and their current status.
+ *     tags: [User]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved withdrawal transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "success"
+ *                 transactions:
+ *                   type: array
+ *                   description: Array of withdrawal transaction objects
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         description: Transaction ID
+ *                         example: "507f1f77bcf86cd799439013"
+ *                       user:
+ *                         type: string
+ *                         description: User ID
+ *                         example: "507f1f77bcf86cd799439012"
+ *                       type:
+ *                         type: string
+ *                         description: Transaction type
+ *                         example: "withdraw"
+ *                       amount:
+ *                         type: number
+ *                         description: Transaction amount
+ *                         example: 50.25
+ *                       coinName:
+ *                         type: string
+ *                         description: Cryptocurrency name
+ *                         example: "USDT"
+ *                       status:
+ *                         type: string
+ *                         description: Transaction status
+ *                         example: "pending"
+ *                       address:
+ *                         type: string
+ *                         description: Destination wallet address
+ *                         example: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         description: Transaction creation timestamp
+ *                         example: "2023-12-01T10:30:00.000Z"
+ *             example:
+ *               msg: "success"
+ *               transactions: [
+ *                 {
+ *                   _id: "507f1f77bcf86cd799439013",
+ *                   user: "507f1f77bcf86cd799439012",
+ *                   type: "withdraw",
+ *                   amount: 50.25,
+ *                   coinName: "USDT",
+ *                   status: "pending",
+ *                   address: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+ *                   createdAt: "2023-12-01T10:30:00.000Z"
+ *                 }
+ *               ]
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Access token required"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Internal Server Error"
+ */
+router.get('/transactions/withdrawals', tokenRequired, withdrawTransactionHistory);
 
 /**
  * @swagger

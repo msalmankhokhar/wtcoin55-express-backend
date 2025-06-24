@@ -159,6 +159,19 @@ async function handleDepositWebhook(req, res) {
             await ccpayment.updateBalance(userId, coinId, coinName, userAmount, recordId);
         }
 
+        // Update transaction status
+        await Transactions.updateOne(
+            { orderId: referenceId },
+            { 
+                $set: { 
+                    status: "completed", 
+                    webhookStatus: "completed",
+                    type: "deposit",
+                    updatedAt: new Date()
+                } 
+            }
+        );
+
         // Respond to the webhook
         return res.status(200).json({ msg: "success" });
     } catch (error) {
@@ -288,7 +301,7 @@ async function handleWithdrawWebhook(req, res) {
 
         await Transactions.updateOne(
             { recordId: recordId, orderId: orderId },
-            { $set: { webhookStatus: "completed", updatedAt: Date.now() } }
+            { $set: { status: "completed", webhookStatus: "completed", updatedAt: Date.now() } }
         );
 
         // Respond to the webhook
