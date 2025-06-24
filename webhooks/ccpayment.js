@@ -294,7 +294,7 @@ async function handleWithdrawWebhook(req, res) {
 
         const withdrawalRequest = await WithdrawalRequest.findOne({ orderId: orderId });
         if (!withdrawalRequest) {
-            console.log("Withdrawal request found for orderId:", orderId);
+            console.log("Withdrawal request not found for orderId:", orderId);
             return res.status(404).json({ error: "Withdrawal request not found" });
         }
 
