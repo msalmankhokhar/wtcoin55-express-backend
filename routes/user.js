@@ -345,7 +345,9 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *               - city
  *               - country
  *               - idNumber
- *               - image
+ *               - frontImage
+ *               - backImage
+ *               - idImage
  *             properties:
  *               fullName:
  *                 type: string
@@ -371,10 +373,18 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                 example: "123456789"
  *                 minLength: 5
  *                 maxLength: 50
- *               image:
+ *               frontImage:
  *                 type: string
  *                 format: binary
- *                 description: Image file of the user's identification document (JPG, PNG, PDF accepted)
+ *                 description: Image file of the user's front of the identification document (JPG, PNG, PDF accepted)
+ *               backImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image file of the user's back of the identification document (JPG, PNG, PDF accepted)
+ *               idImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image file of the user holding the identification document (JPG, PNG, PDF accepted)
  *           examples:
  *             example1:
  *               summary: Standard KYC submission
@@ -383,7 +393,9 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                 city: "New York"
  *                 country: "United States"
  *                 idNumber: "123456789"
- *                 image: "(binary)"
+ *                 frontImage: "(binary)"
+ *                 backImage: "(binary)"
+ *                 idImage: "(binary)"
  *             example2:
  *               summary: International user
  *               value:
@@ -391,7 +403,9 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                 city: "Madrid"
  *                 country: "Spain"
  *                 idNumber: "ES12345678A"
- *                 image: "(binary)"
+ *                 frontImage: "(binary)"
+ *                 backImage: "(binary)"
+ *                 idImage: "(binary)"
  *     responses:
  *       200:
  *         description: KYC verification submitted successfully

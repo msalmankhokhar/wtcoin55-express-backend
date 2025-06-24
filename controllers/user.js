@@ -177,10 +177,10 @@ async function kycVerificationSubmission(req, res) {
 
         console.log(req.body);
         const { fullName, city, country, idNumber } = req.body;
-        const { image } = req.files;
+        const { frontImage, backImage, idImage } = req.files;
 
         // Validate required fields
-        if (!fullName || !city || !country || !idNumber || !image) {
+        if (!fullName || !city || !country || !idNumber || !frontImage || !backImage || !idImage) {
             return res.status(400).json({
                 success: false,
                 message: 'All fields are required: fullName, city, country, idNumber'
@@ -204,9 +204,18 @@ async function kycVerificationSubmission(req, res) {
         }
 
         // Handle image upload with cloudinary
-        const imageResult = await cloudinary.uploader.upload(image.tempFilePath);
-        const imageUrl = imageResult.secure_url;
-        console.log(imageUrl);
+        const frontImageResult = await cloudinary.uploader.upload(frontImage.tempFilePath);
+        const frontImageUrl = frontImageResult.secure_url;
+
+        const backImageResult = await cloudinary.uploader.upload(backImage.tempFilePath);
+        const backImageUrl = backImageResult.secure_url;
+
+        const idImageResult = await cloudinary.uploader.upload(idImage.tempFilePath);
+        const idImageUrl = idImageResult.secure_url;
+
+        console.log(frontImageUrl);
+        console.log(backImageUrl);
+        console.log(idImageUrl);
 
         const kycverification = new kycVerification({
             user: user._id,
@@ -214,7 +223,9 @@ async function kycVerificationSubmission(req, res) {
             city,
             country,
             idNumber,
-            imageUrl
+            frontImageUrl,
+            backImageUrl,
+            idImageUrl
         });
 
         await kycverification.save();
