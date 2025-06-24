@@ -1,5 +1,6 @@
-const { SpotOrderHistory } = require('../models/spot-order');
-const { FutureOrderHistory } = require('../models/future-order');
+const SpotOrderHistory = require('../models/spot-order');
+const FutureOrderHistory = require('../models/future-order');
+const TransferHistory = require('../models/transfer');
 
 /**
  * Calculate trading profit for a user's specific coin and account type
@@ -90,54 +91,51 @@ function calculateTradeProfit(order, trade) {
  * @param {string} userId - User ID
  * @param {string} coinId - Coin ID
  * @param {string} accountType - 'spot' or 'futures'
+ * @param {number} requiredVolume - Required volume from balance (optional, defaults to 0)
  * @returns {Object} Trading volume status
  */
-async function getTradingVolumeStatus(userId, coinId, accountType) {
+async function getTradingVolumeStatus(userId, coinId, accountType, currentBalance = 0, requiredVolume = 0) {
     try {
-        const { TransferHistory } = require('../models/transfer');
-        
-        // Get all transfers to this account
-        const transfers = await TransferHistory.find({
-            user: userId,
-            toAccount: accountType,
-            coinId,
+        // Use the requiredVolume parameter instead of calculating from transfers
+        const totalRequiredVolume = requiredVolume || 0;
+
+        // Get total transferred volume
+        const totalTransferred = await TransferHistory.find({
+            $or: [
+                { user: userId, coinId: coinId, fromAccount: accountType },
+                { user: userId, coinId: coinId, toAccount: accountType }
+            ],
             status: 'completed'
         });
 
-        // Calculate total required volume
-        let totalRequiredVolume = 0;
-        let totalTransferred = 0;
+        const totalTransferredOut = totalTransferred.filter(transfer => transfer.fromAccount === accountType).reduce((sum, transfer) => sum + transfer.netAmount, 0);
+        const totalTransferredIn = totalTransferred.filter(transfer => transfer.toAccount === accountType).reduce((sum, transfer) => sum + transfer.netAmount, 0);
 
-        transfers.forEach(transfer => {
-            totalRequiredVolume += transfer.requiredVolume || 0;
-            totalTransferred += transfer.amount || 0;
-        });
-
-        // Get user's trading profit
-        const tradingProfit = await calculateTradingProfit(userId, coinId, accountType);
-
-        const volumeMet = tradingProfit >= totalRequiredVolume;
-        const remainingVolume = Math.max(0, totalRequiredVolume - tradingProfit);
+        const volumeMet = currentBalance >= totalRequiredVolume;
+        const remainingVolume = Math.max(0, currentBalance - totalRequiredVolume);
 
         return {
             accountType,
             coinId,
-            totalTransferred,
+            coinName: coinId === "1280" ? "USDT" : "",
+            totalTransferredOut, 
+            totalTransferredIn,
             totalRequiredVolume,
-            currentVolume: tradingProfit,
+            currentVolume: currentBalance,
             remainingVolume,
             volumeMet,
-            progressPercentage: totalRequiredVolume > 0 ? (tradingProfit / totalRequiredVolume) * 100 : 0
+            progressPercentage: totalRequiredVolume > 0 ? (currentBalance / totalRequiredVolume) * 100 : 0
         };
     } catch (error) {
         console.error('Error getting trading volume status:', error);
         return {
             accountType,
             coinId,
-            totalTransferred: 0,
-            totalRequiredVolume: 0,
+            totalTransferredOut: 0,
+            totalTransferredIn: 0,
+            totalRequiredVolume: requiredVolume || 0,
             currentVolume: 0,
-            remainingVolume: 0,
+            remainingVolume: requiredVolume || 0,
             volumeMet: false,
             progressPercentage: 0
         };

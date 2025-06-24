@@ -133,17 +133,24 @@ async function getUserTradingVolumeStatus(req, res) {
         const FuturesBalance = require('../models/futures-balance');
         const futuresBalances = await FuturesBalance.find({ user: user._id });
 
+        console.log(spotBalances);
+        console.log(futuresBalances);
+
         // Calculate volume status for each balance
         const spotVolumeStatus = await Promise.all(
-            spotBalances.map(async (balance) => {
-                return await getTradingVolumeStatus(user._id, balance.coinId, 'spot');
-            })
+            spotBalances
+                .filter(balance => balance.coinId === "1280") // Only include USDT
+                .map(async (balance) => {
+                    return await getTradingVolumeStatus(user._id, (balance.coinId).toString(), 'spot', balance.balance, balance.requiredVolume);
+                })
         );
 
         const futuresVolumeStatus = await Promise.all(
-            futuresBalances.map(async (balance) => {
-                return await getTradingVolumeStatus(user._id, balance.coinId, 'futures');
-            })
+            futuresBalances
+                .filter(balance => balance.coinId === "1280") // Only include USDT
+                .map(async (balance) => {
+                    return await getTradingVolumeStatus(user._id, balance.coinId, 'futures', balance.requiredVolume);
+                })
         );
 
         res.status(200).json({
