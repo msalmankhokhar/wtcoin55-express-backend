@@ -9,6 +9,10 @@ let swaggerSpec = require('./utils/swaggerConfig');
 let cors = require("cors");
 let http = require("http");
 let helmet = require('helmet');
+const cloudinary = require('cloudinary').v2;
+const fileUpload = require('express-fileupload');
+const path = require('path');
+const os = require('os');
 // let xss = require('xss-clean');
 
 let morgan = require('morgan');
@@ -33,6 +37,14 @@ app.use(helmet());
 // app.use(xss());
 app.use(morgan('dev'));
 
+// File upload middleware
+app.use(fileUpload({
+    useTempFiles: true,
+    tempFileDir: path.join(os.tmpdir(), 'quantum-exchange-uploads'),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    abortOnLimit: true
+}));
+
 // Hnadle cors
 const corsOptions = {
     origin: [
@@ -52,6 +64,13 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 
 // Sample route
 const authRoutes = require('./routes/auth');

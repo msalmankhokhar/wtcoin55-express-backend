@@ -9,11 +9,12 @@ const kycVerificationSchema = new mongoose.Schema({
     country: { type: String, required: true },
     idNumber: { type: String, required: true },
     status: { type: String, default: 'pending' },
+    imageUrl: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
 
-kycVerificationSchema.index({ user: 1 }, { unique: true });
+kycVerificationSchema.index({ user: 1 });
 
 const kycVerification = mongoose.model('kycVerification', kycVerificationSchema);
 module.exports =  { kycVerification };

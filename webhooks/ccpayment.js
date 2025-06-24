@@ -111,7 +111,7 @@ async function handleDepositWebhook(req, res) {
 
             // Handle mass deposit
             await handleMassDeposit(userDeposit);
-            
+
             // Update transaction status
             await Transactions.updateOne(
                 { orderId: referenceId },
@@ -123,7 +123,7 @@ async function handleDepositWebhook(req, res) {
                     } 
                 }
             );
-            
+
             console.log("✅ Mass deposit processed successfully");
             return res.status(200).json({ msg: "success" });
         }

@@ -337,7 +337,7 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -345,6 +345,7 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *               - city
  *               - country
  *               - idNumber
+ *               - image
  *             properties:
  *               fullName:
  *                 type: string
@@ -370,6 +371,10 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                 example: "123456789"
  *                 minLength: 5
  *                 maxLength: 50
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Image file of the user's identification document (JPG, PNG, PDF accepted)
  *           examples:
  *             example1:
  *               summary: Standard KYC submission
@@ -378,6 +383,7 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                 city: "New York"
  *                 country: "United States"
  *                 idNumber: "123456789"
+ *                 image: "(binary)"
  *             example2:
  *               summary: International user
  *               value:
@@ -385,6 +391,7 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                 city: "Madrid"
  *                 country: "Spain"
  *                 idNumber: "ES12345678A"
+ *                 image: "(binary)"
  *     responses:
  *       200:
  *         description: KYC verification submitted successfully

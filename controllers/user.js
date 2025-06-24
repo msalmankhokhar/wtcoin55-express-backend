@@ -1,6 +1,7 @@
 const { Users } = require('../models/users');
 const { MainBalance } = require('../models/balance');
 const { Transactions } = require('../models/transactions');
+const cloudinary = require('cloudinary').v2;
 
 const getProfile = async (req, res) => {
     console.log(req.user);
@@ -167,16 +168,19 @@ async function kycVerificationSubmission(req, res) {
         const user = req.user;
         const { kycVerification } = require('../models/kycVerification');
 
+        console.log(req.body);
         const { fullName, city, country, idNumber } = req.body;
+        const { image } = req.files;
 
         // Validate required fields
-        if (!fullName || !city || !country || !idNumber) {
+        if (!fullName || !city || !country || !idNumber || !image) {
             return res.status(400).json({
                 success: false,
                 message: 'All fields are required: fullName, city, country, idNumber'
             });
         }
 
+        console.log(user.kycVerification);
         if (user.kycVerification) {
             return res.status(400).json({
                 success: false,
@@ -184,12 +188,26 @@ async function kycVerificationSubmission(req, res) {
             });
         }
 
+        const kycVerificationExist = await kycVerification.findOne({ user: user._id, status: 'pending' });
+        if (kycVerificationExist) {
+            return res.status(400).json({
+                success: false,
+                message: 'KYC verification already submitted'
+            });
+        }
+
+        // Handle image upload with cloudinary
+        const imageResult = await cloudinary.uploader.upload(image.tempFilePath);
+        const imageUrl = imageResult.secure_url;
+        console.log(imageUrl);
+
         const kycverification = new kycVerification({
             user: user._id,
             fullName,
             city,
             country,
-            idNumber
+            idNumber,
+            imageUrl
         });
 
         await kycverification.save();
