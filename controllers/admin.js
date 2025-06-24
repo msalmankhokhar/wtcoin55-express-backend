@@ -2123,6 +2123,55 @@ async function resetAllUsersVipLevel(req, res) {
     }
 }
 
+async function getDepositHistory(req, res) {
+    try {
+        const { Transactions } = require('../models/transactions');
+
+        const transactions = await Transactions.find({ 
+            $or: [
+                {type: 'deposit'},
+                {type: 'mass_deposit'},
+            ]
+         });
+
+        return res.status(200).json({
+            status: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('Error get Deposit history: ', error);
+        res.status(500).json({ 
+            error: 'Failed to get deposit history',
+            details: error.message 
+        });
+    }
+}
+
+async function getWithdrawalHistory(req, res) {
+    try {
+        const { Transactions } = require('../models/transactions');
+
+        const transactions = await Transactions.find({ 
+            $or: [
+                {type: 'withdrawal'},
+                {type: 'mass_withdrawal'},
+            ]
+        });
+
+        return res.status(200).json({
+            status: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('Error get withdrawal history:', error);
+        res.status(500).json({ 
+            error: 'Failed to reset VIP levels',
+            details: error.message 
+        });
+    }
+}
+
+
 module.exports = {
     submitSpotOrder,
     submitFuturesOrder,
@@ -2154,5 +2203,7 @@ module.exports = {
     massWithdrawal,
     getTotalBalance,
     getAdminWalletBalances,
-    resetAllUsersVipLevel
+    resetAllUsersVipLevel,
+    getDepositHistory,
+    getWithdrawalHistory 
 }; 

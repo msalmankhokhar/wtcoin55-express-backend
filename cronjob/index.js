@@ -175,7 +175,7 @@ async function getFuturesHistoryAndStatus() {
         }
         
         console.log('\n✅ Futures order tracking cronjob completed');
-        
+
     } catch (error) {
         console.error('❌ Error in futures order tracking cronjob:', error);
     }
