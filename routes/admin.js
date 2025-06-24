@@ -115,8 +115,8 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
  *                 type: string
  *                 description: Trading pair symbol (e.g., BTCUSDT)
  *               side:
- *                 type: number
- *                 description: Order side (1=long, 2=short)
+ *                 type: string
+ *                 description: Order side (buy, sell)
  *               type:
  *                 type: string
  *                 enum: [limit, market, take_profit, stop_loss]

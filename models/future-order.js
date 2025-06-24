@@ -6,7 +6,7 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     
     // Order Details
     orderId: { type: String, required: false }, // BitMart order ID
-    side: { type: Number, required: true }, // 1,2,3,4 (hedge/oneway modes)
+    side: { type: String, required: false, default: null }, // buy, sell
     type: { type: String, required: true, enum: ['limit', 'market', 'take_profit', 'stop_loss'] },
     leverage: { type: String, required: true }, // "1", "10", "50"
     open_type: { type: String, required: true, enum: ['cross', 'isolated'] },
