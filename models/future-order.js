@@ -42,7 +42,7 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     
     // Copy Trading
     owner: { type: Boolean, required: true, default: false },
-    copyCode: { type: String, required: true },
+    copyCode: { type: String, required: true, unique: true },
     isActive: { type: Boolean, default: true },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     

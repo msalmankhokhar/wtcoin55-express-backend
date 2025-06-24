@@ -36,6 +36,16 @@ async function followSpotOrder(req, res) {
             return res.status(400).json({ error: 'Order has expired' });
         }
 
+        // Check if user has already followed this order
+        const existingFollower = await SpotOrderHistory.findOne({ 
+            user: user._id,
+            copyCode
+        });
+        
+        if (existingFollower) {
+            return res.status(400).json({ error: 'You have already followed this order' });
+        }
+
         // Check user balance
         const coinName = originalOrder.symbol.split('_')[1] || originalOrder.symbol.split('-')[1] || 'USDT';
         let balance;
@@ -147,6 +157,16 @@ async function followFuturesOrder(req, res) {
         // Check if order has expired
         if (originalOrder.expiration && new Date() > originalOrder.expiration) {
             return res.status(400).json({ error: 'Futures order has expired' });
+        }
+
+        // Check if user has already followed this order
+        const existingFollower = await FuturesOrderHistory.findOne({ 
+            user: user._id,
+            copyCode
+        });
+
+        if (existingFollower) {
+            return res.status(400).json({ error: 'You have already followed this order' });
         }
 
         // Check user futures balance
