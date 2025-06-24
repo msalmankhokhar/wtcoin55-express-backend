@@ -99,7 +99,6 @@ async function submitFuturesOrder(req, res) {
             price_way, 
             price_type = 1,
             expiration,
-            percentage = 1,
             limit_price = 0
         } = req.body;
         const user = req.user;
@@ -128,11 +127,6 @@ async function submitFuturesOrder(req, res) {
             });
         }
 
-        // Validate percentage
-        if (percentage < 0.1 || percentage > 100) {
-            return res.status(400).json({ error: 'Percentage must be between 0.1 and 100' });
-        }
-
         // Generate order ID and copy code
         const orderId = uuidv4();
         const copyCode = uuidv4().slice(0, 6);
@@ -155,7 +149,6 @@ async function submitFuturesOrder(req, res) {
             copyCode: copyCode,
             owner: true,
             followers: [],
-            percentage: percentage,
             expiration: expiration ? new Date(expiration) : null,
             limit_price: limit_price || 0
         });
@@ -174,7 +167,6 @@ async function submitFuturesOrder(req, res) {
                 leverage: leverage,
                 size: size,
                 trigger_price: trigger_price,
-                percentage: percentage,
                 limit_price: limit_price || 0
             }
         });

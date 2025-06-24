@@ -45,6 +45,7 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     copyCode: { type: String, required: true, unique: true },
     isActive: { type: Boolean, default: true },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    percentage: { type: Number, required: false, default: null, min: 0.1, max: 100 },
     
     // Timestamps
     createdAt: { type: Date, default: Date.now },

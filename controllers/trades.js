@@ -4,7 +4,7 @@ const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
 const SpotBalance = require('../models/spot-balance');
 const FuturesBalance = require('../models/futures-balance');
-
+const { getProfitPercentage } = require('../utils/helpers');
 
 /**
  * Follow spot order (simulated - generates fake profitable order)
@@ -143,6 +143,14 @@ async function followFuturesOrder(req, res) {
             return res.status(400).json({ error: 'Copy code is required' });
         }
 
+        // Check if user has vip tier
+        const { VipTier } = require('../models/vip');
+
+        const vipTier = await VipTier.findById(user.vipTier);
+        if (!vipTier || vipTier.vipLevel === 0) {
+            return res.status(400).json({ error: 'User has no vip tier, please contact admin' });
+        }
+
         // Find the original futures order
         const originalOrder = await FuturesOrderHistory.findOne({ 
             copyCode, 
@@ -190,8 +198,8 @@ async function followFuturesOrder(req, res) {
         // Generate fake order ID
         const fakeOrderId = uuidv4();
         const currentPrice = parseFloat(originalOrder.trigger_price);
-        const profitPercentage = originalOrder.percentage;
-        
+        const profitPercentage = await getProfitPercentage(user.vipTier);
+
         // Calculate profit based on the percentage
         let finalPrice;
         

@@ -1214,6 +1214,16 @@ async function updateUserVipTier(userId, vipTierId) {
     }
 }
 
+async function getProfitPercentage(vipTierId) {
+    const vipTier = await VipTier.findById(vipTierId);
+    if (!vipTier) {
+        console.log('Vip tier not found for user', userId);
+        return false;
+    }
+    return vipTier.vipPercentage;
+}
+
+
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
     updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, updateTradingVolume, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits,
     updateUserVipTier

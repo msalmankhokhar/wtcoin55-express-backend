@@ -153,12 +153,6 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
  *                 type: string
  *                 format: date-time
  *                 description: Order expiration time
- *               percentage:
- *                 type: number
- *                 minimum: 0.1
- *                 maximum: 100
- *                 default: 1
- *                 description: Expected profit percentage
  *     responses:
  *       200:
  *         description: Futures order submitted successfully
