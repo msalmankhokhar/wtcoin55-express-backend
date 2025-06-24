@@ -214,7 +214,7 @@ async function submitSpotOrder(req, res) {
             preliminaryRole = 'taker';
         }
 
-        const orderCopyCode = uuidv4().slice(0, 6);
+        const orderCopyCode = uuidv4().slice(0, 6).toUpperCase();
 
         const orderHistory = new SpotOrderHistory({
             user: req.user._id,
@@ -640,7 +640,7 @@ async function submitFuturesOrder(req, res) {
             return res.status(500).json({ error: 'Failed to submit futures order' });
         }
 
-        const orderCopyCode = uuidv4().slice(0, 6);
+        const orderCopyCode = uuidv4().slice(0, 6).toUpperCase();
         let marketPrice = result.data.price;
         marketPrice = marketPrice !== 'market price' ? parseFloat(marketPrice) : 0;
 
@@ -776,8 +776,7 @@ async function submitFuturesPlanOrder(req, res) {
         }
 
         // Generate copy trading code
-        const { v4: uuidv4 } = require('uuid');
-        const orderCopyCode = uuidv4().slice(0, 6);
+        const orderCopyCode = uuidv4().slice(0, 6).toUpperCase();
 
         // Save order to database
         const orderHistory = new FuturesOrderHistory({
@@ -932,7 +931,7 @@ async function createFuturesOrder(req, res) {
         }
 
         // Generate copy trading code
-        const orderCopyCode = uuidv4().slice(0, 6);
+        const orderCopyCode = uuidv4().slice(0, 6).toUpperCase();
 
         // Create order without hitting BitMart API
         const orderHistory = new FuturesOrderHistory({

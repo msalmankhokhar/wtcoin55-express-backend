@@ -153,10 +153,12 @@ async function followFuturesOrder(req, res) {
 
         // Find the original futures order
         const originalOrder = await FuturesOrderHistory.findOne({ 
-            copyCode, 
+            copyCode,
             owner: true,
             status: 'pending'
         });
+
+        console.log(originalOrder);
 
         if (!originalOrder) {
             return res.status(404).json({ error: 'Futures order not found or not available for following' });

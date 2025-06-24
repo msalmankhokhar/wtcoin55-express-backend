@@ -63,7 +63,7 @@ async function submitSpotOrder(req, res) {
             message: 'Order submitted successfully (simulated)',
             data: {
                 orderId: orderId,
-                copyCode: copyCode,
+                copyCode: copyCode.toUpperCase(),
                 symbol: symbol,
                 side: side,
                 type: type,
@@ -160,7 +160,7 @@ async function submitFuturesOrder(req, res) {
             message: 'Futures order submitted successfully (simulated)',
             data: {
                 orderId: orderId,
-                copyCode: copyCode,
+                copyCode: copyCode.toUpperCase(),
                 symbol: symbol,
                 side: side,
                 type: type,

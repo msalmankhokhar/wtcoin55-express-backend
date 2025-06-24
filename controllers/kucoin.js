@@ -310,7 +310,7 @@ async function submitSpotOrder(req, res) {
         const result = await kucoin.submitSpotOrder(clientOrderId, symbol, side, type, quantity, price, notional);
 
         if (result.data) {
-            const orderCopyCode = uuidv4().slice(0, 6);
+            const orderCopyCode = uuidv4().slice(0, 6).toUpperCase();
 
             const orderHistory = new SpotOrderHistory({
                 user: user._id,
