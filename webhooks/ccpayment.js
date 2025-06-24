@@ -286,6 +286,11 @@ async function handleWithdrawWebhook(req, res) {
             return res.status(200).json({ msg: "success" });
         }
 
+        await Transactions.updateOne(
+            { recordId: recordId, orderId: orderId },
+            { $set: { webhookStatus: "completed", updatedAt: Date.now() } }
+        );
+
         // Respond to the webhook
         res.json({ msg: "success" });
     } catch (error) {
