@@ -775,7 +775,7 @@ async function executeWithdrawal(withdrawalRequest) {
         const { v4: uuidv4 } = require('uuid');
         
         // Generate order ID
-        const orderId = `${withdrawalRequest.user.toString()}_${Date.now()}`;
+        const orderId = `${withdrawalRequest.user._id.toString()}_${Date.now()}`;
         
         // Check if orderId is longer than 64 characters and truncate if needed
         const finalOrderId = orderId.length > 64 ? orderId.slice(0, 60) : orderId;
@@ -846,6 +846,11 @@ async function executeWithdrawal(withdrawalRequest) {
             });
 
             await transaction.save();
+
+            await WithdrawalRequest.updateOne(
+                { _id: withdrawalRequest._id },
+                { $set: { status: 'processing', orderId: finalOrderId, updatedAt: new Date() } }
+            );
 
             console.log(`✅ Withdrawal executed successfully for request ${withdrawalRequest._id}`);
         } else {
