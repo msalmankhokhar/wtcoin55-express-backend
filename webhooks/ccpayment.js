@@ -170,6 +170,7 @@ async function handleDepositWebhook(req, res) {
             user.firstDeposit = true;
             await user.save();
         } else {
+            console.log("User already has a first deposit, updating balance");
             await ccpayment.updateBalance(userId, coinId, coinName, userAmount, recordId);
         }
 

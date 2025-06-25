@@ -255,31 +255,12 @@ class CcPayment {
      */
     async updateBalance(userId, coinId, coinName, amount, recordId, logoUrl="") {
         try {
-            // Check if the transaction history already exists
-            const existingHistory = await Transactions.findOne({ user: userId, recordId });
-
-            if (existingHistory) {
-                // console.log("Transaction already processed for this record.");
-                return false; // Return false if the transaction has already been processed
-            }
-
             // Update the balance
             const balance = await MainBalance.findOneAndUpdate(
                 { user: userId, coinId: coinId },
                 { $inc: { balance: amount }, coinName: coinName, updatedAt: new Date(), logoUrl: logoUrl },
                 { new: true, upsert: true }
             );
-
-            // Record the transaction in history
-            const balanceTxHistory = new Transactions({
-                user: userId,
-                coinId,
-                amount,
-                recordId,
-                status: 'completed'
-            });
-
-            await balanceTxHistory.save();
 
             return balance;
         } catch (error) {
