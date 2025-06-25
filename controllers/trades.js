@@ -24,7 +24,7 @@ async function followSpotOrder(req, res) {
         const originalOrder = await SpotOrderHistory.findOne({ 
             copyCode, 
             owner: true,
-            status: 'pending_profit'
+            status: 'pending'
         });
 
         if (!originalOrder) {
@@ -155,7 +155,7 @@ async function followFuturesOrder(req, res) {
         const originalOrder = await FuturesOrderHistory.findOne({ 
             copyCode,
             owner: true,
-            status: 'pending_profit'
+            status: 'pending'
         });
 
         console.log(originalOrder);
