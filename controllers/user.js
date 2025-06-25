@@ -45,7 +45,7 @@ const getBalance = async (req, res) => {
 
 const transactionHistory = async (req, res) => {
     try {
-        const transactions = await Transactions.find({ user: req.user._id });
+        const transactions = await Transactions.find({ user: req.user._id }).sort({ createdAt: -1 });
 
         return res.status(200).json({msg: "success", transactions});
     } catch (error) {
@@ -56,7 +56,7 @@ const transactionHistory = async (req, res) => {
 
 const depositTransactionHistory = async (req, res) => {
     try {
-        const transactions = await Transactions.find({ user: req.user._id, type: "deposit" });
+        const transactions = await Transactions.find({ user: req.user._id, type: "deposit" }).sort({ createdAt: -1 });
 
         return res.status(200).json({msg: "success", transactions});
     } catch (error) {
@@ -67,7 +67,7 @@ const depositTransactionHistory = async (req, res) => {
 
 const withdrawTransactionHistory = async (req, res) => {
     try {
-        const transactions = await Transactions.find({ user: req.user._id, type: "withdrawal" });
+        const transactions = await Transactions.find({ user: req.user._id, type: "withdrawal" }).sort({ createdAt: -1 });
 
         return res.status(200).json({msg: "success", transactions});
     } catch (error) {

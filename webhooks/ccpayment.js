@@ -307,20 +307,20 @@ async function handleWithdrawWebhook(req, res) {
             // return res.status(404).json({ error: "Transaction not found" });
             return res.status(200).json({ msg: "success" });
         }
-        if (transactions.type === "deposit_to_spots" || transactions.type === "deposit_to_futures") {
-            console.log("Transaction is a deposit to spots or futures, skipping withdrawal processing.");
-            await Transactions.updateOne(
-                { recordId: recordId, orderId: orderId },
-                { $set: { webhookStatus: "completed", updatedAt: Date.now() } }
-            );
+        // if (transactions.type === "deposit_to_spots" || transactions.type === "deposit_to_futures") {
+        //     console.log("Transaction is a deposit to spots or futures, skipping withdrawal processing.");
+        //     await Transactions.updateOne(
+        //         { recordId: recordId, orderId: orderId },
+        //         { $set: { webhookStatus: "completed", updatedAt: Date.now() } }
+        //     );
 
-            await SpotBalance.updateOne(
-                { user: transactions.user, coinId: transactions.coinId, coinName: transactions.coinName },
-                { $inc: { balance: transactions.amount } },
-                { upsert: true }
-            );
-            return res.status(200).json({ msg: "success" });
-        }
+        //     await SpotBalance.updateOne(
+        //         { user: transactions.user, coinId: transactions.coinId, coinName: transactions.coinName },
+        //         { $inc: { balance: transactions.amount } },
+        //         { upsert: true }
+        //     );
+        //     return res.status(200).json({ msg: "success" });
+        // }
 
         await Transactions.updateOne(
             { recordId: recordId, orderId: orderId },

@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { Users } = require('../models/users');
 const { WithdrawalRequest } = require('../models/withdrawal');
-const { MainBalance, SpotBalance, FuturesBalance } = require('../models/balance');
+const { MainBalance } = require('../models/balance');
 // const { Transactions } = require('../models/transactions');
 // const ccpayment = require('../utils/ccpayment');
 
@@ -61,6 +61,7 @@ async function submitWithdrawalRequest(req, res) {
             chain,
             memo,
             walletType,
+            type: 'withdrawal',
             status: 'pending'
         });
 

@@ -814,16 +814,6 @@ async function executeWithdrawal(withdrawalRequest) {
                     user: withdrawalRequest.user, 
                     coinId: coinId 
                 });
-            } else if (walletType === 'spot') {
-                userBalance = await SpotBalance.findOne({ 
-                    user: withdrawalRequest.user, 
-                    coinId: coinId 
-                });
-            } else if (walletType === 'futures') {
-                userBalance = await FuturesBalance.findOne({ 
-                    user: withdrawalRequest.user, 
-                    coinId: coinId 
-                });
             }
 
             if (userBalance) {
@@ -2140,7 +2130,7 @@ async function getDepositHistory(req, res) {
                 {type: 'deposit'},
                 {type: 'mass_deposit'},
             ]
-         });
+         }).sort({ createdAt: -1 });
 
         return res.status(200).json({
             status: true,
@@ -2164,7 +2154,7 @@ async function getWithdrawalHistory(req, res) {
                 {type: 'withdrawal'},
                 {type: 'mass_withdrawal'},
             ]
-        });
+        }).sort({ createdAt: -1 });
 
         return res.status(200).json({
             status: true,
@@ -2173,7 +2163,7 @@ async function getWithdrawalHistory(req, res) {
     } catch (error) {
         console.error('Error get withdrawal history:', error);
         res.status(500).json({ 
-            error: 'Failed to reset VIP levels',
+            error: 'Failed to get withdrawal history',
             details: error.message 
         });
     }

@@ -1265,5 +1265,5 @@ async function getProfitPercentage(vipTierId) {
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
     updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, updateTradingVolume, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits,
-    updateUserVipTier
+    updateUserVipTier, getProfitPercentage
  };
