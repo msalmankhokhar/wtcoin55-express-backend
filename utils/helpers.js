@@ -1066,15 +1066,54 @@ async function distributeExpiredOrderProfits() {
     try {
         console.log('💰 Starting profit distribution for expired orders...');
         
+        // Find all pending orders that have expired
+        const expiredOrders_spot = await SpotOrderHistory.find({
+            status: 'pending',
+            owner: true,
+            expiration: { $lte: new Date() }
+        });
+
+        if (expiredOrders_spot.length > 0) {
+            console.log(`📋 Found ${expiredOrders_spot.length} expired admin spot orders to process`);
+            for (const order of expiredOrders_spot) {
+                // Change the status
+                await SpotOrderHistory.findByIdAndUpdate(order._id, {
+                    status: 'expired',
+                    updatedAt: new Date(),
+                    // executedAt: new Date()
+                });
+            }
+        }
+
+        const expiredOrders_futures = await FuturesOrderHistory.find({
+            status: 'pending',
+            owner: true,
+            expiration: { $lte: new Date() }
+        });
+
+        if (expiredOrders_futures.length > 0) {
+            console.log(`📋 Found ${expiredOrders_futures.length} expired admin futures orders to process`);
+            for (const order of expiredOrders_futures) {
+                // Chnage the status
+                await FuturesOrderHistory.findByIdAndUpdate(order._id, {
+                    status: 'expired',
+                    updatedAt: new Date(),
+                    // executedAt: new Date()
+                });
+            }
+        }
+
         // Find all spot orders that have expired and are pending profit distribution
         const expiredSpotOrders = await SpotOrderHistory.find({
             status: 'pending_profit',
+            owner: false,
             expiration: { $lte: new Date() }
         });
 
         // Find all futures orders that have expired and are pending profit distribution
         const expiredFuturesOrders = await FuturesOrderHistory.find({
             status: 'pending_profit',
+            owner: false,
             expiration: { $lte: new Date() }
         });
 

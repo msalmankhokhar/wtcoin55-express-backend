@@ -376,15 +376,15 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *               frontImage:
  *                 type: string
  *                 format: binary
- *                 description: Image file of the user's front of the identification document (JPG, PNG, PDF accepted)
+ *                 description: Front side image of the user's identification document (JPG, PNG, PDF accepted)
  *               backImage:
  *                 type: string
  *                 format: binary
- *                 description: Image file of the user's back of the identification document (JPG, PNG, PDF accepted)
+ *                 description: Back side image of the user's identification document (JPG, PNG, PDF accepted)
  *               idImage:
  *                 type: string
  *                 format: binary
- *                 description: Image file of the user holding the identification document (JPG, PNG, PDF accepted)
+ *                 description: Additional ID image (selfie with ID, or other required document) (JPG, PNG, PDF accepted)
  *           examples:
  *             example1:
  *               summary: Standard KYC submission

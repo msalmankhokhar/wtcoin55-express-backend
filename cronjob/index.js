@@ -133,7 +133,7 @@ async function getFuturesHistoryAndStatus() {
     try {
         // Get all pending futures orders
         const pendingOrders = await FuturesOrderHistory.find({ 
-            status: { $in: ['pending', 'triggered', 'partial'] }
+            status: { $in: ['pending', 'pending_profit', 'triggered', 'partial'] }
         });
         
         console.log(`📋 Found ${pendingOrders.length} orders to check`);
