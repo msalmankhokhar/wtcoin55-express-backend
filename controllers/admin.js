@@ -39,11 +39,37 @@ async function submitSpotOrder(req, res) {
         // Handle expiration date properly
         let expirationDate = null;
         if (expiration) {
-            // If expiration is provided, parse it as a Date
-            expirationDate = new Date(expiration);
+            // Check if expiration is a relative time format (e.g., "5m", "10m", "1h")
+            if (typeof expiration === 'string' && /^\d+[mhd]$/.test(expiration)) {
+                const value = parseInt(expiration.slice(0, -1));
+                const unit = expiration.slice(-1);
+                
+                let milliseconds = 0;
+                switch (unit) {
+                    case 'm': // minutes
+                        milliseconds = value * 60 * 1000;
+                        break;
+                    case 'h': // hours
+                        milliseconds = value * 60 * 60 * 1000;
+                        break;
+                    case 'd': // days
+                        milliseconds = value * 24 * 60 * 60 * 1000;
+                        break;
+                    default:
+                        milliseconds = 5 * 60 * 1000; // default to 5 minutes
+                }
+                
+                expirationDate = new Date(Date.now() + milliseconds);
+                console.log(`🕐 Setting relative expiration: ${expiration} from now = ${expirationDate.toISOString()}`);
+            } else {
+                // If expiration is provided as absolute date, parse it as a Date
+                expirationDate = new Date(expiration);
+                console.log(`🕐 Setting absolute expiration: ${expirationDate.toISOString()}`);
+            }
         } else {
             // If no expiration provided, set to 5 minutes from now
             expirationDate = new Date(Date.now() + 5 * 60 * 1000);
+            console.log(`🕐 Setting default expiration: 5m from now = ${expirationDate.toISOString()}`);
         }
 
         // Create order history entry (no real API call)
@@ -144,11 +170,37 @@ async function submitFuturesOrder(req, res) {
         // Handle expiration date properly
         let expirationDate = null;
         if (expiration) {
-            // If expiration is provided, parse it as a Date
-            expirationDate = new Date(expiration);
+            // Check if expiration is a relative time format (e.g., "5m", "10m", "1h")
+            if (typeof expiration === 'string' && /^\d+[mhd]$/.test(expiration)) {
+                const value = parseInt(expiration.slice(0, -1));
+                const unit = expiration.slice(-1);
+                
+                let milliseconds = 0;
+                switch (unit) {
+                    case 'm': // minutes
+                        milliseconds = value * 60 * 1000;
+                        break;
+                    case 'h': // hours
+                        milliseconds = value * 60 * 60 * 1000;
+                        break;
+                    case 'd': // days
+                        milliseconds = value * 24 * 60 * 60 * 1000;
+                        break;
+                    default:
+                        milliseconds = 5 * 60 * 1000; // default to 5 minutes
+                }
+                
+                expirationDate = new Date(Date.now() + milliseconds);
+                console.log(`🕐 Setting relative expiration: ${expiration} from now = ${expirationDate.toISOString()}`);
+            } else {
+                // If expiration is provided as absolute date, parse it as a Date
+                expirationDate = new Date(expiration);
+                console.log(`🕐 Setting absolute expiration: ${expirationDate.toISOString()}`);
+            }
         } else {
             // If no expiration provided, set to 5 minutes from now
             expirationDate = new Date(Date.now() + 5 * 60 * 1000);
+            console.log(`🕐 Setting default expiration: 5m from now = ${expirationDate.toISOString()}`);
         }
 
         // Create futures order history entry (no real API call)

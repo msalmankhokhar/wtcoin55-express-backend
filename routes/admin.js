@@ -78,7 +78,19 @@ const tokenRequired = adminTokenRequired;
  *                 type: number
  *               expiration:
  *                 type: string
- *                 format: date-time
+ *                 description: Order expiration time. Supports relative format (e.g., "5m", "10m", "1h", "2d") or absolute ISO date-time format
+ *                 example: "5m"
+ *                 oneOf:
+ *                   - pattern: '^\d+[mhd]$'
+ *                     description: Relative time format (minutes, hours, days)
+ *                     examples:
+ *                       "5m": "5 minutes from now"
+ *                       "10m": "10 minutes from now"
+ *                       "1h": "1 hour from now"
+ *                       "2d": "2 days from now"
+ *                   - format: date-time
+ *                     description: Absolute ISO date-time format
+ *                     example: "2025-06-25T11:00:00.000Z"
  *               percentage:
  *                 type: number
  *                 minimum: 0.1
@@ -153,8 +165,19 @@ router.post('/spot-order', tokenRequired, submitSpotOrder);
  *                 description: 1=last_price, 2=fair_price
  *               expiration:
  *                 type: string
- *                 format: date-time
- *                 description: Order expiration time
+ *                 description: Order expiration time. Supports relative format (e.g., "5m", "10m", "1h", "2d") or absolute ISO date-time format
+ *                 example: "5m"
+ *                 oneOf:
+ *                   - pattern: '^\d+[mhd]$'
+ *                     description: Relative time format (minutes, hours, days)
+ *                     examples:
+ *                       "5m": "5 minutes from now"
+ *                       "10m": "10 minutes from now"
+ *                       "1h": "1 hour from now"
+ *                       "2d": "2 days from now"
+ *                   - format: date-time
+ *                     description: Absolute ISO date-time format
+ *                     example: "2025-06-25T11:00:00.000Z"
  *     responses:
  *       200:
  *         description: Futures order submitted successfully
