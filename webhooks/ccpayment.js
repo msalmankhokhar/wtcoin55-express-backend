@@ -107,17 +107,23 @@ async function handleDepositWebhook(req, res) {
             // Handle mass deposit
             await handleMassDeposit(userDeposit);
 
-            // Update transaction status
-            await Transactions.updateOne(
-                { orderId: referenceId },
-                { 
-                    $set: { 
-                        status: "completed", 
-                        webhookStatus: "completed",
-                        updatedAt: new Date()
-                    } 
-                }
-            );
+            // Create pending transaction record
+            const transaction = new Transactions({
+                user: userId,
+                coinId,
+                currency: coinName,
+                amount: userAmount,
+                address: data.address,
+                chain,
+                orderId: referenceId,
+                recordId: data.recordId,
+                status: 'completed',
+                type: 'mass_deposit',
+                webhookStatus: 'completed',
+                updatedAt: new Date()
+            });
+            await transaction.save();
+
 
             console.log("✅ Mass deposit processed successfully");
             return res.status(200).json({ msg: "success" });
@@ -168,17 +174,19 @@ async function handleDepositWebhook(req, res) {
         }
 
         // Update transaction status
-        await Transactions.updateOne(
-            { orderId: referenceId },
-            { 
-                $set: { 
-                    status: "completed", 
-                    webhookStatus: "completed",
-                    type: "deposit",
-                    updatedAt: new Date()
-                } 
-            }
-        );
+        const userTransaction = await Transactions({
+            user: userId,
+            coinId: coinId,
+            currency: coinName,
+            amount: userAmount,
+            orderId: referenceId,
+            recordId: recordId,
+            status: 'completed',
+            type: 'deposit',
+            webhookStatus: 'completed',
+            updatedAt: new Date()
+        });
+        await userTransaction.save();
 
         // Respond to the webhook
         return res.status(200).json({ msg: "success" });

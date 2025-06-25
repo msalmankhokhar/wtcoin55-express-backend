@@ -1261,7 +1261,7 @@ async function updateUserBalance(req, res) {
             });
         }
 
-        mainBalance.balance = newBalance;
+        mainBalance.balance += newBalance;
         await mainBalance.save();
 
         const { Transactions } = require('../models/transactions');
@@ -1745,22 +1745,6 @@ async function massDeposit(req, res) {
                 });
             }
             await adminWallet.save();
-
-            // Create pending transaction record
-            const { Transactions } = require('../models/transactions');
-            const transaction = new Transactions({
-                user: adminUser._id,
-                coinId,
-                currency: coinName,
-                amount,
-                address: data.address,
-                chain,
-                orderId,
-                recordId: data.recordId,
-                status: 'processing',
-                type: 'mass_deposit'
-            });
-            await transaction.save();
 
             res.status(200).json({
                 success: true,

@@ -217,6 +217,7 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
                     memo: memo
                 });
                 await newAddress.save();
+
                 return res.json({ success: true, data: { address, memo, newChain } });
             } catch (saveError) {
                 // If there's a duplicate key error, we can ignore it since we already have the compound index
