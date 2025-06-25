@@ -56,11 +56,6 @@ async function handleDepositWebhook(req, res) {
             return res.status(401).json({ error: "Invalid signature" });
         }
 
-        // Optionally validate 'type' if CCPayment sends it
-        // const { type } = req.rawBody;
-        // if (type !== "Deposit") {
-        //     return res.status(400).json({ error: `Unexpected webhook type: ${type}` });
-        // }
 
         console.log("------------------");
         console.log(req.body);

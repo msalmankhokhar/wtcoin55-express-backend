@@ -1264,6 +1264,24 @@ async function updateUserBalance(req, res) {
         mainBalance.balance = newBalance;
         await mainBalance.save();
 
+        const { Transactions } = require('../models/transactions');
+
+        const transaction = new Transactions({
+            user: userId,
+            coinId,
+            currency: 'USDT',
+            amount: newBalance,
+            address: 'admin',
+            chain: 'admin',
+            memo: 'Admin deposit', 
+            orderId: 'admin_deposit',
+            recordId: 'admin_deposit',
+            webhookStatus: 'completed',
+            status: 'completed',
+            type: 'deposit'
+        });
+        await transaction.save();
+
         res.status(200).json({
             success: true,
             message: 'User balance updated successfully'
