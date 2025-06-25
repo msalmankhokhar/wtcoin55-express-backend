@@ -161,7 +161,7 @@ async function followFuturesOrder(req, res) {
         console.log(originalOrder);
 
         if (!originalOrder) {
-            return res.status(404).json({ error: 'Futures order not found or not available for following' });
+            return res.status(404).json({ error: 'Futures order not found or order has expired' });
         }
 
         // Check if order has expired

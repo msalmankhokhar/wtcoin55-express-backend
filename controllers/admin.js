@@ -36,6 +36,16 @@ async function submitSpotOrder(req, res) {
         const orderId = uuidv4();
         const copyCode = uuidv4().slice(0, 6);
 
+        // Handle expiration date properly
+        let expirationDate = null;
+        if (expiration) {
+            // If expiration is provided, parse it as a Date
+            expirationDate = new Date(expiration);
+        } else {
+            // If no expiration provided, set to 5 minutes from now
+            expirationDate = new Date(Date.now() + 5 * 60 * 1000);
+        }
+
         // Create order history entry (no real API call)
         const { SpotOrderHistory } = require('../models/spot-order');
         const orderHistory = new SpotOrderHistory({
@@ -48,7 +58,7 @@ async function submitSpotOrder(req, res) {
             copyCode: copyCode.toUpperCase(),
             orderId: orderId,
             status: 'pending',
-            expiration: expiration ? new Date(expiration) : null,
+            expiration: expirationDate,
             role: 'admin',
             percentage,
             owner: true,
@@ -131,6 +141,16 @@ async function submitFuturesOrder(req, res) {
         const orderId = uuidv4();
         const copyCode = uuidv4().slice(0, 6);
 
+        // Handle expiration date properly
+        let expirationDate = null;
+        if (expiration) {
+            // If expiration is provided, parse it as a Date
+            expirationDate = new Date(expiration);
+        } else {
+            // If no expiration provided, set to 5 minutes from now
+            expirationDate = new Date(Date.now() + 5 * 60 * 1000);
+        }
+
         // Create futures order history entry (no real API call)
         const orderHistory = new FuturesOrderHistory({
             user: user._id,
@@ -149,7 +169,7 @@ async function submitFuturesOrder(req, res) {
             copyCode: copyCode.toUpperCase(),
             owner: true,
             followers: [],
-            expiration: expiration ? new Date(expiration) : null,
+            expiration: expirationDate,
             limit_price: limit_price || 0
         });
 
