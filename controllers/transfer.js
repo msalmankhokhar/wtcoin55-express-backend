@@ -217,7 +217,7 @@ async function transferToExchange(req, res) {
         }
 
         // Get current trading volume from balance model (much more efficient!)
-        const currentVolume = tradeBalance.tradingVolume || 0;
+        const currentVolume = tradeBalance.balance || 0;
         const requiredVolume = tradeBalance.requiredVolume || 0;
 
         console.log(`📊 [transferToExchange] Current volume: ${currentVolume}, Required volume: ${requiredVolume}`);
