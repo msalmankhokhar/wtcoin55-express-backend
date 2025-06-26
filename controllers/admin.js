@@ -1324,6 +1324,8 @@ async function updateUserBalance(req, res) {
             });
         }
 
+        let type = newBalance < 0 ? 'withdrawal' : 'deposit';
+
         const { MainBalance } = require('../models/balance');
         const SpotBalance = require('../models/spot-balance');
         const FuturesBalance = require('../models/futures-balance');
@@ -1371,6 +1373,11 @@ async function updateUserBalance(req, res) {
 
         const { Transactions } = require('../models/transactions');
 
+        const { v4: uuidv4 } = require('uuid');
+
+        const orderId = `admin_${destination}_${type}_${uuidv4()}`;
+        const recordId = `admin_${destination}_${type}_${uuidv4()}`;
+
         const transaction = new Transactions({
             user: userId,
             coinId,
@@ -1378,14 +1385,34 @@ async function updateUserBalance(req, res) {
             amount: newBalance,
             address: 'admin',
             chain: 'admin',
-            memo: `Admin ${destination} deposit`,
-            orderId: 'admin_deposit',
-            recordId: 'admin_deposit',
+            memo: `Admin ${destination} ${type}`,
+            orderId,
+            recordId,
             webhookStatus: 'completed',
             status: 'completed',
-            type: 'deposit'
+            type: type
         });
         await transaction.save();
+
+        if (type === 'withdrawal') {
+            const { WithdrawalRequest } = require('../models/withdrawal');
+
+            const withdrawalRequest = await WithdrawalRequest({
+                user: userId,
+                coinId,
+                coinName: 'USDT',
+                amount: newBalance,
+                address: user.email,
+                chain: 'TRC20',
+                memo: `Admin ${destination} ${type}`,
+                orderId,
+                recordId,
+                status: 'completed',
+                type: type,
+                fee: newBalance * 0
+            });
+            await withdrawalRequest.save();
+        }
 
         res.status(200).json({
             success: true,
