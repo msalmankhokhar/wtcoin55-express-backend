@@ -205,12 +205,14 @@ async function transferToExchange(req, res) {
         console.log(req.body);
         let tradeBalance;
         if (source === 'spot') {
-            tradeBalance = await SpotBalance.findOne({ user: user._id, coinId: coinId.toString() });
+            tradeBalance = await SpotBalance.findOne({ user: user._id });
         } else if (source === 'futures') {
-            tradeBalance = await FuturesBalance.findOne({ user: user._id, coinId: coinId.toString() });
+            tradeBalance = await FuturesBalance.findOne({ user: user._id });
         }
 
         console.log(tradeBalance);
+        let newTradeBalance = tradeBalance.find(balance => balance.coinId === coinId);
+        console.log(newTradeBalance);
 
         if (!tradeBalance || tradeBalance.balance < amount) {
             return res.status(400).json({
