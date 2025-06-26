@@ -202,6 +202,7 @@ async function transferToExchange(req, res) {
         }
 
         // Check Trade balance
+        console.log(req.body);
         let tradeBalance;
         if (source === 'spot') {
             tradeBalance = await SpotBalance.findOne({ user: user._id, coinId: coinId.toString() });
