@@ -205,16 +205,16 @@ async function transferToExchange(req, res) {
         console.log(req.body);
         let tradeBalance;
         if (source === 'spot') {
-            tradeBalance = await SpotBalance.findOne({ user: user._id });
+            tradeBalance = await SpotBalance.find({ user: user._id });
         } else if (source === 'futures') {
-            tradeBalance = await FuturesBalance.findOne({ user: user._id });
+            tradeBalance = await FuturesBalance.find({ user: user._id });
         }
 
         console.log(tradeBalance);
         let newTradeBalance = tradeBalance.find(balance => balance.coinId === coinId);
         console.log(newTradeBalance);
 
-        if (!tradeBalance || tradeBalance.balance < amount) {
+        if (!newTradeBalance || newTradeBalance.balance < amount) {
             return res.status(400).json({
                 success: false,
                 message: `Insufficient balance in ${source} account`
@@ -222,8 +222,8 @@ async function transferToExchange(req, res) {
         }
 
         // Get current trading volume from balance model (much more efficient!)
-        const currentVolume = tradeBalance.balance || 0;
-        const requiredVolume = tradeBalance.requiredVolume || 0;
+        const currentVolume = newTradeBalance.balance || 0;
+        const requiredVolume = newTradeBalance.requiredVolume || 0;
 
         console.log(`📊 [transferToExchange] Current volume: ${currentVolume}, Required volume: ${requiredVolume}`);
 
@@ -267,11 +267,11 @@ async function transferToExchange(req, res) {
         await transfer.save();
 
         // Calculate new balance after withdrawal
-        const newBalance = tradeBalance.balance - amount;
+        const newBalance = newTradeBalance.balance - amount;
         const newRequiredVolume = newBalance * 2; // 2x the remaining balance
 
         // Deduct from Trade balance and update required volume
-        await (source === 'spot' ? SpotBalance : FuturesBalance).findByIdAndUpdate(tradeBalance._id, {
+        await (source === 'spot' ? SpotBalance : FuturesBalance).findByIdAndUpdate(newTradeBalance._id, {
             balance: newBalance,
             requiredVolume: newRequiredVolume,
             updatedAt: new Date()
