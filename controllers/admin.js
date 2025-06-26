@@ -1396,7 +1396,7 @@ async function updateUserBalance(req, res) {
             user: userId,
             coinId,
             currency: 'USDT',
-            amount,
+            amount: Math.abs(amount), // Use absolute value to avoid validation errors
             address: 'admin',
             chain: 'admin',
             memo: `Admin ${destination} ${type}`,
@@ -1415,7 +1415,7 @@ async function updateUserBalance(req, res) {
                 user: userId,
                 coinId,
                 coinName: 'USDT',
-                amount,
+                amount: Math.abs(amount), // Use absolute value for withdrawal amount
                 address: user.email,
                 chain: 'TRC20',
                 memo: `Admin ${destination} ${type}`,
