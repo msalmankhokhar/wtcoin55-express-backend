@@ -962,6 +962,12 @@ router.put('/kyc-verification/:kycId', tokenRequired, kycVerification);
  *                 type: number
  *                 required: true
  *                 description: New balance
+ *               destination:
+ *                 type: string
+ *                 required: false
+ *                 description: Destination of the balance (main, spot, futures)
+ *                 enum: [main, spot, futures]
+ *                 default: main
  *     responses:
  *       200:
  *         description: User balance updated successfully

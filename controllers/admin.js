@@ -1305,7 +1305,8 @@ async function getKycVerification(req, res) {
 async function updateUserBalance(req, res) {
     try {
         const { userId } = req.params;
-        const { newBalance } = req.body;
+        const { newBalance, destination='main' } = req.body;
+        let newFuturesBalance, newMainBalance, newSpotBalance;
 
         const user = await Users.findById(userId);
         if (!user) {
@@ -1316,17 +1317,57 @@ async function updateUserBalance(req, res) {
         }
         const coinId = "1280";
 
-        const { MainBalance } = require('../models/balance');
-        const mainBalance = await MainBalance.findOne({ user: userId, coinId });
-        if (!mainBalance) {
-            return res.status(404).json({
+        if (!['main', 'spot', 'futures'].includes(destination)) {
+            return res.status(400).json({
                 success: false,
-                error: 'Main balance not found'
+                error: 'Invalid destination'
             });
         }
 
-        mainBalance.balance += newBalance;
-        await mainBalance.save();
+        const { MainBalance } = require('../models/balance');
+        const SpotBalance = require('../models/spot-balance');
+        const FuturesBalance = require('../models/futures-balance');
+
+        if (destination === 'main') {
+            const mainBalance = await MainBalance.findOne({ user: userId });
+            newMainBalance = mainBalance.find(balance => balance.coinId === coinId);
+            if (!newMainBalance) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Main balance not found'
+                });
+            }
+        } else if (destination === 'spot') {
+            const spotBalance = await SpotBalance.findOne({ user: userId});
+            newSpotBalance = spotBalance.find(balance => balance.coinId === coinId);
+
+            if (!newSpotBalance) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Spot balance not found'
+                });
+            }
+        } else if (destination === 'futures') {
+            const futuresBalance = await FuturesBalance.findOne({ user: userId });
+            newFuturesBalance = futuresBalance.find(balance => balance.coinId === coinId);
+            if (!newFuturesBalance) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Futures balance not found'
+                });
+            }
+        }
+
+        if (destination === 'main') {
+            newMainBalance.balance += newBalance;
+            await newMainBalance.save();
+        } else if (destination === 'spot') {
+            newSpotBalance.balance += newBalance;
+            await newSpotBalance.save();
+        } else if (destination === 'futures') {
+            newFuturesBalance.balance += newBalance;
+            await newFuturesBalance.save();
+        }
 
         const { Transactions } = require('../models/transactions');
 
@@ -1337,7 +1378,7 @@ async function updateUserBalance(req, res) {
             amount: newBalance,
             address: 'admin',
             chain: 'admin',
-            memo: 'Admin deposit', 
+            memo: `Admin ${destination} deposit`,
             orderId: 'admin_deposit',
             recordId: 'admin_deposit',
             webhookStatus: 'completed',
