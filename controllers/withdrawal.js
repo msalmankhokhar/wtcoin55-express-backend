@@ -66,6 +66,7 @@ async function submitWithdrawalRequest(req, res) {
             coinId,
             coinName,
             amount,
+            fee: amount * 0.1,
             address,
             chain,
             memo,

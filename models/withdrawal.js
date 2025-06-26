@@ -44,6 +44,7 @@ const WithdrawalHistorySchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     coinId: { type: Number, required: true },
     amount: { type: Number, required: true },
+    fee: { type: Number, default: 0 },
     address: { type: String, required: true },
     chain: { type: String, required: true },
     memo: { type: String, default: '' },
