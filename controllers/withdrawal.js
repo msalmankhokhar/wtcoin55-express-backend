@@ -49,7 +49,7 @@ async function submitWithdrawalRequest(req, res) {
         if (withdrawalRequestExists.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Withdrawal request already exists'
+                message: 'Withdrawal request is pending. Please wait for the admin to approve it.'
             });
         }
 
