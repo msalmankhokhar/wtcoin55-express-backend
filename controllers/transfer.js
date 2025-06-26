@@ -209,6 +209,8 @@ async function transferToExchange(req, res) {
             tradeBalance = await FuturesBalance.findOne({ user: user._id, coinId });
         }
 
+        console.log(tradeBalance);
+
         if (!tradeBalance || tradeBalance.balance < amount) {
             return res.status(400).json({
                 success: false,
