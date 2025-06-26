@@ -73,7 +73,7 @@ const withdrawTransactionHistory = async (req, res) => {
         const requests = await WithdrawalRequest.find({ user: user._id })
             .sort({ createdAt: -1 });
 
-        return res.status(200).json({msg: "success", requests});
+        return res.status(200).json({msg: "success", transactions: requests});
 
     } catch (error) {
         console.error('Error getting user withdrawal requests:', error);
