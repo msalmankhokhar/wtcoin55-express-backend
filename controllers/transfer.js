@@ -5,6 +5,7 @@ const SpotBalance = require('../models/spot-balance');
 const FuturesBalance = require('../models/futures-balance');
 const { Transactions } = require('../models/transactions');
 const TransferHistory = require('../models/transfer');
+const { safeCreateBalance } = require('../utils/helpers');
 
 /**
  * Transfer funds from Exchange (main balance) to Trade (spot/futures balance)
@@ -59,6 +60,8 @@ async function transferToTrade(req, res) {
             coinId,
             coinName,
             amount,
+            fee: 0, // No fee when transferring to trade
+            feeType: 'no_fee', // No fee when transferring to trade
             netAmount: amount, // No fee when transferring to trade
             requiredVolume,
             status: 'completed',
@@ -232,7 +235,7 @@ async function transferToExchange(req, res) {
         console.log(`📊 [transferToExchange] Volume met: ${volumeMet}`);
         
         let fee = 0;
-        let feeType = '';
+        let feeType = 'no_fee'; // Default to no_fee instead of empty string
 
         if (volumeMet) {
             // 0% withdrawal fee if volume is met (as per your changes)
@@ -285,8 +288,8 @@ async function transferToExchange(req, res) {
                 updatedAt: new Date()
             });
         } else {
-            // Create new exchange balance
-            const newExchangeBalance = new MainBalance({
+            // Use safeCreateBalance to handle race conditions
+            await safeCreateBalance(MainBalance, {
                 user: user._id,
                 coinId: parseInt(coinId),
                 coinName,
@@ -294,7 +297,6 @@ async function transferToExchange(req, res) {
                 createdAt: new Date(),
                 updatedAt: new Date()
             });
-            await newExchangeBalance.save();
         }
 
         // Create transaction record

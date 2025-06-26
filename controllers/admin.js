@@ -1330,13 +1330,13 @@ async function updateUserBalance(req, res) {
         const { MainBalance } = require('../models/balance');
         const SpotBalance = require('../models/spot-balance');
         const FuturesBalance = require('../models/futures-balance');
+        const { safeCreateBalance } = require('../utils/helpers');
 
         if (destination === 'main') {
-            const mainBalance = await MainBalance.find({ user: userId });
-            newMainBalance = mainBalance.find(balance => balance.coinId === coinId);
+            newMainBalance = await MainBalance.findOne({ user: userId, coinId: coinId });
             if (!newMainBalance) {
-                // Create new main balance record with 0 balance
-                newMainBalance = new MainBalance({
+                // Use safeCreateBalance to handle race conditions
+                newMainBalance = await safeCreateBalance(MainBalance, {
                     user: userId,
                     coinId: coinId,
                     coinName: 'USDT',
@@ -1344,15 +1344,13 @@ async function updateUserBalance(req, res) {
                     chain: 'ETH',
                     balance: 0
                 });
-                await newMainBalance.save();
             }
         } else if (destination === 'spot') {
-            const spotBalance = await SpotBalance.find({ user: userId});
-            newSpotBalance = spotBalance.find(balance => balance.coinId === coinId);
+            newSpotBalance = await SpotBalance.findOne({ user: userId, coinId: coinId });
 
             if (!newSpotBalance) {
-                // Create new spot balance record with 0 balance
-                newSpotBalance = new SpotBalance({
+                // Use safeCreateBalance to handle race conditions
+                newSpotBalance = await safeCreateBalance(SpotBalance, {
                     user: userId,
                     coinId: coinId,
                     coinName: 'USDT',
@@ -1360,14 +1358,12 @@ async function updateUserBalance(req, res) {
                     chain: 'ETH',
                     balance: 0
                 });
-                await newSpotBalance.save();
             }
         } else if (destination === 'futures') {
-            const futuresBalance = await FuturesBalance.find({ user: userId });
-            newFuturesBalance = futuresBalance.find(balance => balance.coinId === coinId);
+            newFuturesBalance = await FuturesBalance.findOne({ user: userId, coinId: coinId });
             if (!newFuturesBalance) {
-                // Create new futures balance record with 0 balance
-                newFuturesBalance = new FuturesBalance({
+                // Use safeCreateBalance to handle race conditions
+                newFuturesBalance = await safeCreateBalance(FuturesBalance, {
                     user: userId,
                     coinId: coinId,
                     coinName: 'USDT',
@@ -1375,7 +1371,6 @@ async function updateUserBalance(req, res) {
                     chain: 'ETH',
                     balance: 0
                 });
-                await newFuturesBalance.save();
             }
         }
 

@@ -1262,8 +1262,49 @@ async function getProfitPercentage(vipTierId) {
     return vipTier.vipPercentage;
 }
 
+/**
+ * Safely create a balance record, handling race conditions
+ * @param {Object} BalanceModel - The balance model (MainBalance, SpotBalance, or FuturesBalance)
+ * @param {Object} balanceData - The balance data to create
+ * @returns {Object} The balance record (either newly created or existing)
+ */
+async function safeCreateBalance(BalanceModel, balanceData) {
+    try {
+        // First try to find existing balance
+        const existingBalance = await BalanceModel.findOne({ 
+            user: balanceData.user, 
+            coinId: balanceData.coinId 
+        });
+        
+        if (existingBalance) {
+            return existingBalance;
+        }
+
+        // Try to create new balance
+        const newBalance = new BalanceModel(balanceData);
+        await newBalance.save();
+        return newBalance;
+        
+    } catch (createError) {
+        // Handle duplicate key error (race condition)
+        if (createError.code === 11000) {
+            console.log(`🔄 Race condition detected for balance creation, retrying...`);
+            const existingBalance = await BalanceModel.findOne({ 
+                user: balanceData.user, 
+                coinId: balanceData.coinId 
+            });
+            
+            if (existingBalance) {
+                return existingBalance;
+            } else {
+                throw createError; // Re-throw if still not found
+            }
+        } else {
+            throw createError;
+        }
+    }
+}
 
 module.exports = { createOrUpdateOTP, createOrUpdateResetOTP, generateReferralCdoe, validateVerificationCode,
     updateTradingWallet, getSpotOrder, updateSpotOrder, updateSpotBalances, updateSpotBalance, updateTradingVolume, getFuturesOrder, updateFuturesOrder, testSingleFuturesOrder, testBitMartOrder, testMultipleOrders, distributeExpiredOrderProfits,
-    updateUserVipTier, getProfitPercentage
- };
+    updateUserVipTier, getProfitPercentage, safeCreateBalance };
