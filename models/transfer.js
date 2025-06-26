@@ -34,7 +34,7 @@ const transferSchema = new mongoose.Schema({
     },
     feeType: {
         type: String,
-        enum: ['withdrawal_fee', 'penalty_fee', ''],
+        enum: ['withdrawal_fee', 'penalty_fee', 'no_fee'],
         default: ''
     },
     netAmount: {
