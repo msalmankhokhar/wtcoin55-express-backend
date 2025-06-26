@@ -44,6 +44,15 @@ async function submitWithdrawalRequest(req, res) {
             userBalance = await MainBalance.findOne({ user: user._id, coinId });
         }
 
+        const withdrawalRequestExists = await WithdrawalRequest.find({ user: user._id, coinId, status: 'pending' });
+
+        if (withdrawalRequestExists.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Withdrawal request already exists'
+            });
+        }
+
         if (!userBalance || userBalance.balance < amount) {
             return res.status(400).json({
                 success: false,
