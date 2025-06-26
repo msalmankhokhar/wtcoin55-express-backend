@@ -204,9 +204,9 @@ async function transferToExchange(req, res) {
         // Check Trade balance
         let tradeBalance;
         if (source === 'spot') {
-            tradeBalance = await SpotBalance.findOne({ user: user._id, coinId });
+            tradeBalance = await SpotBalance.findOne({ user: user._id, coinId: coinId.toString() });
         } else if (source === 'futures') {
-            tradeBalance = await FuturesBalance.findOne({ user: user._id, coinId });
+            tradeBalance = await FuturesBalance.findOne({ user: user._id, coinId: coinId.toString() });
         }
 
         console.log(tradeBalance);
