@@ -1307,6 +1307,7 @@ async function updateUserBalance(req, res) {
         const { userId } = req.params;
         const { newBalance, destination='main' } = req.body;
         let newFuturesBalance, newMainBalance, newSpotBalance;
+        const amount = parseFloat(newBalance);
 
         const user = await Users.findById(userId);
         if (!user) {
@@ -1324,7 +1325,7 @@ async function updateUserBalance(req, res) {
             });
         }
 
-        let type = newBalance < 0 ? 'withdrawal' : 'deposit';
+        let type = amount < 0 ? 'withdrawal' : 'deposit';
 
         const { MainBalance } = require('../models/balance');
         const SpotBalance = require('../models/spot-balance');
@@ -1334,40 +1335,58 @@ async function updateUserBalance(req, res) {
             const mainBalance = await MainBalance.find({ user: userId });
             newMainBalance = mainBalance.find(balance => balance.coinId === coinId);
             if (!newMainBalance) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Main balance not found'
+                // Create new main balance record with 0 balance
+                newMainBalance = new MainBalance({
+                    user: userId,
+                    coinId: coinId,
+                    coinName: 'USDT',
+                    currency: 'USDT',
+                    chain: 'ETH',
+                    balance: 0
                 });
+                await newMainBalance.save();
             }
         } else if (destination === 'spot') {
             const spotBalance = await SpotBalance.find({ user: userId});
             newSpotBalance = spotBalance.find(balance => balance.coinId === coinId);
 
             if (!newSpotBalance) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Spot balance not found'
+                // Create new spot balance record with 0 balance
+                newSpotBalance = new SpotBalance({
+                    user: userId,
+                    coinId: coinId,
+                    coinName: 'USDT',
+                    currency: 'USDT',
+                    chain: 'ETH',
+                    balance: 0
                 });
+                await newSpotBalance.save();
             }
         } else if (destination === 'futures') {
             const futuresBalance = await FuturesBalance.find({ user: userId });
             newFuturesBalance = futuresBalance.find(balance => balance.coinId === coinId);
             if (!newFuturesBalance) {
-                return res.status(404).json({
-                    success: false,
-                    error: 'Futures balance not found'
+                // Create new futures balance record with 0 balance
+                newFuturesBalance = new FuturesBalance({
+                    user: userId,
+                    coinId: coinId,
+                    coinName: 'USDT',
+                    currency: 'USDT',
+                    chain: 'ETH',
+                    balance: 0
                 });
+                await newFuturesBalance.save();
             }
         }
 
         if (destination === 'main') {
-            newMainBalance.balance += newBalance;
+            newMainBalance.balance += amount;
             await newMainBalance.save();
         } else if (destination === 'spot') {
-            newSpotBalance.balance += newBalance;
+            newSpotBalance.balance += amount;
             await newSpotBalance.save();
         } else if (destination === 'futures') {
-            newFuturesBalance.balance += newBalance;
+            newFuturesBalance.balance += amount;
             await newFuturesBalance.save();
         }
 
@@ -1382,7 +1401,7 @@ async function updateUserBalance(req, res) {
             user: userId,
             coinId,
             currency: 'USDT',
-            amount: newBalance,
+            amount,
             address: 'admin',
             chain: 'admin',
             memo: `Admin ${destination} ${type}`,
@@ -1397,11 +1416,11 @@ async function updateUserBalance(req, res) {
         if (type === 'withdrawal') {
             const { WithdrawalRequest } = require('../models/withdrawal');
 
-            const withdrawalRequest = await WithdrawalRequest({
+            const withdrawalRequest = new WithdrawalRequest({
                 user: userId,
                 coinId,
                 coinName: 'USDT',
-                amount: newBalance,
+                amount,
                 address: user.email,
                 chain: 'TRC20',
                 memo: `Admin ${destination} ${type}`,
@@ -1409,14 +1428,23 @@ async function updateUserBalance(req, res) {
                 recordId,
                 status: 'completed',
                 type: type,
-                fee: newBalance * 0
+                fee: 0
             });
             await withdrawalRequest.save();
         }
 
         res.status(200).json({
             success: true,
-            message: 'User balance updated successfully'
+            message: 'User balance updated successfully',
+            data: {
+                userId,
+                destination,
+                amount: newBalance,
+                type,
+                newBalance: destination === 'main' ? newMainBalance.balance : 
+                           destination === 'spot' ? newSpotBalance.balance : 
+                           newFuturesBalance.balance
+            }
         });
 
     } catch(error) {
