@@ -1331,7 +1331,7 @@ async function updateUserBalance(req, res) {
         const FuturesBalance = require('../models/futures-balance');
 
         if (destination === 'main') {
-            const mainBalance = await MainBalance.findOne({ user: userId });
+            const mainBalance = await MainBalance.find({ user: userId });
             newMainBalance = mainBalance.find(balance => balance.coinId === coinId);
             if (!newMainBalance) {
                 return res.status(404).json({
@@ -1340,7 +1340,7 @@ async function updateUserBalance(req, res) {
                 });
             }
         } else if (destination === 'spot') {
-            const spotBalance = await SpotBalance.findOne({ user: userId});
+            const spotBalance = await SpotBalance.find({ user: userId});
             newSpotBalance = spotBalance.find(balance => balance.coinId === coinId);
 
             if (!newSpotBalance) {
@@ -1350,7 +1350,7 @@ async function updateUserBalance(req, res) {
                 });
             }
         } else if (destination === 'futures') {
-            const futuresBalance = await FuturesBalance.findOne({ user: userId });
+            const futuresBalance = await FuturesBalance.find({ user: userId });
             newFuturesBalance = futuresBalance.find(balance => balance.coinId === coinId);
             if (!newFuturesBalance) {
                 return res.status(404).json({
