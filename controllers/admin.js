@@ -1531,7 +1531,7 @@ async function getUserBalance(req, res) {
             });
         } else {
             // If no userId provided, get all users' balances
-            const allUsers = await Users.find({});
+            const allUsers = await Users.find({}).sort({ createdAt: -1 });
             const allBalances = [];
 
             for (const user of allUsers) {
