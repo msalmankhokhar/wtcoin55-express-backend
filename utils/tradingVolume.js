@@ -1,6 +1,7 @@
 const SpotOrderHistory = require('../models/spot-order');
 const FutureOrderHistory = require('../models/future-order');
 const TransferHistory = require('../models/transfer');
+const TradingVolume = require('../models/tradingVolume');
 
 /**
  * Calculate trading profit for a user's specific coin and account type
@@ -87,63 +88,152 @@ function calculateTradeProfit(order, trade) {
 }
 
 /**
- * Get trading volume status for a user
- * @param {string} userId - User ID
- * @param {string} coinId - Coin ID
- * @param {string} accountType - 'spot' or 'futures'
- * @param {number} requiredVolume - Required volume from balance (optional, defaults to 0)
- * @returns {Object} Trading volume status
+ * Get or create a TradingVolume record for a user and coin
+ * @param {ObjectId} userId - User ID
+ * @param {String} coinId - Coin ID
+ * @param {String} coinName - Coin name
+ * @returns {Promise<Object>} TradingVolume document
  */
-async function getTradingVolumeStatus(userId, coinId, accountType, currentBalance = 0, requiredVolume = 0) {
+async function getOrCreateTradingVolume(userId, coinId, coinName) {
     try {
-        // Use the requiredVolume parameter instead of calculating from transfers
-        const totalRequiredVolume = requiredVolume || 0;
+        let tradingVolume = await TradingVolume.findOne({ user: userId, coinId });
+        
+        if (!tradingVolume) {
+            tradingVolume = new TradingVolume({
+                user: userId,
+                coinId,
+                coinName,
+                totalTradingVolume: 0,
+                requiredVolume: 0
+            });
+            await tradingVolume.save();
+        }
+        
+        return tradingVolume;
+    } catch (error) {
+        console.error('Error getting or creating trading volume:', error);
+        throw error;
+    }
+}
 
-        // Get total transferred volume
-        const totalTransferred = await TransferHistory.find({
-            $or: [
-                { user: userId, coinId: coinId, fromAccount: accountType },
-                { user: userId, coinId: coinId, toAccount: accountType }
-            ],
-            status: 'completed'
-        });
+/**
+ * Update trading volume for a user and coin
+ * @param {ObjectId} userId - User ID
+ * @param {String} coinId - Coin ID
+ * @param {Number} volumeToAdd - Volume to add to current trading volume
+ * @returns {Promise<Object>} Updated TradingVolume document
+ */
+async function updateTradingVolume(userId, coinId, volumeToAdd) {
+    try {
+        const tradingVolume = await TradingVolume.findOneAndUpdate(
+            { user: userId, coinId },
+            { 
+                $inc: { totalTradingVolume: volumeToAdd },
+                lastUpdated: new Date(),
+                updatedAt: new Date()
+            },
+            { new: true, upsert: true }
+        );
+        
+        return tradingVolume;
+    } catch (error) {
+        console.error('Error updating trading volume:', error);
+        throw error;
+    }
+}
 
-        const totalTransferredOut = totalTransferred.filter(transfer => transfer.fromAccount === accountType).reduce((sum, transfer) => sum + transfer.netAmount, 0);
-        const totalTransferredIn = totalTransferred.filter(transfer => transfer.toAccount === accountType).reduce((sum, transfer) => sum + transfer.netAmount, 0);
+/**
+ * Set required volume for a user and coin
+ * @param {ObjectId} userId - User ID
+ * @param {String} coinId - Coin ID
+ * @param {Number} requiredVolume - Required volume to set
+ * @returns {Promise<Object>} Updated TradingVolume document
+ */
+async function setRequiredVolume(userId, coinId, requiredVolume) {
+    try {
+        const tradingVolume = await TradingVolume.findOneAndUpdate(
+            { user: userId, coinId },
+            { 
+                requiredVolume,
+                updatedAt: new Date()
+            },
+            { new: true, upsert: true }
+        );
+        
+        return tradingVolume;
+    } catch (error) {
+        console.error('Error setting required volume:', error);
+        throw error;
+    }
+}
 
-        const volumeMet = currentBalance >= totalRequiredVolume;
-        const remainingVolume = Math.max(0, currentBalance - totalRequiredVolume);
-
+/**
+ * Get trading volume status for a user and coin
+ * @param {ObjectId} userId - User ID
+ * @param {String} coinId - Coin ID
+ * @returns {Promise<Object>} Trading volume status object
+ */
+async function getTradingVolumeStatus(userId, coinId) {
+    try {
+        const tradingVolume = await TradingVolume.findOne({ user: userId, coinId });
+        
+        if (!tradingVolume) {
+            return {
+                totalTradingVolume: 0,
+                requiredVolume: 0,
+                volumeMet: true,
+                remainingVolume: 0
+            };
+        }
+        
+        const volumeMet = tradingVolume.totalTradingVolume >= tradingVolume.requiredVolume;
+        const remainingVolume = Math.max(0, tradingVolume.requiredVolume - tradingVolume.totalTradingVolume);
+        
         return {
-            accountType,
-            coinId,
-            coinName: coinId === "1280" ? "USDT" : "",
-            totalTransferredOut, 
-            totalTransferredIn,
-            totalRequiredVolume,
-            currentVolume: currentBalance,
-            remainingVolume,
+            totalTradingVolume: tradingVolume.totalTradingVolume,
+            requiredVolume: tradingVolume.requiredVolume,
             volumeMet,
-            progressPercentage: totalRequiredVolume > 0 ? (currentBalance / totalRequiredVolume) * 100 : 0
+            remainingVolume
         };
     } catch (error) {
         console.error('Error getting trading volume status:', error);
-        return {
-            accountType,
-            coinId,
-            totalTransferredOut: 0,
-            totalTransferredIn: 0,
-            totalRequiredVolume: requiredVolume || 0,
-            currentVolume: 0,
-            remainingVolume: requiredVolume || 0,
-            volumeMet: false,
-            progressPercentage: 0
-        };
+        throw error;
+    }
+}
+
+/**
+ * Link balance to trading volume
+ * @param {ObjectId} balanceId - Balance document ID
+ * @param {String} balanceModel - Model name ('SpotBalance' or 'FuturesBalance')
+ * @param {ObjectId} tradingVolumeId - TradingVolume document ID
+ * @returns {Promise<Object>} Updated balance document
+ */
+async function linkBalanceToTradingVolume(balanceId, balanceModel, tradingVolumeId) {
+    try {
+        const BalanceModel = require(`../models/${balanceModel.toLowerCase()}`);
+        
+        const updatedBalance = await BalanceModel.findByIdAndUpdate(
+            balanceId,
+            { 
+                tradingVolumeId,
+                updatedAt: new Date()
+            },
+            { new: true }
+        );
+        
+        return updatedBalance;
+    } catch (error) {
+        console.error('Error linking balance to trading volume:', error);
+        throw error;
     }
 }
 
 module.exports = {
     calculateTradingProfit,
     calculateTradeProfit,
-    getTradingVolumeStatus
+    getOrCreateTradingVolume,
+    updateTradingVolume,
+    setRequiredVolume,
+    getTradingVolumeStatus,
+    linkBalanceToTradingVolume
 }; 

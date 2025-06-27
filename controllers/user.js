@@ -92,15 +92,15 @@ async function getUserBalances(req, res) {
 
         // Get Exchange (main) balances
         const { MainBalance } = require('../models/balance');
-        const exchangeBalances = await MainBalance.find({ user: user._id });
+        const exchangeBalances = await MainBalance.find({ user: user._id }).sort({ createdAt: -1 });
 
         // Get Spot balances
         const SpotBalance = require('../models/spot-balance');
-        const spotBalances = await SpotBalance.find({ user: user._id });
+        const spotBalances = await SpotBalance.find({ user: user._id }).sort({ createdAt: -1 });
 
         // Get Futures balances
         const FuturesBalance = require('../models/futures-balance');
-        const futuresBalances = await FuturesBalance.find({ user: user._id });
+        const futuresBalances = await FuturesBalance.find({ user: user._id }).sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,

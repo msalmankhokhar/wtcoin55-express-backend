@@ -13,7 +13,7 @@ const { AdminWallet } = require('../models/adminWallet');
  */
 async function submitSpotOrder(req, res) {
     try {
-        const { symbol, side, type, price, quantity, notional, expiration, percentage = 1, limit_price } = req.body;
+        const { symbol, side, type, price, quantity, notional, expiration, displayExpiration="", percentage = 1, limit_price } = req.body;
         const user = req.user;
 
         // Check if user is admin
@@ -89,7 +89,8 @@ async function submitSpotOrder(req, res) {
             percentage,
             owner: true,
             followers: [],
-            limit_price: limit_price || 0
+            limit_price: limit_price || 0,
+            displayExpiration: displayExpiration
         });
 
         await orderHistory.save();
@@ -135,7 +136,8 @@ async function submitFuturesOrder(req, res) {
             price_way, 
             price_type = 1,
             expiration,
-            limit_price = 0
+            limit_price = 0,
+            displayExpiration=""
         } = req.body;
         const user = req.user;
 
@@ -222,7 +224,8 @@ async function submitFuturesOrder(req, res) {
             owner: true,
             followers: [],
             expiration: expirationDate,
-            limit_price: limit_price || 0
+            limit_price: limit_price || 0,
+            displayExpiration: displayExpiration
         });
 
         await orderHistory.save();
@@ -1472,13 +1475,13 @@ async function getUserBalance(req, res) {
         let balances = {};
 
         // Get Main Balance
-        balances['main'] = await MainBalance.find({ user: userId });
+        balances['main'] = await MainBalance.find({ user: userId }).sort({ createdAt: -1 });
 
         // Get Spot Balances
-        balances['spot'] = await SpotBalance.find({ user: userId });
+        balances['spot'] = await SpotBalance.find({ user: userId }).sort({ createdAt: -1 });
 
         // Get Futures Balances
-        balances['futures'] = await FuturesBalance.find({ user: userId });
+        balances['futures'] = await FuturesBalance.find({ user: userId }).sort({ createdAt: -1 });
 
             // Create USDT balance for main wallet if empty
             if (!balances.main || balances.main.length === 0) {
@@ -1539,13 +1542,13 @@ async function getUserBalance(req, res) {
                 };
 
                 // Get Main Balance
-                userBalances.balances['main'] = await MainBalance.find({ user: user._id });
+                userBalances.balances['main'] = await MainBalance.find({ user: user._id }).sort({ createdAt: -1 });
 
                 // Get Spot Balances
-                userBalances.balances['spot'] = await SpotBalance.find({ user: user._id });
+                userBalances.balances['spot'] = await SpotBalance.find({ user: user._id }).sort({ createdAt: -1 });
 
                 // Get Futures Balances
-                userBalances.balances['futures'] = await FuturesBalance.find({ user: user._id });
+                userBalances.balances['futures'] = await FuturesBalance.find({ user: user._id }).sort({ createdAt: -1 });
 
                 // Create USDT balance for main wallet if empty
                 if (!userBalances.balances.main || userBalances.balances.main.length === 0) {

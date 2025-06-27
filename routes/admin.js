@@ -91,6 +91,13 @@ const tokenRequired = adminTokenRequired;
  *                   - format: date-time
  *                     description: Absolute ISO date-time format
  *                     example: "2025-06-25T11:00:00.000Z"
+ *               displayExpiration:
+ *                 type: string
+ *                 description: Display expiration time. Supports absolute ISO date-time format
+ *                 example: "2025-06-25T11:00:00.000Z"
+ *                 - format: date-time
+ *                     description: Absolute ISO date-time format
+ *                     example: "2025-06-25T11:00:00.000Z"
  *               percentage:
  *                 type: number
  *                 minimum: 0.1

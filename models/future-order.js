@@ -13,6 +13,7 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     size: { type: Number, required: true }, // Number of contracts
     limit_price: { type: Number, default: 0 }, // Limit price
     expiration: { type: Date, required: false },
+    displayExpiration: { type: String, required: false },
     
     // Plan Order Specific Fields
     trigger_price: { type: String, required: true }, // Trigger price

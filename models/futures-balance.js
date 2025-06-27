@@ -18,13 +18,9 @@ const FuturesBalanceSchema = new mongoose.Schema({
         type: Number, 
         default: 0 
     },
-    requiredVolume: { 
-        type: Number,
-        default: 0 
-    },
-    tradingVolume: { 
-        type: Number,
-        default: 0 
+    tradingVolumeId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'TradingVolume' 
     },
     lockedBalance: { 
         type: Number, 

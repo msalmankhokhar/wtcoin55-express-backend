@@ -14,6 +14,7 @@ const SpotOrderHistorySchema = new mongoose.Schema({
     status: { type: String, default: 'pending', enum: ['pending', 'completed', 'cancelled', 'partial', 'partial_cancelled', 'failed', 'pending_profit'] },
     copyCode: { type: String, required: true, unique: true },
     expiration: { type: Date, required: false },
+    displayExpiration: { type: String, required: false },
     percentage: { type: Number, default: 1, min: 0.1, max: 100 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

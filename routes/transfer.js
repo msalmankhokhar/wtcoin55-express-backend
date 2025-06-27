@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { transferToTrade, transferToExchange, getTransferHistory, getTradingVolumeStatus } = require('../controllers/transfer');
+const { transferToTrade, transferToExchange, transferBetweenTradeAccounts, getTransferHistory, getTradingVolumeStatus } = require('../controllers/transfer');
 const { tokenRequired } = require('../middleware/auth');
 
 /**
@@ -373,6 +373,142 @@ const { tokenRequired } = require('../middleware/auth');
 
 /**
  * @swagger
+ * /api/transfer/between-trade-accounts:
+ *   post:
+ *     summary: Transfer funds between Trade accounts
+ *     description: Transfer funds between spot and futures trading accounts. Fees apply based on trading volume requirements of the source account.
+ *     tags: [Transfer]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - amount
+ *               - fromAccount
+ *               - toAccount
+ *               - coinId
+ *               - coinName
+ *             properties:
+ *               amount:
+ *                 type: number
+ *                 description: Amount to transfer
+ *                 example: 100.50
+ *               fromAccount:
+ *                 type: string
+ *                 enum: [spot, futures]
+ *                 description: Source account type
+ *                 example: "spot"
+ *               toAccount:
+ *                 type: string
+ *                 enum: [spot, futures]
+ *                 description: Destination account type
+ *                 example: "futures"
+ *               coinId:
+ *                 type: integer
+ *                 description: Coin ID
+ *                 example: 1280
+ *               coinName:
+ *                 type: string
+ *                 description: Coin name
+ *                 example: "USDT"
+ *           examples:
+ *             spot_to_futures:
+ *               summary: Transfer from spot to futures
+ *               value:
+ *                 amount: 100.50
+ *                 fromAccount: "spot"
+ *                 toAccount: "futures"
+ *                 coinId: 1280
+ *                 coinName: "USDT"
+ *             futures_to_spot:
+ *               summary: Transfer from futures to spot
+ *               value:
+ *                 amount: 75.25
+ *                 fromAccount: "futures"
+ *                 toAccount: "spot"
+ *                 coinId: 1280
+ *                 coinName: "USDT"
+ *     responses:
+ *       200:
+ *         description: Transfer successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/TransferResponse'
+ *             examples:
+ *               success_with_fee:
+ *                 summary: Successful transfer with penalty fee
+ *                 value:
+ *                   success: true
+ *                   message: "Successfully transferred 80.40 USDT from spot to futures"
+ *                   data:
+ *                     transferId: "507f1f77bcf86cd799439011"
+ *                     amount: 100.50
+ *                     netAmount: 80.40
+ *                     fee: 20.10
+ *                     feeType: "penalty_fee"
+ *                     volumeMet: false
+ *                     requiredVolume: 10050
+ *                     currentVolume: 5000
+ *                     status: "completed"
+ *               success_no_fee:
+ *                 summary: Successful transfer without fee
+ *                 value:
+ *                   success: true
+ *                   message: "Successfully transferred 100.50 USDT from spot to futures"
+ *                   data:
+ *                     transferId: "507f1f77bcf86cd799439011"
+ *                     amount: 100.50
+ *                     netAmount: 100.50
+ *                     fee: 0
+ *                     feeType: "no_fee"
+ *                     volumeMet: true
+ *                     requiredVolume: 10050
+ *                     currentVolume: 12000
+ *                     status: "completed"
+ *       400:
+ *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missing_fields:
+ *                 summary: Missing required fields
+ *                 value:
+ *                   success: false
+ *                   message: "Missing required fields: amount, fromAccount, toAccount, coinId, coinName"
+ *               insufficient_balance:
+ *                 summary: Insufficient balance
+ *                 value:
+ *                   success: false
+ *                   message: "Insufficient balance in spot account"
+ *               invalid_accounts:
+ *                 summary: Invalid account types
+ *                 value:
+ *                   success: false
+ *                   message: "Invalid account type. Must be spot or futures"
+ *               same_account:
+ *                 summary: Same account transfer
+ *                 value:
+ *                   success: false
+ *                   message: "Cannot transfer to the same account type"
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+
+/**
+ * @swagger
  * /api/transfer/history:
  *   get:
  *     summary: Get transfer history
@@ -501,6 +637,9 @@ router.post('/to-trade', tokenRequired, transferToTrade);
 
 // Transfer from Trade (spot/futures) to Exchange
 router.post('/to-exchange', tokenRequired, transferToExchange);
+
+// Transfer between Trade accounts (spot to futures or futures to spot)
+router.post('/between-trade-accounts', tokenRequired, transferBetweenTradeAccounts);
 
 // Get transfer history
 router.get('/history', tokenRequired, getTransferHistory);
