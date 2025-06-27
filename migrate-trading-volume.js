@@ -3,6 +3,7 @@ const SpotBalance = require('./models/spot-balance');
 const FuturesBalance = require('./models/futures-balance');
 const TradingVolume = require('./models/tradingVolume');
 const { getOrCreateTradingVolume, setRequiredVolume } = require('./utils/tradingVolume');
+require('dotenv').config();
 
 /**
  * Migration script to transition from individual balance trading volumes 
@@ -13,7 +14,8 @@ async function migrateTradingVolume() {
         console.log('🚀 Starting trading volume migration...');
 
         // Connect to MongoDB
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/quantum-exchange');
+        console.log(process.env.MONGO_URI);
+        await mongoose.connect(process.env.MONGO_URI);
         console.log('✅ Connected to MongoDB');
 
         // Get all spot balances

@@ -262,7 +262,7 @@ async function updateTotalTradingVolume() {
                 // Group balances by coinId
                 const coinGroups = new Map();
                 
-                // Process spot balances - directly access requiredVolume
+                // Process spot balances
                 for (const spotBalance of spotBalances) {
                     const coinId = spotBalance.coinId;
                     if (!coinGroups.has(coinId)) {
@@ -274,11 +274,35 @@ async function updateTotalTradingVolume() {
                         });
                     }
                     
-                    // Directly use the requiredVolume from the balance
-                    coinGroups.get(coinId).spotRequiredVolume = spotBalance.requiredVolume || 0;
+                    // Get or create TradingVolume record for this balance
+                    let tradingVolume;
+                    if (spotBalance.tradingVolumeId) {
+                        tradingVolume = await TradingVolume.findById(spotBalance.tradingVolumeId);
+                    }
+                    
+                    if (!tradingVolume) {
+                        // Use findOneAndUpdate with upsert to avoid duplicate key errors
+                        tradingVolume = await TradingVolume.findOneAndUpdate(
+                            { user: user._id, coinId },
+                            {
+                                user: user._id,
+                                coinId,
+                                coinName: spotBalance.coinName,
+                                totalTradingVolume: 0,
+                                requiredVolume: 0
+                            },
+                            { new: true, upsert: true }
+                        );
+                        
+                        // Link the balance to the new TradingVolume
+                        spotBalance.tradingVolumeId = tradingVolume._id;
+                        await spotBalance.save();
+                    }
+                    
+                    coinGroups.get(coinId).spotRequiredVolume = tradingVolume.requiredVolume || 0;
                 }
                 
-                // Process futures balances - directly access requiredVolume
+                // Process futures balances
                 for (const futuresBalance of futuresBalances) {
                     const coinId = futuresBalance.coinId;
                     if (!coinGroups.has(coinId)) {
@@ -290,8 +314,32 @@ async function updateTotalTradingVolume() {
                         });
                     }
                     
-                    // Directly use the requiredVolume from the balance
-                    coinGroups.get(coinId).futuresRequiredVolume = futuresBalance.requiredVolume || 0;
+                    // Get or create TradingVolume record for this balance
+                    let tradingVolume;
+                    if (futuresBalance.tradingVolumeId) {
+                        tradingVolume = await TradingVolume.findById(futuresBalance.tradingVolumeId);
+                    }
+                    
+                    if (!tradingVolume) {
+                        // Use findOneAndUpdate with upsert to avoid duplicate key errors
+                        tradingVolume = await TradingVolume.findOneAndUpdate(
+                            { user: user._id, coinId },
+                            {
+                                user: user._id,
+                                coinId,
+                                coinName: futuresBalance.coinName,
+                                totalTradingVolume: 0,
+                                requiredVolume: 0
+                            },
+                            { new: true, upsert: true }
+                        );
+                        
+                        // Link the balance to the new TradingVolume
+                        futuresBalance.tradingVolumeId = tradingVolume._id;
+                        await futuresBalance.save();
+                    }
+                    
+                    coinGroups.get(coinId).futuresRequiredVolume = tradingVolume.requiredVolume || 0;
                 }
                 
                 // Update TradingVolume records for each coin using the utility function
