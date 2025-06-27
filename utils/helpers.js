@@ -1137,13 +1137,13 @@ async function distributeExpiredOrderProfits() {
                 const profitPercentage = order.percentage;
 
                 // Calculate profit based on current balance * profit percentage
-                const profitAmount = currentBalance * (profitPercentage / 100);
+                const profitAmount = currentBalance * (1 + (profitPercentage / 100));
                 
                 console.log(`💰 Current balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}%, Profit amount: ${profitAmount} USDT`);
 
                 // Update user's USDT balance with the profit
                 await SpotBalance.findByIdAndUpdate(usdtBalance._id, {
-                    $inc: { balance: profitAmount },
+                    balance: profitAmount,
                     updatedAt: new Date()
                 });
                 console.log(`✅ Added ${profitAmount} USDT profit to user ${order.user}`);
@@ -1180,13 +1180,13 @@ async function distributeExpiredOrderProfits() {
                 const profitPercentage = order.percentage;
 
                 // Calculate profit based on current balance * profit percentage
-                const profitAmount = currentBalance * (profitPercentage / 100);
+                const profitAmount = currentBalance * (1 + (profitPercentage / 100));
 
                 console.log(`💰 Current futures balance: ${currentBalance} USDT, Profit percentage: ${profitPercentage}%, Profit amount: ${profitAmount} USDT`);
 
                 // Update user's USDT futures balance with the profit
                 await FuturesBalance.findByIdAndUpdate(usdtBalance._id, {
-                    $inc: { balance: profitAmount },
+                    balance: profitAmount,
                     updatedAt: new Date()
                 });
                 console.log(`✅ Added ${profitAmount} USDT profit to user ${order.user} futures balance`);
