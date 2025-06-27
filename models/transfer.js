@@ -60,7 +60,7 @@ const transferSchema = new mongoose.Schema({
     },
     transferType: {
         type: String,
-        enum: ['exchange_to_trade', 'trade_to_exchange'],
+        enum: ['exchange_to_trade', 'trade_to_exchange', 'trade_to_trade'],
         required: true
     },
     createdAt: {

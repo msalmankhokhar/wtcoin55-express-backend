@@ -228,6 +228,34 @@ async function linkBalanceToTradingVolume(balanceId, balanceModel, tradingVolume
     }
 }
 
+/**
+ * Update total required volume by summing spot and futures required volumes
+ * @param {ObjectId} userId - User ID
+ * @param {String} coinId - Coin ID
+ * @param {Number} spotRequiredVolume - Required volume from spot balance
+ * @param {Number} futuresRequiredVolume - Required volume from futures balance
+ * @returns {Promise<Object>} Updated TradingVolume document
+ */
+async function updateTotalRequiredVolume(userId, coinId, spotRequiredVolume = 0, futuresRequiredVolume = 0) {
+    try {
+        const totalRequiredVolume = spotRequiredVolume + futuresRequiredVolume;
+        
+        const tradingVolume = await TradingVolume.findOneAndUpdate(
+            { user: userId, coinId },
+            { 
+                requiredVolume: totalRequiredVolume,
+                updatedAt: new Date()
+            },
+            { new: true, upsert: true }
+        );
+        
+        return tradingVolume;
+    } catch (error) {
+        console.error('Error updating total required volume:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     calculateTradingProfit,
     calculateTradeProfit,
@@ -235,5 +263,6 @@ module.exports = {
     updateTradingVolume,
     setRequiredVolume,
     getTradingVolumeStatus,
-    linkBalanceToTradingVolume
+    linkBalanceToTradingVolume,
+    updateTotalRequiredVolume
 }; 

@@ -5,6 +5,10 @@ const { SpotOrderHistory } = require('../models/spot-order');
 const { FuturesOrderHistory } = require('../models/future-order');
 const { Users } = require('../models/users');
 const { VipTier } = require('../models/vip');
+const SpotBalance = require('../models/spot-balance');
+const FuturesBalance = require('../models/futures-balance');
+const TradingVolume = require('../models/tradingVolume');
+const { updateTotalRequiredVolume } = require('../utils/tradingVolume');
 
 
 /**
@@ -232,6 +236,93 @@ async function updateUserVipTierCronjob() {
     }
 }
 
+/**
+ * Update Total Trading Volume by summing requiredVolume from spot and futures balances
+ * @returns {Promise<void>}
+ */
+async function updateTotalTradingVolume() {
+    console.log('📊 Starting total trading volume update cronjob...');
+    
+    try {
+        // Get all users
+        const users = await Users.find({});
+        console.log(`👥 Found ${users.length} users to process`);
+        
+        let updatedCount = 0;
+        let errorCount = 0;
+        
+        for (const user of users) {
+            try {
+                // Get all spot balances for this user
+                const spotBalances = await SpotBalance.find({ user: user._id });
+                
+                // Get all futures balances for this user
+                const futuresBalances = await FuturesBalance.find({ user: user._id });
+                
+                // Group balances by coinId
+                const coinGroups = new Map();
+                
+                // Process spot balances - directly access requiredVolume
+                for (const spotBalance of spotBalances) {
+                    const coinId = spotBalance.coinId;
+                    if (!coinGroups.has(coinId)) {
+                        coinGroups.set(coinId, {
+                            coinId,
+                            coinName: spotBalance.coinName,
+                            spotRequiredVolume: 0,
+                            futuresRequiredVolume: 0
+                        });
+                    }
+                    
+                    // Directly use the requiredVolume from the balance
+                    coinGroups.get(coinId).spotRequiredVolume = spotBalance.requiredVolume || 0;
+                }
+                
+                // Process futures balances - directly access requiredVolume
+                for (const futuresBalance of futuresBalances) {
+                    const coinId = futuresBalance.coinId;
+                    if (!coinGroups.has(coinId)) {
+                        coinGroups.set(coinId, {
+                            coinId,
+                            coinName: futuresBalance.coinName,
+                            spotRequiredVolume: 0,
+                            futuresRequiredVolume: 0
+                        });
+                    }
+                    
+                    // Directly use the requiredVolume from the balance
+                    coinGroups.get(coinId).futuresRequiredVolume = futuresBalance.requiredVolume || 0;
+                }
+                
+                // Update TradingVolume records for each coin using the utility function
+                for (const [coinId, coinData] of coinGroups) {
+                    const totalRequiredVolume = coinData.spotRequiredVolume + coinData.futuresRequiredVolume;
+                    
+                    // Use the utility function to update the total required volume
+                    const tradingVolume = await updateTotalRequiredVolume(
+                        user._id, 
+                        coinId, 
+                        coinData.spotRequiredVolume, 
+                        coinData.futuresRequiredVolume
+                    );
+                    
+                    console.log(`✅ Updated TradingVolume for user ${user.email}, coin ${coinId}: ${totalRequiredVolume} (Spot: ${coinData.spotRequiredVolume} + Futures: ${coinData.futuresRequiredVolume})`);
+                    updatedCount++;
+                }
+                
+            } catch (userError) {
+                console.error(`❌ Error processing user ${user.email}:`, userError);
+                errorCount++;
+            }
+        }
+        
+        console.log(`✅ Total trading volume update completed!`);
+        console.log(`📊 Summary: ${updatedCount} records updated, ${errorCount} errors`);
+        
+    } catch (error) {
+        console.error('❌ Error in total trading volume update cronjob:', error);
+    }
+}
 
 // Schedule the cron job to run every minute
 
@@ -242,5 +333,6 @@ cron.schedule('* * * * *', async () => {
     await updateUserVipTierCronjob();
     // await getSpotHistoryAndStatus();
     // await getFuturesHistoryAndStatus(); 
+    await updateTotalTradingVolume();
 });
 
