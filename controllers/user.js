@@ -248,4 +248,33 @@ async function kycVerificationSubmission(req, res) {
     }
 }
 
-module.exports = { getProfile, getBalance, transactionHistory, depositTransactionHistory, withdrawTransactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission };
+async function getKycSubmissionStatus(req, res) {
+    try {
+        const user = req.user;
+        const { kycVerification } = require('../models/kycVerification');
+
+        const kycVerificationStatus = await kycVerification.findOne({ user: user._id });
+
+        // When kycVerification status is empty
+        if (!kycVerificationStatus) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+                message: 'No KYC verification submitted'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: kycVerificationStatus
+        });
+    } catch (error) {
+        console.error('Error getting KYC submission status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get KYC submission status'
+        });
+    }
+}
+
+module.exports = { getProfile, getBalance, transactionHistory, depositTransactionHistory, withdrawTransactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission, getKycSubmissionStatus };

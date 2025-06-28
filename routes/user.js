@@ -1,5 +1,5 @@
 let express = require('express');
-const { getProfile, getBalance, transactionHistory, depositTransactionHistory, withdrawTransactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission } = require('../controllers/user');
+const { getProfile, getBalance, transactionHistory, depositTransactionHistory, withdrawTransactionHistory, getUserBalances, getUserTradingVolumeStatus, kycVerificationSubmission, getKycSubmissionStatus } = require('../controllers/user');
 const { tokenRequired } = require('../middleware/auth');
 
 let router = express.Router();
@@ -474,5 +474,141 @@ router.get('/trading-volume-status', tokenRequired, getUserTradingVolumeStatus);
  *                   example: "Failed to submit KYC verification"
  */
 router.post('/kyc-verification', tokenRequired, kycVerificationSubmission);
+
+/**
+ * @swagger
+ * /api/user/kyc-status:
+ *   get:
+ *     summary: Get KYC submission status
+ *     description: Retrieve the current KYC (Know Your Customer) verification status for the authenticated user. Returns the KYC verification data if submitted, or an empty array if no KYC has been submitted.
+ *     tags: [User]
+ *     security:
+ *       - quantumAccessToken: []
+ *     responses:
+ *       200:
+ *         description: KYC status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   oneOf:
+ *                     - type: array
+ *                       description: Empty array when no KYC verification has been submitted
+ *                       example: []
+ *                     - type: object
+ *                       description: KYC verification data when submitted
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           description: KYC verification record ID
+ *                           example: "507f1f77bcf86cd799439011"
+ *                         user:
+ *                           type: string
+ *                           description: User ID
+ *                           example: "507f1f77bcf86cd799439012"
+ *                         fullName:
+ *                           type: string
+ *                           description: Full legal name
+ *                           example: "John Michael Smith"
+ *                         city:
+ *                           type: string
+ *                           description: City of residence
+ *                           example: "New York"
+ *                         country:
+ *                           type: string
+ *                           description: Country of residence
+ *                           example: "United States"
+ *                         idNumber:
+ *                           type: string
+ *                           description: Government-issued identification number
+ *                           example: "123456789"
+ *                         frontImage:
+ *                           type: string
+ *                           description: URL to front image of ID document
+ *                           example: "https://example.com/images/front.jpg"
+ *                         backImage:
+ *                           type: string
+ *                           description: URL to back image of ID document
+ *                           example: "https://example.com/images/back.jpg"
+ *                         idImage:
+ *                           type: string
+ *                           description: URL to additional ID image
+ *                           example: "https://example.com/images/selfie.jpg"
+ *                         status:
+ *                           type: string
+ *                           description: KYC verification status
+ *                           enum: [pending, approved, rejected]
+ *                           example: "pending"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           description: KYC submission timestamp
+ *                           example: "2023-12-01T10:30:00.000Z"
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           description: Last update timestamp
+ *                           example: "2023-12-01T10:30:00.000Z"
+ *                 message:
+ *                   type: string
+ *                   description: Response message
+ *                   oneOf:
+ *                     - "No KYC verification submitted"
+ *                     - "KYC status retrieved successfully"
+ *             examples:
+ *               noKyc:
+ *                 summary: No KYC submitted
+ *                 value:
+ *                   success: true
+ *                   data: []
+ *                   message: "No KYC verification submitted"
+ *               kycSubmitted:
+ *                 summary: KYC submitted
+ *                 value:
+ *                   success: true
+ *                   data:
+ *                     _id: "507f1f77bcf86cd799439011"
+ *                     user: "507f1f77bcf86cd799439012"
+ *                     fullName: "John Michael Smith"
+ *                     city: "New York"
+ *                     country: "United States"
+ *                     idNumber: "123456789"
+ *                     frontImage: "https://example.com/images/front.jpg"
+ *                     backImage: "https://example.com/images/back.jpg"
+ *                     idImage: "https://example.com/images/selfie.jpg"
+ *                     status: "pending"
+ *                     createdAt: "2023-12-01T10:30:00.000Z"
+ *                     updatedAt: "2023-12-01T10:30:00.000Z"
+ *                   message: "KYC status retrieved successfully"
+ *       401:
+ *         description: Unauthorized - invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Access token required"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Failed to get KYC submission status"
+ */
+router.get('/kyc-status', tokenRequired, getKycSubmissionStatus);
 
 module.exports = router;
