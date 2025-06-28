@@ -8,7 +8,7 @@ const { VipTier } = require('../models/vip');
 const SpotBalance = require('../models/spot-balance');
 const FuturesBalance = require('../models/futures-balance');
 const TradingVolume = require('../models/tradingVolume');
-const { updateTotalRequiredVolume } = require('../utils/tradingVolume');
+// const { updateTotalRequiredVolume } = require('../utils/tradingVolume');
 
 
 /**
@@ -242,135 +242,105 @@ async function updateUserVipTierCronjob() {
  */
 async function updateTotalTradingVolume() {
     console.log('📊 Starting total trading volume update cronjob...');
-    
+   
     try {
-        // Get all users
-        const users = await Users.find({});
-        console.log(`👥 Found ${users.length} users to process`);
+        // Get all user balances for USDT (coinId: "1280")
+        const userSpotBalances = await SpotBalance.find({ coinId: "1280" });
+        const userFuturesBalances = await FuturesBalance.find({ coinId: "1280" });
         
-        let updatedCount = 0;
-        let errorCount = 0;
+        console.log(`📈 Found ${userSpotBalances.length} spot balances and ${userFuturesBalances.length} futures balances for USDT`);
         
-        for (const user of users) {
-            try {
-                // Get all spot balances for this user
-                const spotBalances = await SpotBalance.find({ user: user._id });
+        // Create maps for efficient lookup
+        const spotBalanceMap = new Map();
+        const futuresBalanceMap = new Map();
+        
+        // Populate spot balance map
+        userSpotBalances.forEach(balance => {
+            if (balance.user) {
+                spotBalanceMap.set(balance.user.toString(), balance);
+            }
+        });
+        
+        // Populate futures balance map
+        userFuturesBalances.forEach(balance => {
+            if (balance.user) {
+                futuresBalanceMap.set(balance.user.toString(), balance);
+            }
+        });
+        
+        // Get all unique user IDs from both spot and futures
+        const allUserIds = new Set([
+            ...spotBalanceMap.keys(),
+            ...futuresBalanceMap.keys()
+        ]);
+        
+        console.log(`👥 Processing ${allUserIds.size} unique users`);
+        
+        // Process each unique user ONCE
+        for (const userIdString of allUserIds) {
+            const userSpotBalance = spotBalanceMap.get(userIdString);
+            const userFuturesBalance = futuresBalanceMap.get(userIdString);
+            
+            // Calculate total required volume (spot + futures)
+            const spotRequiredVolume = userSpotBalance ? (userSpotBalance.requiredVolume || 0) : 0;
+            const futuresRequiredVolume = userFuturesBalance ? (userFuturesBalance.requiredVolume || 0) : 0;
+            const totalRequiredVolume = spotRequiredVolume + futuresRequiredVolume;
+
+            // Calculate total trading Volume from spot and futures
+            const spotTradingVolume = userSpotBalance ? (userSpotBalance.balance || 0) : 0;
+            const futuresTradingVolume = userFuturesBalance ? (userFuturesBalance.balance || 0) : 0;
+            const totalTradingVolume = spotTradingVolume + futuresTradingVolume;
+            
+            // console.log(`👤 User ${userIdString}:`);
+            // console.log(`   Spot requiredVolume: ${spotRequiredVolume}`);
+            // console.log(`   Futures requiredVolume: ${futuresRequiredVolume}`);
+            // console.log(`   Total requiredVolume: ${totalRequiredVolume}`);
+            // console.log(`   Spot tradingVolume: ${spotTradingVolume}`);
+            // console.log(`   Futures tradingVolume: ${futuresTradingVolume}`);
+            // console.log(`   Total tradingVolume: ${totalTradingVolume}`);
+            
+            // Get existing trading volume record for this user
+            let tradingVolumeRecord = await TradingVolume.findOne({ 
+                user: userIdString
+            });
+            
+            // If no record exists, create one
+            if (!tradingVolumeRecord) {
+                const newRecord = {
+                    user: userIdString,
+                    coinId: "1280",
+                    coinName: "USDT",
+                    totalTradingVolume: totalTradingVolume,
+                    requiredVolume: totalRequiredVolume
+                };
                 
-                // Get all futures balances for this user
-                const futuresBalances = await FuturesBalance.find({ user: user._id });
+                console.log(`🔍 Creating record with data:`, JSON.stringify(newRecord, null, 2));
                 
-                // Group balances by coinId
-                const coinGroups = new Map();
-                
-                // Process spot balances
-                for (const spotBalance of spotBalances) {
-                    const coinId = spotBalance.coinId;
-                    if (!coinGroups.has(coinId)) {
-                        coinGroups.set(coinId, {
-                            coinId,
-                            coinName: spotBalance.coinName,
-                            spotRequiredVolume: 0,
-                            futuresRequiredVolume: 0
-                        });
-                    }
+                tradingVolumeRecord = new TradingVolume(newRecord);
+                await tradingVolumeRecord.save();
+                console.log(`✅ Created new trading volume record for user ${userIdString}: ${totalRequiredVolume}`);
+            } else {
+                // Update if the totalTradingVolume is different
+                if (tradingVolumeRecord.totalTradingVolume !== totalTradingVolume) {
+                    const oldValue = tradingVolumeRecord.totalTradingVolume;
+                    tradingVolumeRecord.totalTradingVolume = totalTradingVolume;
+                    tradingVolumeRecord.requiredVolume = totalRequiredVolume;
+                    tradingVolumeRecord.lastUpdated = new Date();
                     
-                    // Get or create TradingVolume record for this balance
-                    let tradingVolume;
-                    if (spotBalance.tradingVolumeId) {
-                        tradingVolume = await TradingVolume.findById(spotBalance.tradingVolumeId);
-                    }
-                    
-                    if (!tradingVolume) {
-                        // Use findOneAndUpdate with upsert to avoid duplicate key errors
-                        tradingVolume = await TradingVolume.findOneAndUpdate(
-                            { user: user._id, coinId },
-                            {
-                                user: user._id,
-                                coinId,
-                                coinName: spotBalance.coinName,
-                                totalTradingVolume: 0,
-                                requiredVolume: 0
-                            },
-                            { new: true, upsert: true }
-                        );
-                        
-                        // Link the balance to the new TradingVolume
-                        spotBalance.tradingVolumeId = tradingVolume._id;
-                        await spotBalance.save();
-                    }
-                    
-                    coinGroups.get(coinId).spotRequiredVolume = tradingVolume.requiredVolume || 0;
+                    await tradingVolumeRecord.save();
+                    console.log(`📈 Updated trading volume for user ${userIdString}: ${oldValue} -> ${totalRequiredVolume}`);
                 }
-                
-                // Process futures balances
-                for (const futuresBalance of futuresBalances) {
-                    const coinId = futuresBalance.coinId;
-                    if (!coinGroups.has(coinId)) {
-                        coinGroups.set(coinId, {
-                            coinId,
-                            coinName: futuresBalance.coinName,
-                            spotRequiredVolume: 0,
-                            futuresRequiredVolume: 0
-                        });
-                    }
-                    
-                    // Get or create TradingVolume record for this balance
-                    let tradingVolume;
-                    if (futuresBalance.tradingVolumeId) {
-                        tradingVolume = await TradingVolume.findById(futuresBalance.tradingVolumeId);
-                    }
-                    
-                    if (!tradingVolume) {
-                        // Use findOneAndUpdate with upsert to avoid duplicate key errors
-                        tradingVolume = await TradingVolume.findOneAndUpdate(
-                            { user: user._id, coinId },
-                            {
-                                user: user._id,
-                                coinId,
-                                coinName: futuresBalance.coinName,
-                                totalTradingVolume: 0,
-                                requiredVolume: 0
-                            },
-                            { new: true, upsert: true }
-                        );
-                        
-                        // Link the balance to the new TradingVolume
-                        futuresBalance.tradingVolumeId = tradingVolume._id;
-                        await futuresBalance.save();
-                    }
-                    
-                    coinGroups.get(coinId).futuresRequiredVolume = tradingVolume.requiredVolume || 0;
-                }
-                
-                // Update TradingVolume records for each coin using the utility function
-                for (const [coinId, coinData] of coinGroups) {
-                    const totalRequiredVolume = coinData.spotRequiredVolume + coinData.futuresRequiredVolume;
-                    
-                    // Use the utility function to update the total required volume
-                    const tradingVolume = await updateTotalRequiredVolume(
-                        user._id, 
-                        coinId, 
-                        coinData.spotRequiredVolume, 
-                        coinData.futuresRequiredVolume
-                    );
-                    
-                    console.log(`✅ Updated TradingVolume for user ${user.email}, coin ${coinId}: ${totalRequiredVolume} (Spot: ${coinData.spotRequiredVolume} + Futures: ${coinData.futuresRequiredVolume})`);
-                    updatedCount++;
-                }
-                
-            } catch (userError) {
-                console.error(`❌ Error processing user ${user.email}:`, userError);
-                errorCount++;
             }
         }
         
-        console.log(`✅ Total trading volume update completed!`);
-        console.log(`📊 Summary: ${updatedCount} records updated, ${errorCount} errors`);
+        // console.log('✅ Total trading volume update cronjob completed successfully');
         
     } catch (error) {
         console.error('❌ Error in total trading volume update cronjob:', error);
+        console.error('❌ Error stack:', error.stack);
     }
 }
+
 
 // Schedule the cron job to run every minute
 

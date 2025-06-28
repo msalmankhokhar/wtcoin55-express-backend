@@ -26,6 +26,7 @@ const FuturesBalanceSchema = new mongoose.Schema({
         type: Number, 
         default: 0 
     },
+    requiredVolume: { type: Number, default: 0 },
     logoUrl: { 
         type: String 
     },

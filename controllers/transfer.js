@@ -7,6 +7,7 @@ const { Transactions } = require('../models/transactions');
 const TransferHistory = require('../models/transfer');
 const { safeCreateBalance } = require('../utils/helpers');
 const { getOrCreateTradingVolume, setRequiredVolume, getTradingVolumeStatus: getTradingVolumeStatusUtil } = require('../utils/tradingVolume');
+const TradingVolume = require('../models/tradingVolume');
 
 /**
  * Transfer funds from Exchange (main balance) to Trade (spot/futures balance)
@@ -250,8 +251,10 @@ async function transferToExchange(req, res) {
         }
 
         // Get current trading volume from balance model (much more efficient!)
-        const currentVolume = newTradeBalance.balance || 0;
-        const requiredVolume = newTradeBalance.requiredVolume || 0;
+        let tradingVolume = await TradingVolume.findOne({ user: user._id, coinId });
+
+        const currentVolume = tradingVolume.totalTradingVolume || 0;
+        const requiredVolume = tradingVolume.requiredVolume || 0;
 
         console.log(`📊 [transferToExchange] Current volume: ${currentVolume}, Required volume: ${requiredVolume}`);
 

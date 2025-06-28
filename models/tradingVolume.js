@@ -4,6 +4,7 @@ const tradingVolumeSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Users',
+        unique: true,
         required: true
     },
     coinId: {
@@ -12,7 +13,7 @@ const tradingVolumeSchema = new mongoose.Schema({
     },
     coinName: {
         type: String,
-        required: true
+        required: false
     },
     totalTradingVolume: {
         type: Number,

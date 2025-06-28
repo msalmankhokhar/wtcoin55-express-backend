@@ -185,10 +185,10 @@ async function getTradingVolumeStatus(userId, coinId) {
                 remainingVolume: 0
             };
         }
-        
+
         const volumeMet = tradingVolume.totalTradingVolume >= tradingVolume.requiredVolume;
         const remainingVolume = Math.max(0, tradingVolume.requiredVolume - tradingVolume.totalTradingVolume);
-        
+
         return {
             totalTradingVolume: tradingVolume.totalTradingVolume,
             requiredVolume: tradingVolume.requiredVolume,
