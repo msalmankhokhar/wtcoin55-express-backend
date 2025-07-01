@@ -562,9 +562,24 @@ async function getAllUsers(req, res) {
             .populate('vipTier', '_id vipName vipLevel')
             .sort({ createdAt: -1 });
 
+        // Populate referrer information for each user
+        const usersWithReferrers = await Promise.all(users.map(async (user) => {
+            const userObj = user.toObject();
+            
+            if (user.referBy && user.referBy !== "") {
+                // Find the user who referred this user by their refCode
+                const referrer = await Users.findOne({ refCode: user.referBy }, '_id email phonenumber refCode');
+                userObj.referrer = referrer;
+            } else {
+                userObj.referrer = null;
+            }
+            
+            return userObj;
+        }));
+
         res.status(200).json({
             success: true,
-            data: users
+            data: usersWithReferrers
         });
 
     } catch (error) {
@@ -1224,12 +1239,12 @@ async function kycVerification(req, res) {
             });
         }
 
-        if (kycRecord.status !== 'pending') {
-            return res.status(400).json({ 
-                success: false,
-                error: 'KYC verification has already been processed' 
-            });
-        }
+        // if (kycRecord.status !== 'pending') {
+        //     return res.status(400).json({ 
+        //         success: false,
+        //         error: 'KYC verification has already been processed' 
+        //     });
+        // }
 
         await Users.findByIdAndUpdate(kycRecord.user, 
             { kycVerification: status === 'approved' ? true : false },
@@ -1308,7 +1323,7 @@ async function getKycVerification(req, res) {
 async function updateUserBalance(req, res) {
     try {
         const { userId } = req.params;
-        const { newBalance, destination='main' } = req.body;
+        const { newBalance, destination='main', reason='' } = req.body;
         let newFuturesBalance, newMainBalance, newSpotBalance;
         const amount = parseFloat(newBalance);
 
@@ -1405,6 +1420,7 @@ async function updateUserBalance(req, res) {
             memo: `Admin ${destination} ${type}`,
             orderId,
             recordId,
+            reason,
             webhookStatus: 'completed',
             status: 'completed',
             type: type
@@ -1426,6 +1442,7 @@ async function updateUserBalance(req, res) {
                 recordId,
                 status: 'completed',
                 type: type,
+                reason,
                 fee: 0
             });
             await withdrawalRequest.save();
