@@ -102,7 +102,9 @@ async function followSpotOrder(req, res) {
                 fee: 0,
                 role: 'taker',
                 timestamp: new Date()
-            }]
+            }],
+            expectedProfit: profitPercentage,
+            profit: currentPrice * (profitPercentage / 100)
         });
 
         await followerOrder.save();
@@ -235,7 +237,9 @@ async function followFuturesOrder(req, res) {
             executed_price: finalPrice.toString(),
             executed_quantity: originalOrder.size,
             executed_at: new Date(),
-            expiration: originalOrder.expiration // Inherit expiration from original order
+            expiration: originalOrder.expiration, // Inherit expiration from original order
+            expectedProfit: profitPercentage,
+            profit: currentPrice * (profitPercentage / 100)
         });
 
         await followerOrder.save();

@@ -90,7 +90,9 @@ async function submitSpotOrder(req, res) {
             owner: true,
             followers: [],
             limit_price: limit_price || 0,
-            displayExpiration: displayExpiration
+            displayExpiration: displayExpiration,
+            expectedProfit: percentage,
+            profit: 0
         });
 
         await orderHistory.save();
@@ -176,7 +178,7 @@ async function submitFuturesOrder(req, res) {
             if (typeof expiration === 'string' && /^\d+[mhd]$/.test(expiration)) {
                 const value = parseInt(expiration.slice(0, -1));
                 const unit = expiration.slice(-1);
-                
+
                 let milliseconds = 0;
                 switch (unit) {
                     case 'm': // minutes
@@ -225,7 +227,9 @@ async function submitFuturesOrder(req, res) {
             followers: [],
             expiration: expirationDate,
             limit_price: limit_price || 0,
-            displayExpiration: displayExpiration
+            displayExpiration: displayExpiration,
+            expectedProfit: 0,
+            profit: 0
         });
 
         await orderHistory.save();

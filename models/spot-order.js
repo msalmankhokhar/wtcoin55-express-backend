@@ -17,6 +17,7 @@ const SpotOrderHistorySchema = new mongoose.Schema({
     displayExpiration: { type: String, required: false },
     percentage: { type: Number, default: 1, min: 0.1, max: 100 },
     profit: { type: Number, default: 0 },
+    expectedProfit: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     executedAt: { type: Date },

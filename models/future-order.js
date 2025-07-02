@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const FuturesOrderHistorySchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     symbol: { type: String, required: true }, // ETHUSDT, BTCUSDT
-    
+
     // Order Details
     orderId: { type: String, required: false }, // BitMart order ID
     side: { type: String, required: false, default: null }, // buy, sell
@@ -35,7 +35,9 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     // Execution & Status
     status: { type: String, default: 'pending' }, // pending, triggered, completed, cancelled, failed
     executed_price: { type: String, required: false }, // Actual execution price
-    executed_quantity: { type: Number, default: 0 }, // Executed contracts
+    executed_quantity: { type: Number, default: 0 },
+    profit: { type: Number, default: 0 },
+    expectedProfit: { type: Number, default: 0 },
     executed_at: { type: Date, required: false },
     
     // Fees & Costs
@@ -48,7 +50,7 @@ const FuturesOrderHistorySchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Users' }],
     percentage: { type: Number, required: false, default: null, min: 0.1, max: 100 },
-    
+
     // Timestamps
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
