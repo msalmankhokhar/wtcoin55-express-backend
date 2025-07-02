@@ -9,6 +9,7 @@ const kycVerificationSchema = new mongoose.Schema({
     country: { type: String, required: true },
     idNumber: { type: String, required: true },
     status: { type: String, default: 'pending' },
+    reason: { type: String, default: "", required: false },
     frontImageUrl: { type: String, required: true },
     backImageUrl: { type: String, required: true },
     idImageUrl: { type: String, required: true },
