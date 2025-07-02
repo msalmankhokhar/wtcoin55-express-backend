@@ -579,7 +579,8 @@ async function getAllUsers(req, res) {
 
         res.status(200).json({
             success: true,
-            data: usersWithReferrerIds
+            data: usersWithReferrerIds,
+            total: users.length
         });
 
     } catch (error) {
