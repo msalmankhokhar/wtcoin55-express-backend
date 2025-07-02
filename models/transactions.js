@@ -68,6 +68,11 @@ let transactionSchema = new mongoose.Schema({
           type: String,
           default: null // Status from BitMart
      },
+
+     reason: {
+          type: String,
+          default: ''
+     },
      
      // Additional Information
      notes: {

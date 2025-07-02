@@ -562,16 +562,16 @@ async function getAllUsers(req, res) {
             .populate('vipTier', '_id vipName vipLevel')
             .sort({ createdAt: -1 });
 
-        // Populate referrer information for each user
-        const usersWithReferrers = await Promise.all(users.map(async (user) => {
+        // Replace referBy with actual user ID
+        const usersWithReferrerIds = await Promise.all(users.map(async (user) => {
             const userObj = user.toObject();
             
             if (user.referBy && user.referBy !== "") {
                 // Find the user who referred this user by their refCode
-                const referrer = await Users.findOne({ refCode: user.referBy }, '_id email phonenumber refCode');
-                userObj.referrer = referrer;
-            } else {
-                userObj.referrer = null;
+                const referrer = await Users.findOne({ refCode: user.referBy }, '_id');
+                if (referrer) {
+                    userObj.referBy = referrer._id.toString();
+                }
             }
             
             return userObj;
@@ -579,7 +579,7 @@ async function getAllUsers(req, res) {
 
         res.status(200).json({
             success: true,
-            data: usersWithReferrers
+            data: usersWithReferrerIds
         });
 
     } catch (error) {

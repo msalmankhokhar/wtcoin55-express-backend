@@ -20,7 +20,8 @@ const WithdrawalRequestSchema = new mongoose.Schema({
     // Admin approval details
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users' },
     approvedAt: { type: Date },
-    declineReason: { type: String },
+    declineReason: { type: String, default: '' },
+    reason: { type: String, default: '' },
     
     // Withdrawal execution details (after approval)
     orderId: { type: String, unique: true, sparse: true },
@@ -50,6 +51,7 @@ const WithdrawalHistorySchema = new mongoose.Schema({
     memo: { type: String, default: '' },
     orderId: { type: String, required: true, unique: true },
     status: { type: String, enum: ['Processing', 'Completed', 'Failed'], default: 'Processing' },
+    reason: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });

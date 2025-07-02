@@ -280,6 +280,14 @@ async function updateTotalTradingVolume() {
         for (const userIdString of allUserIds) {
             const userSpotBalance = spotBalanceMap.get(userIdString);
             const userFuturesBalance = futuresBalanceMap.get(userIdString);
+
+            // console.log(`👤 User ${userIdString}:`);
+            // console.log(`   Spot requiredVolume: ${userSpotBalance.requiredVolume}`);
+            // console.log(`   Futures requiredVolume: ${userFuturesBalance.requiredVolume}`);
+            // console.log(`   Total requiredVolume: ${userSpotBalance.requiredVolume + userFuturesBalance.requiredVolume}`);
+            // console.log(`   Spot tradingVolume: ${userSpotBalance.balance}`);
+            // console.log(`   Futures tradingVolume: ${userFuturesBalance.balance}`);
+            // console.log(`   Total tradingVolume: ${userSpotBalance.balance + userFuturesBalance.balance}`);
             
             // Calculate total required volume (spot + futures)
             const spotRequiredVolume = userSpotBalance ? (userSpotBalance.requiredVolume || 0) : 0;
@@ -290,20 +298,31 @@ async function updateTotalTradingVolume() {
             const spotTradingVolume = userSpotBalance ? (userSpotBalance.balance || 0) : 0;
             const futuresTradingVolume = userFuturesBalance ? (userFuturesBalance.balance || 0) : 0;
             const totalTradingVolume = spotTradingVolume + futuresTradingVolume;
-            
-            // console.log(`👤 User ${userIdString}:`);
-            // console.log(`   Spot requiredVolume: ${spotRequiredVolume}`);
-            // console.log(`   Futures requiredVolume: ${futuresRequiredVolume}`);
-            // console.log(`   Total requiredVolume: ${totalRequiredVolume}`);
-            // console.log(`   Spot tradingVolume: ${spotTradingVolume}`);
-            // console.log(`   Futures tradingVolume: ${futuresTradingVolume}`);
-            // console.log(`   Total tradingVolume: ${totalTradingVolume}`);
-            
+
             // Get existing trading volume record for this user
             let tradingVolumeRecord = await TradingVolume.findOne({ 
                 user: userIdString
             });
-            
+
+            // Debug logging for specific user (commented out to reduce noise)
+            // if (userIdString === "6846ede676072017c59d938c") {
+            //     console.log(`👤 User ${userIdString}:`);
+            //     console.log(`   Spot requiredVolume: ${userSpotBalance.requiredVolume}`);
+            //     console.log(`   Futures requiredVolume: ${userFuturesBalance.requiredVolume}`);
+            //     console.log(`   Total requiredVolume: ${userSpotBalance.requiredVolume + userFuturesBalance.requiredVolume}`);
+            //     console.log(`   Spot tradingVolume: ${userSpotBalance.balance}`);
+            //     console.log(`   Futures tradingVolume: ${userFuturesBalance.balance}`);
+            //     console.log(`   Total tradingVolume: ${userSpotBalance.balance + userFuturesBalance.balance}`);
+                
+            //     // Debug the existing record
+            //     if (tradingVolumeRecord) {
+            //         console.log(`   Existing record totalTradingVolume: ${tradingVolumeRecord.totalTradingVolume} (type: ${typeof tradingVolumeRecord.totalTradingVolume})`);
+            //         console.log(`   Calculated totalTradingVolume: ${totalTradingVolume} (type: ${typeof totalTradingVolume})`);
+            //         console.log(`   Are they equal? ${tradingVolumeRecord.totalTradingVolume === totalTradingVolume}`);
+            //         console.log(`   Are they strictly equal? ${tradingVolumeRecord.totalTradingVolume === totalTradingVolume}`);
+            //     }
+            // }
+
             // If no record exists, create one
             if (!tradingVolumeRecord) {
                 const newRecord = {
@@ -313,27 +332,27 @@ async function updateTotalTradingVolume() {
                     totalTradingVolume: totalTradingVolume,
                     requiredVolume: totalRequiredVolume
                 };
-                
+
                 console.log(`🔍 Creating record with data:`, JSON.stringify(newRecord, null, 2));
-                
+
                 tradingVolumeRecord = new TradingVolume(newRecord);
                 await tradingVolumeRecord.save();
                 console.log(`✅ Created new trading volume record for user ${userIdString}: ${totalRequiredVolume}`);
             } else {
                 // Update if the totalTradingVolume is different
-                if (tradingVolumeRecord.totalTradingVolume !== totalTradingVolume) {
+                if (Number(tradingVolumeRecord.totalTradingVolume) !== Number(totalTradingVolume) || Number(tradingVolumeRecord.requiredVolume) !== Number(totalRequiredVolume)) {
                     const oldValue = tradingVolumeRecord.totalTradingVolume;
                     tradingVolumeRecord.totalTradingVolume = totalTradingVolume;
                     tradingVolumeRecord.requiredVolume = totalRequiredVolume;
                     tradingVolumeRecord.lastUpdated = new Date();
                     
                     await tradingVolumeRecord.save();
-                    console.log(`📈 Updated trading volume for user ${userIdString}: ${oldValue} -> ${totalRequiredVolume}`);
+                    console.log(`📈 Updated trading volume for user ${userIdString}: ${oldValue} -> ${totalTradingVolume}`);
                 }
             }
         }
         
-        // console.log('✅ Total trading volume update cronjob completed successfully');
+        console.log('✅ Total trading volume update cronjob completed successfully');
         
     } catch (error) {
         console.error('❌ Error in total trading volume update cronjob:', error);
