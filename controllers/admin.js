@@ -573,7 +573,7 @@ async function getAllUsers(req, res) {
                     userObj.referBy = referrer._id.toString();
                 }
             }
-            
+
             return userObj;
         }));
 

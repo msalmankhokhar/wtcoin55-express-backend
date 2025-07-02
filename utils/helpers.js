@@ -1151,6 +1151,7 @@ async function distributeExpiredOrderProfits() {
                 // Update order status to completed
                 await SpotOrderHistory.findByIdAndUpdate(order._id, {
                     status: 'completed',
+                    profit: profitAmount,
                     executedAt: new Date(),
                     updatedAt: new Date()
                 });
@@ -1194,6 +1195,7 @@ async function distributeExpiredOrderProfits() {
                 // Update order status to completed
                 await FuturesOrderHistory.findByIdAndUpdate(order._id, {
                     status: 'completed',
+                    profit: profitAmount,
                     executedAt: new Date(),
                     updatedAt: new Date()
                 });
