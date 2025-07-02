@@ -1213,7 +1213,7 @@ async function getUserTransferDetails(req, res) {
 async function kycVerification(req, res) {
     try {
         const { kycId } = req.params;
-        const { status } = req.body;
+        const { status, reason="" } = req.body;
 
         const { kycVerification: KYCVerificationModel } = require('../models/kycVerification');
 
@@ -1253,6 +1253,8 @@ async function kycVerification(req, res) {
         );
 
         kycRecord.status = status;
+        kycRecord.reason = reason;
+
         await kycRecord.save();
 
         res.status(200).json({
