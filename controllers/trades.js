@@ -78,6 +78,17 @@ async function followSpotOrder(req, res) {
             finalPrice = currentPrice * (1 - profitPercentage / 100);
         }
 
+        const userBalance = SpotBalance.findOne({user, coinId: "1280"});
+        let currentBalance;
+        if (!userBalance) {
+            currentBalance = 0;
+        } else {
+            currentBalance = userBalance.balance;
+        }
+
+        const profitAmount = currentBalance * (profitPercentage / 100);
+        console.log("Profit: ", profitAmount);
+
         // Create follower order (pending profit distribution)
         const followerOrder = new SpotOrderHistory({
             user: user._id,
@@ -104,7 +115,7 @@ async function followSpotOrder(req, res) {
                 timestamp: new Date()
             }],
             expectedProfit: profitPercentage,
-            profit: currentPrice * (profitPercentage / 100)
+            profit: profitAmount
         });
 
         await followerOrder.save();
@@ -215,6 +226,17 @@ async function followFuturesOrder(req, res) {
             finalPrice = currentPrice * (1 - profitPercentage / 100);
         }
 
+        const userBalance = FuturesBalance.findOne({user, coinId: "1280"});
+        let currentBalance;
+        if (!userBalance) {
+            currentBalance = 0;
+        } else {
+            currentBalance = userBalance.balance;
+        }
+
+        const profitAmount = currentBalance * (profitPercentage / 100);
+        console.log("Profit: ", profitAmount);
+
         // Create follower futures order (pending profit distribution)
         const followerOrder = new FuturesOrderHistory({
             user: user._id,
@@ -239,7 +261,7 @@ async function followFuturesOrder(req, res) {
             executed_at: new Date(),
             expiration: originalOrder.expiration, // Inherit expiration from original order
             expectedProfit: profitPercentage,
-            profit: currentPrice * (profitPercentage / 100)
+            profit: profitAmount
         });
 
         await followerOrder.save();
