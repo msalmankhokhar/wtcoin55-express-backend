@@ -79,6 +79,7 @@ async function followSpotOrder(req, res) {
         }
 
         const userBalance = SpotBalance.findOne({user, coinId: "1280"});
+        console.log("User balance: ", userBalance);
         let currentBalance;
         if (!userBalance) {
             currentBalance = 0;
