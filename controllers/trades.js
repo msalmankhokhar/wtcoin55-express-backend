@@ -78,7 +78,7 @@ async function followSpotOrder(req, res) {
             finalPrice = currentPrice * (1 - profitPercentage / 100);
         }
 
-        const userBalance = SpotBalance.findOne({user, coinId: "1280"});
+        const userBalance = await SpotBalance.findOne({user, coinId: "1280"});
         console.log("User balance: ", userBalance);
         let currentBalance;
         if (!userBalance) {
@@ -227,7 +227,7 @@ async function followFuturesOrder(req, res) {
             finalPrice = currentPrice * (1 - profitPercentage / 100);
         }
 
-        const userBalance = FuturesBalance.findOne({user, coinId: "1280"});
+        const userBalance = await FuturesBalance.findOne({user, coinId: "1280"});
         let currentBalance;
         if (!userBalance) {
             currentBalance = 0;
