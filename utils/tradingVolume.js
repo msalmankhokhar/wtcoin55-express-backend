@@ -97,7 +97,7 @@ function calculateTradeProfit(order, trade) {
 async function getOrCreateTradingVolume(userId, coinId, coinName) {
     try {
         let tradingVolume = await TradingVolume.findOne({ user: userId, coinId });
-        
+
         if (!tradingVolume) {
             tradingVolume = new TradingVolume({
                 user: userId,
@@ -108,7 +108,7 @@ async function getOrCreateTradingVolume(userId, coinId, coinName) {
             });
             await tradingVolume.save();
         }
-        
+
         return tradingVolume;
     } catch (error) {
         console.error('Error getting or creating trading volume:', error);

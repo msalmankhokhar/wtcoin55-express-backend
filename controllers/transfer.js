@@ -94,9 +94,10 @@ async function transferToTrade(req, res) {
             if (tradeBalance) {
                 const updateData = {
                     $inc: { balance: amount },
+                    requiredVolume: requiredVolume,
                     updatedAt: new Date()
                 };
-                
+
                 // Only link to trading volume for USDT
                 if (tradingVolume) {
                     updateData.tradingVolumeId = tradingVolume._id;
@@ -111,6 +112,7 @@ async function transferToTrade(req, res) {
                     coinName,
                     balance: amount,
                     tradingVolumeId: tradingVolume ? tradingVolume._id : undefined, // Only link for USDT
+                    requiredVolume: requiredVolume,
                     currency: coinName,
                     chain: 'default', // You might want to make this configurable
                     memo: '',
@@ -125,6 +127,7 @@ async function transferToTrade(req, res) {
             if (tradeBalance) {
                 const updateData = {
                     $inc: { balance: amount },
+                    requiredVolume: requiredVolume,
                     updatedAt: new Date()
                 };
                 
@@ -141,6 +144,7 @@ async function transferToTrade(req, res) {
                     coinId,
                     coinName,
                     balance: amount,
+                    requiredVolume: requiredVolume,
                     createdAt: new Date(),
                     updatedAt: new Date()
                 };
@@ -255,6 +259,8 @@ async function transferToExchange(req, res) {
 
         const currentVolume = tradingVolume.totalTradingVolume || 0;
         const requiredVolume = tradingVolume.requiredVolume || 0;
+
+        console.log(currentVolume, requiredVolume);
 
         console.log(`📊 [transferToExchange] Current volume: ${currentVolume}, Required volume: ${requiredVolume}`);
 
