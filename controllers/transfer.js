@@ -256,9 +256,15 @@ async function transferToExchange(req, res) {
 
         // Get current trading volume from balance model (much more efficient!)
         let tradingVolume = await TradingVolume.findOne({ user: user._id, coinId });
+        let spotTradingVolume = await SpotBalance.findOne({ user: user._id, coinId });
+        let futuresTradingVolume = await FuturesBalance.findOne({ user: user._id, coinId });
 
-        const currentVolume = tradingVolume.totalTradingVolume || 0;
-        const requiredVolume = tradingVolume.requiredVolume || 0;
+        // Alternative way to get current volume
+        const currentVolume = spotTradingVolume.balance + futuresTradingVolume.balance;
+        const requiredVolume = spotTradingVolume.requiredVolume + futuresTradingVolume.requiredVolume;
+
+        // const currentVolume = tradingVolume.totalTradingVolume || 0;
+        // const requiredVolume = tradingVolume.requiredVolume || 0;
 
         console.log(currentVolume, requiredVolume);
 
