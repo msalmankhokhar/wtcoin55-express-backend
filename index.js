@@ -17,6 +17,7 @@ const os = require('os');
 
 let morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const { requestLogger, errorLogger, securityLogger } = require('./middleware/logging');
 
 
 const app = express();
@@ -135,6 +136,10 @@ const limiter = rateLimit({
 // Apply rate limiting to all routes
 app.use(limiter);
 
+// Apply logging middleware
+app.use(requestLogger);
+app.use(securityLogger);
+
 // Stricter rate limiting for auth routes
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -157,35 +162,14 @@ app.use(fileUpload({
 
 // Handle CORS with strict origin validation
 const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin for OPTIONS requests (preflight)
-        if (!origin) {
-            return callback(null, true);
-        }
-
-        const allowedOrigins = [
-            process.env.WEB_BASE_URL,
-            process.env.SERVER_URL,
-            `https://quantum-exchange.onrender.com`,
-            `https://quantum-exchange.vercel.app`,
-            'https://qtex.app',
-            'https://www.qtex.app',
-            'https://qtrade.exchange',
-            'https://www.qtrade.exchange'
-        ];
-
-        // Only allow localhost in development
-        if (process.env.NODE_ENV === 'development') {
-            allowedOrigins.push(`http://localhost:${PORT}`, `http://localhost:3000`);
-        }
-
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.log(`🚫 CORS blocked origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'), false);
-        }
-    },
+    origin: [
+        'https://qtex.app',
+        'https://www.qtex.app',
+        'https://qtrade.exchange',
+        'https://www.qtrade.exchange',
+        'https://quantum-exchange.onrender.com',
+        'https://quantum-exchange.vercel.app'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
         'Content-Type', 
@@ -200,7 +184,18 @@ const corsOptions = {
     maxAge: 86400 // 24 hours
 };
 
+// Add localhost in development
+if (process.env.NODE_ENV === 'development') {
+    corsOptions.origin.push(`http://localhost:${PORT}`, `http://localhost:3000`);
+}
 
+
+
+// Debug CORS requests
+app.use((req, res, next) => {
+    console.log(`🌐 CORS Debug - Method: ${req.method}, Origin: ${req.get('Origin')}, User-Agent: ${req.get('User-Agent')?.substring(0, 50)}`);
+    next();
+});
 
 app.use(cors(corsOptions));
 
@@ -225,6 +220,16 @@ const transferRoutes = require('./routes/transfer');
 app.get("/", (req, res) => {
   res.send("Hello, Express.js!");
 });
+
+// Test CORS endpoint
+app.get("/test-cors", (req, res) => {
+  res.json({
+    message: "CORS test successful",
+    origin: req.get('Origin'),
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
+});
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/ccpayment', ccpaymentRoutes);
@@ -245,6 +250,9 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
 // Import and initialize cron jobs
 require('./cronjob/index');
 
+
+// Error logging middleware (must be last)
+app.use(errorLogger);
 
 // Start server
 app.listen(PORT, () => {

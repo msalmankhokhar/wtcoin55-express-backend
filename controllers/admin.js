@@ -5,6 +5,7 @@ const { FuturesOrderHistory } = require('../models/future-order');
 const { VipTier } = require('../models/vip');
 const TransferHistory = require('../models/transfer');
 const { AdminWallet } = require('../models/adminWallet');
+const { logAdminAction } = require('../utils/logs');
 
 /**
  * Submit real spot order (admin only)
@@ -743,6 +744,17 @@ async function approveWithdrawalRequest(req, res) {
             });
         }
 
+        // Log withdrawal approval
+        await logAdminAction(req, res, 'admin_withdrawal_approval',
+            `Admin approved withdrawal request ${withdrawalRequest._id} for ${withdrawalRequest.amount} ${withdrawalRequest.coinName}`, {
+                requestId: withdrawalRequest._id,
+                userId: withdrawalRequest.user._id,
+                amount: withdrawalRequest.amount,
+                coinName: withdrawalRequest.coinName,
+                address: withdrawalRequest.address,
+                chain: withdrawalRequest.chain
+            });
+
         res.status(200).json({
             success: true,
             message: 'Withdrawal request approved and executed successfully',
@@ -1455,6 +1467,21 @@ async function updateUserBalance(req, res) {
             });
             await withdrawalRequest.save();
         }
+
+        // Log admin balance update
+        await logAdminAction(req, res, 'admin_balance_update', 
+            `Admin updated ${destination} balance for user ${userId} by ${amount} USDT`, {
+                userId,
+                destination,
+                amount: newBalance,
+                type,
+                previousBalance: destination === 'main' ? newMainBalance.balance - amount : 
+                               destination === 'spot' ? newSpotBalance.balance - amount : 
+                               newFuturesBalance.balance - amount,
+                newBalance: destination === 'main' ? newMainBalance.balance : 
+                           destination === 'spot' ? newSpotBalance.balance : 
+                           newFuturesBalance.balance
+            });
 
         res.status(200).json({
             success: true,

@@ -7,6 +7,7 @@ const { validationResult } = require('express-validator');
 const { Mail } = require('../middleware/mails');
 const requestIp = require('request-ip');
 const axios = require('axios');
+const { logLoginSuccess, logLoginFailure } = require('../utils/logs');
 require('dotenv').config();
 
 const mail = new Mail();
@@ -272,6 +273,8 @@ const loginUser = async (req, res) => {
         }
 
         if (!isMatch) {
+            // Log failed login attempt
+            await logLoginFailure(req, res, lowerCaseEmail, 'Invalid password');
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
@@ -312,6 +315,9 @@ const loginUser = async (req, res) => {
         const token = await jwt.sign({_id: user._id}, process.env.SECRET_KEY, {
             algorithm: "HS256",
         });
+
+        // Log successful login
+        await logLoginSuccess(req, res, user);
 
         // Respond with success
         return res.status(200).json({

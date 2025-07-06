@@ -35,6 +35,7 @@ const {
     getWithdrawalHistory
 } = require('../controllers/admin');
 const { adminTokenRequired } = require('../middleware/auth');
+const { getLogs, getActivityStats, Logs } = require('../utils/logs');
 
 const router = express.Router();
 const tokenRequired = adminTokenRequired;
@@ -2140,6 +2141,398 @@ router.get('/deposit-history', tokenRequired, getDepositHistory);
  *                   example: "Database connection error"
  */
 router.get('/withdrawal-history', tokenRequired, getWithdrawalHistory);
+
+/**
+ * @swagger
+ * /api/admin/logs:
+ *   get:
+ *     summary: Get system logs with filtering
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: query
+ *         name: userRole
+ *         schema:
+ *           type: string
+ *           enum: [admin, user, guest]
+ *         description: Filter by user role
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *         description: Filter by action type
+ *       - in: query
+ *         name: method
+ *         schema:
+ *           type: string
+ *           enum: [GET, POST, PUT, DELETE, PATCH]
+ *         description: Filter by HTTP method
+ *       - in: query
+ *         name: isSuspicious
+ *         schema:
+ *           type: boolean
+ *         description: Filter suspicious activities
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID
+ *       - in: query
+ *         name: ipAddress
+ *         schema:
+ *           type: string
+ *         description: Filter by IP address
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter from date
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter to date
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Number of logs to return
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Logs retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     logs:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Log'
+ *                     total:
+ *                       type: integer
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         itemsPerPage:
+ *                           type: integer
+ *       403:
+ *         description: Access denied
+ */
+router.get('/logs', adminTokenRequired, async (req, res) => {
+    try {
+        const { page = 1, limit = 100, ...filters } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        const { logs, total } = await getLogs(filters, parseInt(limit), skip);
+        
+        res.status(200).json({
+            success: true,
+            data: {
+                logs,
+                total,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / parseInt(limit)),
+                    itemsPerPage: parseInt(limit)
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error getting logs:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get logs'
+        });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/logs/stats:
+ *   get:
+ *     summary: Get activity statistics
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: query
+ *         name: timeWindow
+ *         schema:
+ *           type: integer
+ *           default: 86400000
+ *         description: Time window in milliseconds (24 hours default)
+ *     responses:
+ *       200:
+ *         description: Statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     actionStats:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: object
+ *                             properties:
+ *                               action:
+ *                                 type: string
+ *                               userRole:
+ *                                 type: string
+ *                           count:
+ *                             type: integer
+ *                           avgResponseTime:
+ *                             type: number
+ *                     suspiciousCount:
+ *                       type: integer
+ *                     failedLogins:
+ *                       type: integer
+ *                     timeWindow:
+ *                       type: integer
+ *       403:
+ *         description: Access denied
+ */
+router.get('/logs/stats', adminTokenRequired, async (req, res) => {
+    try {
+        const { timeWindow = 24 * 60 * 60 * 1000 } = req.query; // 24 hours default
+        
+        const stats = await getActivityStats(parseInt(timeWindow));
+        
+        res.status(200).json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        console.error('Error getting activity stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get activity statistics'
+        });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/logs/suspicious:
+ *   get:
+ *     summary: Get suspicious activities
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of suspicious activities to return
+ *     responses:
+ *       200:
+ *         description: Suspicious activities retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Log'
+ *       403:
+ *         description: Access denied
+ */
+router.get('/logs/suspicious', adminTokenRequired, async (req, res) => {
+    try {
+        const { limit = 50 } = req.query;
+        
+        const suspiciousActivities = await Logs.getSuspiciousActivities(parseInt(limit));
+        
+        res.status(200).json({
+            success: true,
+            data: suspiciousActivities
+        });
+    } catch (error) {
+        console.error('Error getting suspicious activities:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get suspicious activities'
+        });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/logs/login-attempts:
+ *   get:
+ *     summary: Get login attempts
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Number of login attempts to return
+ *     responses:
+ *       200:
+ *         description: Login attempts retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Log'
+ *       403:
+ *         description: Access denied
+ */
+router.get('/logs/login-attempts', adminTokenRequired, async (req, res) => {
+    try {
+        const { limit = 100 } = req.query;
+        
+        const loginAttempts = await Logs.getLoginAttempts(parseInt(limit));
+        
+        res.status(200).json({
+            success: true,
+            data: loginAttempts
+        });
+    } catch (error) {
+        console.error('Error getting login attempts:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get login attempts'
+        });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/logs/by-ip:
+ *   get:
+ *     summary: Get logs by IP address
+ *     tags: [Admin]
+ *     security:
+ *       - quantumAccessToken: []
+ *     parameters:
+ *       - in: query
+ *         name: ipAddress
+ *         schema:
+ *           type: string
+ *         description: IP address to filter by
+ *         required: true
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Number of logs to return
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Logs by IP retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     logs:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Log'
+ *                     total:
+ *                       type: integer
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         itemsPerPage:
+ *                           type: integer
+ *       403:
+ *         description: Access denied
+ */
+router.get('/logs/by-ip', adminTokenRequired, async (req, res) => {
+    try {
+        const { ipAddress, page = 1, limit = 100 } = req.query;
+        
+        if (!ipAddress) {
+            return res.status(400).json({
+                success: false,
+                message: 'IP address is required'
+            });
+        }
+        
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        const { logs, total } = await getLogs({ ipAddress }, parseInt(limit), skip);
+        
+        res.status(200).json({
+            success: true,
+            data: {
+                logs,
+                total,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / parseInt(limit)),
+                    itemsPerPage: parseInt(limit)
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error getting logs by IP:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to get logs by IP'
+        });
+    }
+});
 
 // Placeholder for admin routes
 router.get('/test', tokenRequired, (req, res) => {
