@@ -162,7 +162,7 @@ const corsOptions = {
         if (!origin) {
             return callback(null, true);
         }
-        
+
         const allowedOrigins = [
             process.env.WEB_BASE_URL,
             process.env.SERVER_URL,
@@ -173,12 +173,12 @@ const corsOptions = {
             'https://qtrade.exchange',
             'https://www.qtrade.exchange'
         ];
-        
+
         // Only allow localhost in development
         if (process.env.NODE_ENV === 'development') {
             allowedOrigins.push(`http://localhost:${PORT}`, `http://localhost:3000`);
         }
-        
+
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
@@ -187,7 +187,15 @@ const corsOptions = {
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin'],
+    allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'X-Requested-With', 
+        'Origin',
+        'quantumaccesstoken',
+        'x-access-token',
+        'x-refresh-token'
+    ],
     credentials: true,
     maxAge: 86400 // 24 hours
 };
