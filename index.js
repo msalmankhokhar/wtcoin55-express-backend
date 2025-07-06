@@ -24,12 +24,20 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+
+// Trust proxy for rate limiting (needed for Render.com)
+app.set('trust proxy', 1);
 console.log('Server running on port:', PORT);
 
 // Custom middleware to block requests from unauthorized tools (MUST BE FIRST!)
 app.use((req, res, next) => {
     const origin = req.get('Origin');
     const userAgent = req.get('User-Agent');
+    
+    // Allow OPTIONS requests (CORS preflight) to pass through
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
     
     // Block requests with suspicious User-Agents
     const blockedUserAgents = [
@@ -54,8 +62,8 @@ app.use((req, res, next) => {
         });
     }
     
-    // Block requests without proper origin in production
-    if (process.env.NODE_ENV === 'production' && !origin) {
+    // Block requests without proper origin in production (but allow OPTIONS)
+    if (process.env.NODE_ENV === 'production' && !origin && req.method !== 'OPTIONS') {
         console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
         return res.status(403).json({
             error: 'Access denied',
@@ -142,9 +150,9 @@ app.use(fileUpload({
 // Handle CORS with strict origin validation
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
+        // Allow requests with no origin for OPTIONS requests (preflight)
         if (!origin) {
-            return callback(new Error('Not allowed by CORS'), false);
+            return callback(null, true);
         }
         
         const allowedOrigins = [
@@ -170,8 +178,8 @@ const corsOptions = {
             callback(new Error('Not allowed by CORS'), false);
         }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin'],
     credentials: true,
     maxAge: 86400 // 24 hours
 };
