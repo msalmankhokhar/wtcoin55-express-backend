@@ -26,6 +26,46 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 console.log('Server running on port:', PORT);
 
+// Custom middleware to block requests from unauthorized tools (MUST BE FIRST!)
+app.use((req, res, next) => {
+    const origin = req.get('Origin');
+    const userAgent = req.get('User-Agent');
+    
+    // Block requests with suspicious User-Agents
+    const blockedUserAgents = [
+        'curl',
+        'postman',
+        'insomnia',
+        'thunder client',
+        'httpie',
+        'wget',
+        'python-requests'
+    ];
+    
+    const isBlockedUserAgent = blockedUserAgents.some(agent => 
+        userAgent && userAgent.toLowerCase().includes(agent.toLowerCase())
+    );
+    
+    if (isBlockedUserAgent) {
+        console.log(`🚫 Blocked request from User-Agent: ${userAgent}`);
+        return res.status(403).json({
+            error: 'Access denied',
+            message: 'This API cannot be accessed from this client'
+        });
+    }
+    
+    // Block requests without proper origin in production
+    if (process.env.NODE_ENV === 'production' && !origin) {
+        console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
+        return res.status(403).json({
+            error: 'Access denied',
+            message: 'Origin header required'
+        });
+    }
+    
+    next();
+});
+
 // Middleware to parse JSON
 console.log(process.env.SECRET_KEY);
 app.use(express.json());
@@ -136,45 +176,7 @@ const corsOptions = {
     maxAge: 86400 // 24 hours
 };
 
-// Custom middleware to block requests from unauthorized tools
-app.use((req, res, next) => {
-    const origin = req.get('Origin');
-    const userAgent = req.get('User-Agent');
-    
-    // Block requests with suspicious User-Agents
-    const blockedUserAgents = [
-        'curl',
-        'postman',
-        'insomnia',
-        'thunder client',
-        'httpie',
-        'wget',
-        'python-requests'
-    ];
-    
-    const isBlockedUserAgent = blockedUserAgents.some(agent => 
-        userAgent && userAgent.toLowerCase().includes(agent.toLowerCase())
-    );
-    
-    if (isBlockedUserAgent) {
-        console.log(`🚫 Blocked request from User-Agent: ${userAgent}`);
-        return res.status(403).json({
-            error: 'Access denied',
-            message: 'This API cannot be accessed from this client'
-        });
-    }
-    
-    // Block requests without proper origin in production
-    if (process.env.NODE_ENV === 'production' && !origin) {
-        console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
-        return res.status(403).json({
-            error: 'Access denied',
-            message: 'Origin header required'
-        });
-    }
-    
-    next();
-});
+
 
 app.use(cors(corsOptions));
 
