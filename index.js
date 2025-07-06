@@ -163,6 +163,7 @@ app.use(fileUpload({
 // Handle CORS with strict origin validation
 const corsOptions = {
     origin: [
+        'http://localhost:3000',
         'https://qtex.app',
         'https://www.qtex.app',
         'https://qtrade.exchange',
