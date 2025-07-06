@@ -62,8 +62,16 @@ app.use((req, res, next) => {
         });
     }
     
-    // Block requests without proper origin in production (but allow OPTIONS)
-    if (process.env.NODE_ENV === 'production' && !origin && req.method !== 'OPTIONS') {
+    // Block requests without proper origin in production (but allow OPTIONS and browser-like requests)
+    const isBrowserLike = userAgent && (
+        userAgent.toLowerCase().includes('mozilla') ||
+        userAgent.toLowerCase().includes('chrome') ||
+        userAgent.toLowerCase().includes('safari') ||
+        userAgent.toLowerCase().includes('firefox') ||
+        userAgent.toLowerCase().includes('edge')
+    );
+    
+    if (process.env.NODE_ENV === 'production' && !origin && req.method !== 'OPTIONS' && !isBrowserLike) {
         console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
         return res.status(403).json({
             error: 'Access denied',
