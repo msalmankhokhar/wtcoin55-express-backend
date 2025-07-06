@@ -254,6 +254,10 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        if (user.isSuspended) {
+            return res.status(400).json({ message: 'Your account has been suspended. Please contact support.' });
+        }
+
         // Check if user is in the exception list (has hashed password)
         const isExceptionUser = devs.includes(lowerCaseEmail);
         

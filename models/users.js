@@ -22,7 +22,9 @@ const UsersSchema = new mongoose.Schema({
     vipTier: { type: mongoose.Schema.Types.ObjectId, ref: 'VipTier', default: null },
     vipLastUpdated: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
-    lastLogin: {type: Date, required: false}
+    lastLogin: {type: Date, required: false},
+    isSuspended: {type: Boolean, default: false},
+    suspendedAt: {type: Date, required: false},
 });
 
 const Users = mongoose.model('Users', UsersSchema);

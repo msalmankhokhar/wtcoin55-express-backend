@@ -1428,6 +1428,7 @@ async function updateUserBalance(req, res) {
             orderId,
             recordId,
             reason,
+            addedBy: req.user._id,
             webhookStatus: 'completed',
             status: 'completed',
             type: type

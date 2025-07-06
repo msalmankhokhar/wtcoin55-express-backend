@@ -32,7 +32,8 @@ let transactionSchema = new mongoose.Schema({
      logoUrl: { type: String, default: '' },
      withdrawalId: { type: String, required: false },
      referenceId: { type: String, required: false },
-     
+     addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: false },
+
      // Financial Information
      amount: {
           type: Number,

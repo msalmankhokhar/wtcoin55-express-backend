@@ -54,7 +54,7 @@ class Mail {
                 name: this.appName,
                 address: this.admin,
             },
-            subject: 'Welcome to Elentis',
+            subject: 'Welcome to Tradovate',
             html: await this.renderTemplate(this.welcomeMail, data),
         };
 
