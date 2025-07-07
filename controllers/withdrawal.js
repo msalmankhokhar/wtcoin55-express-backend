@@ -23,7 +23,7 @@ async function submitWithdrawalRequest(req, res) {
             });
         }
 
-        if (user.kycStatus !== 'approved') {
+        if (user.kycVerification !== 'approved') {
             return res.status(400).json({
                 success: false,
                 message: 'KYC is not approved. Please wait for the admin to approve it.'
