@@ -31,57 +31,57 @@ app.set('trust proxy', 1);
 console.log('Server running on port:', PORT);
 
 // Custom middleware to block requests from unauthorized tools (MUST BE FIRST!)
-app.use((req, res, next) => {
-    const origin = req.get('Origin');
-    const userAgent = req.get('User-Agent');
+// app.use((req, res, next) => {
+//     const origin = req.get('Origin');
+//     const userAgent = req.get('User-Agent');
     
-    // Allow OPTIONS requests (CORS preflight) to pass through
-    if (req.method === 'OPTIONS') {
-        return next();
-    }
+//     // Allow OPTIONS requests (CORS preflight) to pass through
+//     if (req.method === 'OPTIONS') {
+//         return next();
+//     }
     
-    // Block requests with suspicious User-Agents
-    const blockedUserAgents = [
-        'curl',
-        'postman',
-        'insomnia',
-        'thunder client',
-        'httpie',
-        'wget',
-        'python-requests'
-    ];
+//     // Block requests with suspicious User-Agents
+//     const blockedUserAgents = [
+//         'curl',
+//         'postman',
+//         'insomnia',
+//         'thunder client',
+//         'httpie',
+//         'wget',
+//         'python-requests'
+//     ];
     
-    const isBlockedUserAgent = blockedUserAgents.some(agent => 
-        userAgent && userAgent.toLowerCase().includes(agent.toLowerCase())
-    );
+//     const isBlockedUserAgent = blockedUserAgents.some(agent => 
+//         userAgent && userAgent.toLowerCase().includes(agent.toLowerCase())
+//     );
     
-    if (isBlockedUserAgent) {
-        console.log(`🚫 Blocked request from User-Agent: ${userAgent}`);
-        return res.status(403).json({
-            error: 'Access denied',
-            message: 'This API cannot be accessed from this client'
-        });
-    }
+//     if (isBlockedUserAgent) {
+//         console.log(`🚫 Blocked request from User-Agent: ${userAgent}`);
+//         return res.status(403).json({
+//             error: 'Access denied',
+//             message: 'This API cannot be accessed from this client'
+//         });
+//     }
     
-    // Block requests without proper origin in production (but allow OPTIONS and browser-like requests)
-    const isBrowserLike = userAgent && (
-        userAgent.toLowerCase().includes('mozilla') ||
-        userAgent.toLowerCase().includes('chrome') ||
-        userAgent.toLowerCase().includes('safari') ||
-        userAgent.toLowerCase().includes('firefox') ||
-        userAgent.toLowerCase().includes('edge')
-    );
+//     // Block requests without proper origin in production (but allow OPTIONS and browser-like requests)
+//     const isBrowserLike = userAgent && (
+//         userAgent.toLowerCase().includes('mozilla') ||
+//         userAgent.toLowerCase().includes('chrome') ||
+//         userAgent.toLowerCase().includes('safari') ||
+//         userAgent.toLowerCase().includes('firefox') ||
+//         userAgent.toLowerCase().includes('edge')
+//     );
     
-    if (process.env.NODE_ENV === 'production' && !origin && req.method !== 'OPTIONS' && !isBrowserLike) {
-        console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
-        return res.status(403).json({
-            error: 'Access denied',
-            message: 'Origin header required'
-        });
-    }
+//     if (process.env.NODE_ENV === 'production' && !origin && req.method !== 'OPTIONS' && !isBrowserLike) {
+//         console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
+//         return res.status(403).json({
+//             error: 'Access denied',
+//             message: 'Origin header required'
+//         });
+//     }
     
-    next();
-});
+//     next();
+// });
 
 // Middleware to parse JSON
 console.log(process.env.SECRET_KEY);
@@ -93,64 +93,64 @@ app.use(session({
     saveUninitialized: false
 }));
 // Enhanced security headers
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
-        },
-    },
-    crossOriginEmbedderPolicy: false,
-}));
+// app.use(helmet({
+//     contentSecurityPolicy: {
+//         directives: {
+//             defaultSrc: ["'self'"],
+//             styleSrc: ["'self'", "'unsafe-inline'"],
+//             scriptSrc: ["'self'"],
+//             imgSrc: ["'self'", "data:", "https:"],
+//         },
+//     },
+//     crossOriginEmbedderPolicy: false,
+// }));
 
 // Additional security middleware
-app.use((req, res, next) => {
-    // Remove server information
-    res.removeHeader('X-Powered-By');
+// app.use((req, res, next) => {
+//     // Remove server information
+//     res.removeHeader('X-Powered-By');
     
-    // Add security headers
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+//     // Add security headers
+//     res.setHeader('X-Content-Type-Options', 'nosniff');
+//     res.setHeader('X-Frame-Options', 'DENY');
+//     res.setHeader('X-XSS-Protection', '1; mode=block');
+//     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     
-    next();
-});
+//     next();
+// });
 // app.use(xss());
 app.use(morgan('dev'));
 
 // Rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    message: {
-        error: 'Too many requests from this IP, please try again later.',
-        retryAfter: '15 minutes'
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+// const limiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 100, // limit each IP to 100 requests per windowMs
+//     message: {
+//         error: 'Too many requests from this IP, please try again later.',
+//         retryAfter: '15 minutes'
+//     },
+//     standardHeaders: true,
+//     legacyHeaders: false,
+// });
 
 // Apply rate limiting to all routes
-app.use(limiter);
+// app.use(limiter);
 
 // Apply logging middleware
-app.use(requestLogger);
-app.use(securityLogger);
+// app.use(requestLogger);
+// app.use(securityLogger);
 
 // Stricter rate limiting for auth routes
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 requests per windowMs
-    message: {
-        error: 'Too many authentication attempts, please try again later.',
-        retryAfter: '15 minutes'
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+// const authLimiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 5, // limit each IP to 5 requests per windowMs
+//     message: {
+//         error: 'Too many authentication attempts, please try again later.',
+//         retryAfter: '15 minutes'
+//     },
+//     standardHeaders: true,
+//     legacyHeaders: false,
+// });
 
 // File upload middleware
 app.use(fileUpload({
@@ -232,7 +232,8 @@ app.get("/test-cors", (req, res) => {
   });
 });
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.use('/api/auth', authLimiter, authRoutes);
+// app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/ccpayment', ccpaymentRoutes);
 app.use('/api/bitmart', bitmartRoutes);
 // app.use('/api/kucoin', kucoinRoutes);
