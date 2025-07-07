@@ -60,6 +60,10 @@ async function logActivity(options) {
         return logEntry;
     } catch (error) {
         console.error('Error logging activity:', error);
+        // Log validation errors specifically
+        if (error.name === 'ValidationError') {
+            console.error('Validation errors:', error.errors);
+        }
         // Don't throw error to avoid breaking the main flow
     }
 }

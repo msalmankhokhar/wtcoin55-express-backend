@@ -24,7 +24,7 @@ const logsSchema = new mongoose.Schema({
     // Request information
     method: {
         type: String,
-        enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        enum: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         required: true
     },
     endpoint: {
@@ -84,6 +84,7 @@ const logsSchema = new mongoose.Schema({
             // Authentication actions
             'login_success',
             'login_failed',
+            'login_attempt',
             'logout',
             'register',
             'password_reset',
@@ -109,6 +110,10 @@ const logsSchema = new mongoose.Schema({
             'user_order_placement',
             'user_withdrawal_request',
             'user_transfer',
+            'user_action',
+            'user_trading_action',
+            'user_withdrawal_action',
+            'user_transfer_action',
             
             // System actions
             'system_error',

@@ -1296,26 +1296,26 @@ async function kycVerification(req, res) {
 async function getKycVerification(req, res) {
     try {
         const { kycVerification: KYCVerificationModel } = require('../models/kycVerification');
-        
+
         const { status, page = 1, limit = 20 } = req.query;
-        
+
         // Build query filter
         let query = {};
         if (status && ['pending', 'approved', 'rejected'].includes(status)) {
             query.status = status;
         }
-        
+
         // Calculate pagination
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const limitNum = parseInt(limit);
-        
+
         // Get KYC verifications with user details
         const kycVerifications = await KYCVerificationModel.find(query)
             .populate('user', 'email firstName lastName')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limitNum);
-            
+
         // Get total count for pagination
         const totalCount = await KYCVerificationModel.countDocuments(query);
 

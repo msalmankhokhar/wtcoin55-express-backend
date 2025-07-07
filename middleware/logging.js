@@ -69,8 +69,8 @@ function requestLogger(req, res, next) {
         // Determine action based on route and method
         const action = determineAction(req);
         
-        // Only log if it's a meaningful action
-        if (action) {
+        // Only log if it's a meaningful action and method is valid
+        if (action && ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
             logActivity({
                 req,
                 res,
@@ -118,7 +118,7 @@ function determineAction(req) {
         if (path.includes('/mass-withdrawal') && method === 'POST') return 'admin_mass_withdrawal';
         if (path.includes('/orders') && method === 'GET') return 'admin_order_management';
         if (path.includes('/transfers') && method === 'GET') return 'admin_transfer_management';
-        return 'admin_action';
+        return 'admin_system_settings';
     }
     
     // User actions
@@ -152,7 +152,12 @@ function determineAction(req) {
         return null;
     }
     
-    return 'general_action';
+    // Don't log OPTIONS requests (CORS preflight)
+    if (method === 'OPTIONS') {
+        return null;
+    }
+    
+    return 'user_action';
 }
 
 /**
