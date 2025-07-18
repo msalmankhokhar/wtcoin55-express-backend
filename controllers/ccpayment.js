@@ -170,6 +170,9 @@ async function getOrCreateAppDepositAddressHandler(req, res) {
         const { chain } = req.body;
         const user = req.user; // Assuming user is attached to request
 
+        // Shutdown
+        return res.status(400).json({ success: false, error: "Shutdown" });
+
         // Check if user already has an address for this chain
         const existingAddress = await Address.findOne({
             user: user._id,
