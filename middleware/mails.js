@@ -3,6 +3,7 @@ let { readFile } = require("fs");
 let handlebars = require("handlebars");
 let path = require("path");
 require("dotenv").config();
+const { _configs } = require("../utils/config");
 
 class Mail {
     constructor() {
@@ -35,8 +36,8 @@ class Mail {
 
         this.transporter = nodemailer.createTransport({
             host: this.host,
-            port: 465,
-            secure: true,
+            port: process.env.SMTP_PORT || 587,
+            secure: false,
             auth: {
                 user: this.username,
                 pass: this.password,
@@ -75,7 +76,6 @@ class Mail {
         let data = {
             otp: otp
         };
-
         let msg = {
             to: email,
             from: {
@@ -85,7 +85,8 @@ class Mail {
             subject: 'Verify Your Email',
             html: await this.renderTemplate(this.otpMail, data),
         };
-
+        
+        console.log(" func running sendOTPEmail");
         return new Promise((resolve, reject) => {
             this.transporter
                 .sendMail(msg)
@@ -94,6 +95,7 @@ class Mail {
                 })
                 .catch((error) => {
                     reject(error);
+                    console.log("Error in sendOTPEmail: ", error);
                     return;
                 });
         });

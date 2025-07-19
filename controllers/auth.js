@@ -122,18 +122,24 @@ const Signup = async (req, res) => {
 }
 
 const GetVerificationCode = async (req, res) => {
-    const { email } = req.body;
+    const { email, phonenumber } = req.body;
     if (!email && !phonenumber) return res.status(400).json({ message: 'Email or Phonenumber is required' });
 
     try {
         let otp;
         if (email) {
+            console.log("user email: ", email);
             otp = await createOrUpdateOTP(email);
             await mail.sendOTPEmail({ email, otp });
+        }
+        if (phonenumber) {
+            otp = await createOrUpdateOTP(phonenumber);
+            await mail.sendOTPEmail({ phonenumber, otp });
         }
 
         res.status(200).json({ otp });
     } catch (err) {
+        console.log('error in otp generation: ', err);
         res.status(500).json({ message: err.message });
     }
 }

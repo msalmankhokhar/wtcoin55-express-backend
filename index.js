@@ -34,12 +34,12 @@ console.log('Server running on port:', PORT);
 // app.use((req, res, next) => {
 //     const origin = req.get('Origin');
 //     const userAgent = req.get('User-Agent');
-    
+
 //     // Allow OPTIONS requests (CORS preflight) to pass through
 //     if (req.method === 'OPTIONS') {
 //         return next();
 //     }
-    
+
 //     // Block requests with suspicious User-Agents
 //     const blockedUserAgents = [
 //         'curl',
@@ -50,11 +50,11 @@ console.log('Server running on port:', PORT);
 //         'wget',
 //         'python-requests'
 //     ];
-    
+
 //     const isBlockedUserAgent = blockedUserAgents.some(agent => 
 //         userAgent && userAgent.toLowerCase().includes(agent.toLowerCase())
 //     );
-    
+
 //     if (isBlockedUserAgent) {
 //         console.log(`🚫 Blocked request from User-Agent: ${userAgent}`);
 //         return res.status(403).json({
@@ -62,7 +62,7 @@ console.log('Server running on port:', PORT);
 //             message: 'This API cannot be accessed from this client'
 //         });
 //     }
-    
+
 //     // Block requests without proper origin in production (but allow OPTIONS and browser-like requests)
 //     const isBrowserLike = userAgent && (
 //         userAgent.toLowerCase().includes('mozilla') ||
@@ -71,7 +71,7 @@ console.log('Server running on port:', PORT);
 //         userAgent.toLowerCase().includes('firefox') ||
 //         userAgent.toLowerCase().includes('edge')
 //     );
-    
+
 //     if (process.env.NODE_ENV === 'production' && !origin && req.method !== 'OPTIONS' && !isBrowserLike) {
 //         console.log(`🚫 Blocked request without origin from IP: ${req.ip}`);
 //         return res.status(403).json({
@@ -79,7 +79,7 @@ console.log('Server running on port:', PORT);
 //             message: 'Origin header required'
 //         });
 //     }
-    
+
 //     next();
 // });
 
@@ -88,9 +88,9 @@ console.log(process.env.SECRET_KEY);
 app.use(express.json());
 app.use(cookieParser());
 app.use(session({
-    secret: process.env.SECRET_KEY,
-    resave: false,
-    saveUninitialized: false
+  secret: process.env.SECRET_KEY,
+  resave: false,
+  saveUninitialized: false
 }));
 // Enhanced security headers
 // app.use(helmet({
@@ -109,13 +109,13 @@ app.use(session({
 // app.use((req, res, next) => {
 //     // Remove server information
 //     res.removeHeader('X-Powered-By');
-    
+
 //     // Add security headers
 //     res.setHeader('X-Content-Type-Options', 'nosniff');
 //     res.setHeader('X-Frame-Options', 'DENY');
 //     res.setHeader('X-XSS-Protection', '1; mode=block');
 //     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    
+
 //     next();
 // });
 // app.use(xss());
@@ -154,48 +154,49 @@ app.use(morgan('dev'));
 
 // File upload middleware
 app.use(fileUpload({
-    useTempFiles: true,
-    tempFileDir: path.join(os.tmpdir(), 'quantum-exchange-uploads'),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-    abortOnLimit: true
+  useTempFiles: true,
+  tempFileDir: path.join(os.tmpdir(), 'quantum-exchange-uploads'),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  abortOnLimit: true
 }));
 
 // Handle CORS with strict origin validation
 const corsOptions = {
-    origin: [
-        'http://localhost:3000',
-        'https://qtex.app',
-        'https://www.qtex.app',
-        'https://qtrade.exchange',
-        'https://www.qtrade.exchange',
-        'https://quantum-exchange.onrender.com',
-        'https://quantum-exchange.vercel.app'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-        'Content-Type', 
-        'Authorization', 
-        'X-Requested-With', 
-        'Origin',
-        'quantumaccesstoken',
-        'x-access-token',
-        'x-refresh-token'
-    ],
-    credentials: true,
-    maxAge: 86400 // 24 hours
+  origin: [
+    '*',
+    'http://localhost:3000',
+    'https://qtex.app',
+    'https://www.qtex.app',
+    'https://qtrade.exchange',
+    'https://www.qtrade.exchange',
+    'https://quantum-exchange.onrender.com',
+    'https://quantum-exchange.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Origin',
+    'quantumaccesstoken',
+    'x-access-token',
+    'x-refresh-token'
+  ],
+  credentials: true,
+  maxAge: 86400 // 24 hours
 };
 
 // Add localhost in development
 if (process.env.NODE_ENV === 'development') {
-    corsOptions.origin.push(`http://localhost:${PORT}`, `http://localhost:3000`);
+  corsOptions.origin.push(`http://localhost:${PORT}`, `http://localhost:3000`);
 }
 
 
 
 // Debug CORS requests
 app.use((req, res, next) => {
-    console.log(`🌐 CORS Debug - Method: ${req.method}, Origin: ${req.get('Origin')}, User-Agent: ${req.get('User-Agent')?.substring(0, 50)}`);
-    next();
+  console.log(`🌐 CORS Debug - Method: ${req.method}, Origin: ${req.get('Origin')}, User-Agent: ${req.get('User-Agent')?.substring(0, 50)}`);
+  next();
 });
 
 app.use(cors(corsOptions));
@@ -245,8 +246,8 @@ app.use('/api/transfer', transferRoutes);
 
 
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true, serverSelectionTimeoutMS: 10000 })
-    .then(() => console.log('MongoDB connected'))
-    .catch((err) => console.error('MongoDB connection error:', err));
+  .then(() => console.log('MongoDB connected'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 
 // Import and initialize cron jobs
