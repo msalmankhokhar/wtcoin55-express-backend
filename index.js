@@ -165,6 +165,8 @@ const corsOptions = {
   origin: [
     '*',
     'http://localhost:3000',
+    'https://29uex.com',
+    'https://www.29uex.com',
     'https://qtex.app',
     'https://www.qtex.app',
     'https://qtrade.exchange',
